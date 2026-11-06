@@ -18,7 +18,7 @@ NORMATIVE = re.compile(
     r"\b(devera|deverao|permit|possibil|sera|serao|havera|podera|poderao|capacidade|"
     r"garantir|realizar|manter|fornecer|possuir|disponibilizar|registrar|a contratada|"
     r"o sistema|a plataforma|a solucao|integracao|permitir|constituir|necessaria)\b", re.I)
-SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s+(.{3,150})$")
+SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
@@ -41,7 +41,7 @@ def clean_source_line(line):
     low = folded(text)
     if not text or low.startswith(BOILERPLATE):
         return ""
-    if re.fullmatch(r"[-–]\s*\d{1,3}\s*[-–]|[oO]", text):
+    if re.fullmatch(r"[-–]\s*(?:\d{1,3}|[iIlL]{1,3})\s*[-–]|[oO]", text):
         return ""
     return text
 
@@ -212,7 +212,7 @@ def extract_candidates(text):
         body = candidate["body"]
         low = folded(body)
         section_low = folded(candidate["section"])
-        is_scope = any(term in section_low for term in ("objeto", "justificativa", "objetivo do projeto", "caracteristicas tecnicas")) or section_low.startswith("§5.")
+        is_scope = candidate["section"].strip().startswith("§")
         if candidate["marker"] or is_scope or NORMATIVE.search(low):
             filtered.append(candidate)
 
@@ -226,6 +226,13 @@ def extract_candidates(text):
                 merged[-1]["page_end"] == candidate["page_start"] and
                 "http" in folded(merged[-1]["body"])):
             merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
+        elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
+              merged[-1]["section"] == candidate["section"] and
+              ((folded(merged[-1]["body"]).endswith("mediante") and body_low.startswith("identificacao do usuario")) or
+               (folded(merged[-1]["body"]).endswith("qual usuario") and body_low.startswith("responsavel na linha do tempo")) or
+               (folded(merged[-1]["body"]).endswith("historico de usuarios ao") and body_low.startswith("longo do mes")))):
+            merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
+            merged[-1]["page_end"] = candidate["page_end"]
         else:
             merged.append(candidate)
     filtered = merged
@@ -270,6 +277,23 @@ def extract_candidates(text):
     permission_continuation = [row for row in internal_access if "segmentacao das permissoes" in folded(row["body"])]
     if not permission_continuation or "resolucao no 50/2022" not in folded(permission_continuation[0]["body"]):
         raise SystemExit("A continuação do requisito de níveis de acesso não foi juntada entre as páginas 6–7.")
+    later_text = " ".join(folded(row["body"]) for row in filtered)
+    for phrase in (
+        "todos os modulos utilizarao do sistema de notificacoes multicanal",
+        "possibilidade de parametrizacao para adicao de campos personalizados",
+        "impressao de documentos em layout padronizado",
+        "organograma dinamico criado automaticamente",
+        "calendario mensal",
+        "qr-code vinculado de modo a facilitar a rastreabilidade",
+        "possibilitar excluir um prazo/atividade, incluindo anotacao de qual usuario responsavel",
+        "registro e rastreamento de documentos por meio de qr code e mediante identificacao do usuario",
+    ):
+        if phrase not in later_text:
+            raise SystemExit(f"OCR das páginas 9–12 não preservou o trecho de referência: {phrase}")
+    if not any("§10" in row["section"] and "status de leitura" in folded(row["body"]) for row in filtered):
+        raise SystemExit("O cabeçalho §10 não foi reconhecido; requisito de leitura ficou na seção anterior.")
+    if not any("§11" in row["section"] and "historico de usuarios" in folded(row["body"]) for row in filtered):
+        raise SystemExit("O cabeçalho §11 não foi reconhecido; requisito de plano da Prefeitura ficou ausente.")
     return filtered
 
 
