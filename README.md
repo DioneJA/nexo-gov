@@ -30,7 +30,7 @@ O banco de demonstração usa volume e porta próprios (`127.0.0.1:55433`, volum
 - `frontend/`: aplicação Vue 3 e Quasar para cidadão e servidor.
 - `contracts/`: contratos OpenAPI versionados.
 - `docs/`: análise de origem, decisão de extração, edital, rastreabilidade, riscos e plano de implantação.
-- `docs/INCREMENTO_01.md`, `docs/INCREMENTO_02.md` e `docs/INCREMENTO_03.md`: histórico dos incrementos verificáveis.
+- `docs/INCREMENTO_01.md` a `docs/INCREMENTO_04.md`: histórico dos incrementos verificáveis.
 - `../nexo-core/`: repositório Maven independente do NEXO Core; a versão `0.1.0` é instalada localmente antes do build do Gov.
 
 ## Estado de aderência

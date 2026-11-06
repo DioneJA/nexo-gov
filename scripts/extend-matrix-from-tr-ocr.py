@@ -235,7 +235,16 @@ def extract_candidates(text):
             merged[-1]["page_end"] = candidate["page_end"]
         else:
             merged.append(candidate)
-    filtered = merged
+    filtered = []
+    for candidate in merged:
+        if "§12" in candidate["section"]:
+            parts = re.split(r"(?=Ferramenta para importação de contatos em vCARD\.)", candidate["body"], flags=re.I)
+            if len(parts) == 2 and parts[0].rstrip().endswith("."):
+                first = dict(candidate, body=parts[0].strip())
+                second = dict(candidate, body=parts[1].strip())
+                filtered.extend((first, second))
+                continue
+        filtered.append(candidate)
 
     objective_items = {
         row["marker"] for row in filtered
@@ -294,6 +303,22 @@ def extract_candidates(text):
         raise SystemExit("O cabeçalho §10 não foi reconhecido; requisito de leitura ficou na seção anterior.")
     if not any("§11" in row["section"] and "historico de usuarios" in folded(row["body"]) for row in filtered):
         raise SystemExit("O cabeçalho §11 não foi reconhecido; requisito de plano da Prefeitura ficou ausente.")
+    source_sections = {row["section"].split()[0] for row in filtered}
+    if not {"§12", "§13", "§14", "§15", "§16", "§17"}.issubset(source_sections):
+        raise SystemExit("OCR das páginas 13–16 não reconheceu todas as seções 12–17.")
+    contact_tools = [row["body"] for row in filtered if "§12" in row["section"] and "ferramenta para importacao" in folded(row["body"])]
+    if not any("importacao e exportacao de contatos em csv" in folded(body) for body in contact_tools):
+        raise SystemExit("O requisito de importação/exportação CSV de contatos ficou ausente.")
+    if not any("importacao de contatos em vcard" in folded(body) for body in contact_tools):
+        raise SystemExit("O requisito de importação vCard de contatos ficou ausente.")
+    later_sections_text = " ".join(folded(row["section"] + " " + row["body"]) for row in filtered)
+    for phrase in (
+        "possibilidade de unificacao de contatos repetidos", "documentos emitidos serao direcionados a um setor",
+        "diferenciacao do acesso interno", "central de atendimento", "reabertura do documento",
+        "sistema de notificacao multicanais", "os canais disponiveis serao: e-mail, sms",
+    ):
+        if phrase not in later_sections_text:
+            raise SystemExit(f"OCR das páginas 13–16 não preservou o trecho de referência: {phrase}")
     return filtered
 
 

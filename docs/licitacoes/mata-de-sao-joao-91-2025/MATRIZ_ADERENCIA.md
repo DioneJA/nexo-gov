@@ -4,9 +4,9 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 ## Estado atual
 
-- Total de linhas/requisitos rastreados: **1303**.
+- Total de linhas/requisitos rastreados: **1304**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Parágrafos e alíneas candidatos do Termo de Referência via OCR não conferido: **657**, todos `BLOQUEADO`.
+- Parágrafos e alíneas candidatos do Termo de Referência via OCR não conferido: **658**, todos `BLOQUEADO`.
 - Requisitos contratuais/empresariais fora do escopo exclusivo de software: **11**.
 - Status `VALIDADO`: **0**. Não há alegação de 100% de aderência.
 
@@ -14,7 +14,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Status | Linhas |
 |---|---:|
-| `BLOQUEADO` | 657 |
+| `BLOQUEADO` | 658 |
 | `EM_DESENVOLVIMENTO` | 10 |
 | `NAO_INICIADO` | 636 |
 
@@ -38,7 +38,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 | `NOTIFICACOES` | 21 |
 | `OPERACAO_E_INTEGRACOES` | 19 |
 | `OUVIDORIA` | 58 |
-| `PLATAFORMA_E_ARQUITETURA` | 219 |
+| `PLATAFORMA_E_ARQUITETURA` | 220 |
 | `POC` | 1 |
 | `POC_E_OPERACAO` | 2 |
 | `PORTAL_EXTERNO` | 42 |
@@ -57,7 +57,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Natureza | Linhas |
 |---|---:|
-| `CANDIDATO OCR PT NÃO CONFERIDO` | 657 |
+| `CANDIDATO OCR PT NÃO CONFERIDO` | 658 |
 | `EXTERNO/CONTRATUAL` | 11 |
 | `HABILITACAO_EMPRESARIAL` | 1 |
 | `OPERACAO_CONTRATUAL` | 59 |
