@@ -22,7 +22,7 @@ SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
-VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 56
+VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 60
 BOILERPLATE = (
     "prefeitura municipal de mata de sao joao", "secretaria de administracao e financas",
     "para verificar a validade", "assinado por 1 pessoa", "1doc.com.br/verificacao",
@@ -448,6 +448,12 @@ def extract_candidates(text):
             merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
             merged[-1]["page_end"] = candidate["page_end"]
         elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
+              merged[-1]["section"] == candidate["section"] and "§9" in candidate["section"] and
+              folded(merged[-1]["body"]).endswith("configuracao de campo") and
+              body_low.startswith("personalizado com funcionalidade de validacao automatica da existencia de cnpj")):
+            merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
+            merged[-1]["page_end"] = candidate["page_end"]
+        elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
               merged[-1]["section"] == candidate["section"] and "§18" in candidate["section"] and
               ((folded(merged[-1]["body"]).endswith("mata de sao joao") and body_low.startswith("necessite realizar a hospedagem")) or
                (folded(merged[-1]["body"]).endswith("devera cooperar") and body_low.startswith("e auxiliar, prestando total suporte")) or
@@ -847,6 +853,10 @@ def extract_candidates(text):
         folded(row["body"]) for row in filtered
         if "§9" in row["section"] and "(Anexo II)" in row["section"] and row["page_start"] <= 56
     )
+    project_full_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§9" in row["section"] and "(Anexo II)" in row["section"]
+    )
     for phrase in (
         "projetos de construcoes unifamiliares", "desmembramento, remembramento", "licenca ambiental previa",
         "licenca ambiental de instalacao", "licenca ambiental de operacao", "plano de gerenciamento de residuos solidos",
@@ -854,6 +864,23 @@ def extract_candidates(text):
         "codigo de enderecamento postal (cep)", "validacao automatica da existencia de cpf",
     ):
         if phrase not in project_text:
+            raise SystemExit(f"Anexo II, item 9 Projetos não preservou: {phrase}")
+    for phrase in (
+        "validacao automatica da existencia de cnpj", "classificacao nacional de atividades economicas (cnae)",
+        "calculo de parametros urbanisticos", "revisao de documentos e plantas de projeto em formato pdf",
+        "selo de aprovacao", "distancia real entre dois pontos", "area real de elipses",
+        "escala numerica padrao", "escala numerica especifica", "casas decimais pretendidas",
+        "deferimento ou indeferimento", "impossibilidade de exibicao ao usuario externo",
+        "sem custos adicionais e sem limite de quantidade", "100% digital", "mediante link na homepage oficial",
+        "pdf ou dwg", "documentos definidos previamente como obrigatorios", "sem a exigencia de login",
+        "visualizaram ou se efetivaram o download", "requerimentos e formularios", "arquiteto, engenheiro",
+        "numero do documento (cpf ou cnpj)", "copia de todos os arquivos anexados", "caixa de entrada do setor",
+        "analise individualizada dos anexos", "motivacao do indeferimento", "copia sera enviada ao e-mail",
+        "figuras geometricas, linhas e tracos", "arquivo original sera mantido inalterado",
+        "linha do tempo", "sistema tributario", "codigo verificador e qr code", "miniatura de todos os arquivos",
+        "sisobra", "transmissao automatizada", "habite-se", "certificado digital icp-brasil",
+    ):
+        if phrase not in project_full_text:
             raise SystemExit(f"Anexo II, item 9 Projetos não preservou: {phrase}")
     return filtered
 
@@ -910,7 +937,7 @@ def module_for(section, body):
 def nature_for(section, body):
     """Classify the obligation type independently from source-review state."""
     text = folded(section + " " + body)
-    if "§42" in section or "icp-brasil" in text or "tramita gov.br" in text:
+    if "§42" in section or "icp-brasil" in text or "tramita gov.br" in text or "sisobra" in text:
         return "INTEGRACAO_EXTERNA"
     if "§41" in section:
         return "POC"

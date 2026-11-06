@@ -6,8 +6,8 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 - Total de linhas/requisitos rastreados: **1416**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Requisitos extraídos do Termo de Referência: **770**; transcrições conferidas visualmente: **610**; ainda pendentes de cotejo visual: **160**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
-- Requisitos não estritamente de software: **206**; operação contratual **115**, integração externa **61**, habilitação **4**, obrigações externas/contratuais **26**.
+- Requisitos extraídos do Termo de Referência: **770**; transcrições conferidas visualmente: **659**; ainda pendentes de cotejo visual: **111**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
+- Requisitos não estritamente de software: **218**; operação contratual **115**, integração externa **73**, habilitação **4**, obrigações externas/contratuais **26**.
 - Status `VALIDADO`: **0**. Não há alegação de 100% de aderência.
 
 ## Contagem por status
@@ -59,11 +59,11 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 |---|---:|
 | `EXTERNO/CONTRATUAL` | 26 |
 | `HABILITACAO_EMPRESARIAL` | 4 |
-| `INTEGRACAO_EXTERNA` | 61 |
+| `INTEGRACAO_EXTERNA` | 73 |
 | `OPERACAO_CONTRATUAL` | 115 |
 | `POC` | 5 |
 | `PREFERENCIAL` | 1 |
-| `SOFTWARE` | 1204 |
+| `SOFTWARE` | 1192 |
 
 ## Regra de aceite
 
