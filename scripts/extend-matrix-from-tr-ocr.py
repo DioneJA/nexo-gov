@@ -3,7 +3,7 @@
 
 Each enumerated item is kept as its own candidate, including non-normative objectives.
 Unnumbered paragraphs are included when they define scope or contain normative language.
-Nothing generated from OCR is treated as verified until compared with the scanned PDF.
+Source transcription review and product validation are tracked as separate states.
 """
 import csv
 import re
@@ -22,7 +22,7 @@ SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
-VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 32
+VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 40
 BOILERPLATE = (
     "prefeitura municipal de mata de sao joao", "secretaria de administracao e financas",
     "para verificar a validade", "assinado por 1 pessoa", "1doc.com.br/verificacao",
@@ -102,6 +102,33 @@ def corrected_bullet(line, page_number, section):
         for prefix, label in statistic_items:
             if low.startswith(prefix):
                 return label, re.sub(r"^\s*e\s*\|?\s*", "", line, flags=re.I).strip()
+    if page_number == 39 and "§43" in section and line.lstrip().startswith("*"):
+        dashboard_items = (
+            ("* capacidade de visualizacao das informacoes necessarias", "dashboard-interpretation"),
+            ("* capacidade de realizacao de filtragem", "dashboard-filtering"),
+            ("* capacidade de realizacao de download", "dashboard-image-download"),
+            ("* capacidade de exportacao de dados", "dashboard-data-export"),
+            ("* capacidade de acesso a descricao de cada grafico", "dashboard-chart-description"),
+        )
+        for prefix, label in dashboard_items:
+            if low.startswith(prefix):
+                return label, line.lstrip("* ").strip()
+    if page_number == 40 and "§43" in section:
+        dashboard_items = (
+            ("capacidade de visualizacao em tela cheia", "dashboard-fullscreen"),
+            ("capacidade de visualizacao do quantitativo de servidores da", "dashboard-staff-count"),
+            ("capacidade de visualizacao do quantitativo de usuarios externos", "dashboard-external-count"),
+            ("capacidade de visualizacao do quantitativo de setores vinculados", "dashboard-sector-count"),
+            ("capacidade de visualizacao do percentual de eficiencia", "dashboard-efficiency"),
+            ("capacidade de visualizacao do percentual de engajamento", "dashboard-engagement"),
+            ("capacidade de visualizacao da qualidade da prestacao", "dashboard-service-quality"),
+            ("capacidade de verificacao da quantidade de servidores", "dashboard-active-staff"),
+            ("capacidade de identificacao percentual da quantidade de servidores", "dashboard-activity-windows"),
+            ("capacidade de identificacao da quantidade de dias de inatividade", "dashboard-inactivity-days"),
+        )
+        for prefix, label in dashboard_items:
+            if low.startswith(prefix):
+                return label, line.strip()
     if page_number == 7 and "§5.c" in section_low:
         for prefix, label in (
             ("e administrador geral:", "acl-admin"), ("e nivel 1:", "acl-level1"),
@@ -269,10 +296,14 @@ def extract_candidates(text):
         low = folded(body)
         section_low = folded(candidate["section"])
         is_scope = candidate["section"].strip().startswith("§")
-        if not candidate["marker"] and low.rstrip(":") in {
+        if not candidate["marker"] and low.rstrip(":.;") in {
             "devera conter", "conter", "informacoes gerenciais",
             "progresso no sistema de treinamento de usuarios", "quantitativo de documentos",
             "acessos diarios", "estatistica", "informacoes sobre consumo de recursos",
+            "informacoes de auditoria", "graficos de utilizacao", "relatorio georreferenciado",
+            "abrangem os seguintes servicos para atendimento das demandas",
+            "funcionalidades de relatorios e analises", "indicadores visuais de desempenho",
+            "monitoramento de usuarios e setores", "metricas de eficiencia e engajamento",
         }:
             continue
         if ("§36" in candidate["section"] and
@@ -329,6 +360,12 @@ def extract_candidates(text):
               merged[-1]["section"] == candidate["section"] and "§36" in candidate["section"] and
               folded(merged[-1]["body"]).endswith("informado pela") and
               body_low.startswith("administracao publica")):
+            merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
+            merged[-1]["page_end"] = candidate["page_end"]
+        elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
+              merged[-1]["section"] == candidate["section"] and "§36" in candidate["section"] and
+              folded(merged[-1]["body"]).endswith("com as mesmas caracteristicas") and
+              body_low.startswith("escolhidas, este podera ser acessado")):
             merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
             merged[-1]["page_end"] = candidate["page_end"]
         else:
@@ -428,8 +465,8 @@ def extract_candidates(text):
     if not {"ui-theme-color", "ui-background-photo", "ui-logo", "ui-print-cost", "ui-welcome-email"}.issubset(ui_markers):
         raise SystemExit("OCR da personalização da interface não separou os cinco itens visualizados na p.19.")
     section_ids = {row["section"].split()[0] for row in filtered}
-    if not {f"§{number}" for number in range(18, 37)}.issubset(section_ids):
-        raise SystemExit("OCR das páginas 17–32 não reconheceu todas as seções 18–36.")
+    if not {f"§{number}" for number in range(18, 44)}.issubset(section_ids):
+        raise SystemExit("OCR das páginas 17–40 não reconheceu todas as seções 18–43.")
     reviewed_text = " ".join(
         folded(row["section"] + " " + row["body"])
         for row in filtered if row["page_start"] >= 21 and row["page_end"] <= 24
@@ -492,11 +529,85 @@ def extract_candidates(text):
         raise SystemExit("O item curto ‘Acessos’ da lista estatística do §36 foi perdido.")
     if not any("preco da impressao por folha informado pela administracao publica" in folded(row["body"]) for row in filtered):
         raise SystemExit("A continuação do critério de custo de impressão foi separada na p.32.")
+    audits_text = " ".join(
+        folded(row["section"] + " " + row["body"])
+        for row in filtered if row["page_start"] >= 33 and row["page_end"] <= 36
+    )
+    for phrase in (
+        "relatorios de eventos ocorridos dentro da plataforma", "numero do acesso",
+        "sistema operacional", "versao do navegador utilizado", "exportacao de informacoes dos eventos no formato csv",
+        "painel de informacoes", "solicitacao de sua geracao", "forma assincrona",
+        "relatorio georreferenciado nas modalidades de calor ou com pinos",
+        "periodos de ate 20 dias apos sua emissao", "entre o 20o e 30o dia apos sua emissao",
+        "quatro niveis hierarquicos",
+        "codigo numerico unico", "suspensao de um codigo de classificacao",
+        "importacao do plano de classificacao completo", "priorizacao da classificacao automatica do assunto",
+        "classificacao automatica e retroativa", "servico de operacao assistida em producao",
+        "10 (dez) dias uteis nas dependencias", "conversao e migracao dos dados atualmente existentes",
+        "informacoes confidenciais", "dados sao exclusivamente de propriedade da contratante",
+        "codigo fonte do programa sera de exclusiva propriedade da contratada",
+    ):
+        if phrase not in audits_text:
+            raise SystemExit(f"A revisão visual das páginas 33–36 não preservou o trecho: {phrase}")
+    if not any(row["page_start"] == 36 and "lgpd" in folded(row["body"]) for row in filtered):
+        raise SystemExit("A cláusula LGPD iniciada na p.36 não foi preservada no inventário.")
+    if not any(
+        "§36" in row["section"] and "com as mesmas caracteristicas escolhidas" in folded(row["body"])
+        for row in filtered
+    ):
+        raise SystemExit("A continuação de relatório salvo foi separada no OCR da p.33.")
+    support_items = {row["marker"] for row in filtered if "§40" in row["section"] and row["marker"] in set("abcdef")}
+    if support_items != set("abcdef"):
+        raise SystemExit(f"OCR do §40 não separou integralmente os seis serviços de suporte: {sorted(support_items)}")
+    dashboard_items = {row["marker"] for row in filtered if "§43" in row["section"]}
+    if not {"dashboard-interpretation", "dashboard-filtering", "dashboard-image-download", "dashboard-data-export", "dashboard-chart-description"}.issubset(dashboard_items):
+        raise SystemExit("OCR do §43 não preservou os cinco itens de relatórios/análises da p.39.")
+    expected_dashboard = {"dashboard-fullscreen", "dashboard-staff-count", "dashboard-external-count", "dashboard-sector-count", "dashboard-efficiency", "dashboard-engagement", "dashboard-service-quality", "dashboard-active-staff", "dashboard-activity-windows", "dashboard-inactivity-days"}
+    if not expected_dashboard.issubset(dashboard_items):
+        raise SystemExit(f"OCR do §43 não separou as métricas da p.40; faltam {sorted(expected_dashboard - dashboard_items)}, presentes {sorted(dashboard_items)}.")
+    if not any("§41" in row["section"] and "desclassificada" in folded(row["body"]) for row in filtered):
+        raise SystemExit("A consequência da reprovação na POC (§41) não foi preservada.")
+    tramita_text = " ".join(folded(row["body"]) for row in filtered if "§42" in row["section"])
+    for phrase in ("tramita gov.br", "termo de adesao", "homologacao", "numero de registro eletronico", "recebimento, pela administracao publica"):
+        if phrase not in tramita_text:
+            raise SystemExit(f"A integração Tramita GOV.BR (§42) não preservou: {phrase}")
+    support_text = " ".join(folded(row["body"]) for row in filtered if "§40" in row["section"])
+    for phrase in (
+        "suporte sem custos e ilimitado", "atendimento por chat", "investigacao e analise de incidentes",
+        "relatorio de atualizacao de versao", "restabelecimento do servico", "remocao de causa raiz",
+        "manutencoes preventivas", "compatibilidade da solucao", "relatorio mensal de acompanhamento",
+        "segunda a sexta-feira em horario comercial",
+    ):
+        if phrase not in support_text:
+            raise SystemExit(f"O suporte e a operação (§40) não preservaram: {phrase}")
+    lgpd_clause = next(
+        (row for row in filtered if row["page_start"] == 36 and "lgpd" in folded(row["body"])),
+        None,
+    )
+    if not lgpd_clause or lgpd_clause["page_end"] != 37 or "da honra e da imagem" not in folded(lgpd_clause["body"]):
+        raise SystemExit("A continuação da cláusula LGPD não foi unida e cotejada entre as páginas 36–37.")
+    if not any(
+        "§43" in row["section"] and "podera disponibilizar paineis de indicadores" in folded(row["body"])
+        for row in filtered
+    ):
+        raise SystemExit("A declaração facultativa de painéis visuais do §43 não foi preservada.")
     return filtered
 
 
 def module_for(section, body):
     text = folded(section + " " + body)
+    if "§41" in section:
+        return "POC_E_OPERACAO"
+    if "§42" in section:
+        return "OPERACAO_E_INTEGRACOES"
+    if "§40" in section:
+        return "SUPORTE"
+    if "§43" in section:
+        return "RELATORIOS_E_INDICADORES"
+    if "§39" in section:
+        return "CONTRATUAL"
+    if "§38" in section:
+        return "IMPLANTACAO_E_SUPORTE"
     if "§35" in section or "treinamento de usuarios" in text or "curso(s)" in text:
         return "TREINAMENTO"
     if "§36" in section or "relatorios de produtividade" in text:
@@ -531,6 +642,14 @@ def module_for(section, body):
 def nature_for(section, body):
     """Classify the obligation type independently from source-review state."""
     text = folded(section + " " + body)
+    if "§42" in section or "icp-brasil" in text or "tramita gov.br" in text:
+        return "INTEGRACAO_EXTERNA"
+    if "§41" in section:
+        return "POC"
+    if "§40" in section:
+        return "OPERACAO_CONTRATUAL"
+    if "§39" in section:
+        return "EXTERNO/CONTRATUAL"
     if any(phrase in text for phrase in (
         "prova de conceito", "demonstracao da solucao", "apresentacao do sistema",
     )):
@@ -550,6 +669,13 @@ def nature_for(section, body):
     return "SOFTWARE"
 
 
+def priority_for(section, body):
+    text = folded(section + " " + body)
+    if "a plataforma podera disponibilizar paineis de indicadores" in text:
+        return "PREFERENCIAL"
+    return "OBRIGATÓRIO"
+
+
 with CSV_PATH.open(encoding="utf-8-sig", newline="") as stream:
     reader = csv.DictReader(stream, delimiter=";")
     fields = reader.fieldnames
@@ -565,7 +691,7 @@ for index, candidate in enumerate(candidates, start=1):
                 else f"PDF pp.{candidate['page_start']}–{candidate['page_end']}")
     if candidate["marker"].startswith("d/SLA-"):
         item_ref = f", item d, subitem {candidate['marker'].split('/', 1)[1]}"
-    elif candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-")):
+    elif candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-", "dashboard-")):
         item_ref = ", subitem em lista no documento"
     else:
         item_ref = f", item {candidate['marker']}" if candidate["marker"] else f", candidato OCR PT {index}"
@@ -575,7 +701,7 @@ for index, candidate in enumerate(candidates, start=1):
         if visually_reviewed else "OCR em português ainda não conferido visualmente"
     )
     origin = f"Termo de Referência, {candidate['section']}{item_ref}, {page_ref}; {review_note}."
-    synthetic_marker = candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-"))
+    synthetic_marker = candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-", "dashboard-"))
     summary = (
         candidate["body"] if synthetic_marker else
         f"{candidate['marker']}. {candidate['body']}" if candidate["marker"] else
@@ -598,7 +724,7 @@ for index, candidate in enumerate(candidates, start=1):
         "id": f"TR91-{index:04d}",
         "requisito_resumo_fiel": summary,
         "origem_documento_pagina_secao_item": origin,
-        "prioridade": "OBRIGATÓRIO",
+        "prioridade": priority_for(candidate["section"], candidate["body"]),
         "modulo": module_for(candidate["section"], candidate["body"]),
         "natureza": nature_for(candidate["section"], candidate["body"]),
         "criterio_de_aceite": acceptance,

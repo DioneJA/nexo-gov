@@ -4,17 +4,17 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 ## Estado atual
 
-- Total de linhas/requisitos rastreados: **1349**.
+- Total de linhas/requisitos rastreados: **1341**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Requisitos extraídos do Termo de Referência: **703**; transcrições conferidas visualmente: **341**; ainda pendentes de cotejo visual: **362**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
-- Requisitos não estritamente de software (serviço/operação, obrigação externa/contratual ou habilitação empresarial): **125**; operação contratual **110**, habilitação **4**, obrigações externas/contratuais **11**.
+- Requisitos extraídos do Termo de Referência: **695**; transcrições conferidas visualmente: **414**; ainda pendentes de cotejo visual: **281**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
+- Requisitos não estritamente de software: **198**; operação contratual **117**, integração externa **60**, habilitação **4**, obrigações externas/contratuais **17**.
 - Status `VALIDADO`: **0**. Não há alegação de 100% de aderência.
 
 ## Contagem por status
 
 | Status | Linhas |
 |---|---:|
-| `BLOQUEADO` | 703 |
+| `BLOQUEADO` | 695 |
 | `EM_DESENVOLVIMENTO` | 10 |
 | `NAO_INICIADO` | 636 |
 
@@ -24,45 +24,46 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 |---|---:|
 | `ADMINISTRACAO` | 91 |
 | `APROVACAO_PROJETOS` | 93 |
-| `ASSINATURAS` | 119 |
+| `ASSINATURAS` | 117 |
 | `CAPACIDADE_E_LICENCIAMENTO` | 5 |
 | `CHAMADO_TECNICO` | 8 |
-| `COMUNICACAO_OFICIAL` | 56 |
-| `CONTRATUAL` | 1 |
+| `COMUNICACAO_OFICIAL` | 54 |
+| `CONTRATUAL` | 7 |
 | `E_SIC` | 10 |
-| `GESTAO_DOCUMENTAL` | 189 |
+| `GESTAO_DOCUMENTAL` | 179 |
 | `HABILITACAO_EMPRESARIAL` | 3 |
-| `IDENTIDADE_E_SEGURANCA` | 93 |
-| `IMPLANTACAO_E_SUPORTE` | 18 |
+| `IDENTIDADE_E_SEGURANCA` | 92 |
+| `IMPLANTACAO_E_SUPORTE` | 8 |
 | `MIGRACAO` | 1 |
 | `NOTIFICACOES` | 19 |
-| `OPERACAO_E_INTEGRACOES` | 19 |
+| `OPERACAO_E_INTEGRACOES` | 24 |
 | `OUVIDORIA` | 58 |
-| `PLATAFORMA_E_ARQUITETURA` | 236 |
+| `PLATAFORMA_E_ARQUITETURA` | 204 |
 | `POC` | 1 |
-| `POC_E_OPERACAO` | 2 |
+| `POC_E_OPERACAO` | 7 |
 | `PORTAL_EXTERNO` | 42 |
 | `PRAZOS` | 14 |
-| `PROCESSOS_ADMINISTRATIVOS` | 95 |
+| `PROCESSOS_ADMINISTRATIVOS` | 93 |
 | `PROCESSO_ADMINISTRATIVO_DISCIPLINAR` | 12 |
 | `PROCESSO_SELETIVO_SIMPLIFICADO` | 6 |
 | `PROTOCOLO` | 35 |
 | `PROTOCOLO_LEGISLATIVO` | 8 |
-| `RELATORIOS_E_INDICADORES` | 84 |
+| `RELATORIOS_E_INDICADORES` | 109 |
 | `REQUERIMENTO_PESSOAL` | 18 |
-| `SUPORTE` | 1 |
+| `SUPORTE` | 11 |
 | `TREINAMENTO` | 12 |
 
 ## Natureza
 
 | Natureza | Linhas |
 |---|---:|
-| `EXTERNO/CONTRATUAL` | 11 |
+| `EXTERNO/CONTRATUAL` | 17 |
 | `HABILITACAO_EMPRESARIAL` | 4 |
-| `OPERACAO_CONTRATUAL` | 110 |
+| `INTEGRACAO_EXTERNA` | 60 |
+| `OPERACAO_CONTRATUAL` | 117 |
 | `POC` | 5 |
 | `PREFERENCIAL` | 1 |
-| `SOFTWARE` | 1218 |
+| `SOFTWARE` | 1137 |
 
 ## Regra de aceite
 

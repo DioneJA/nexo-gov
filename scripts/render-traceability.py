@@ -17,9 +17,10 @@ nature_counts = Counter(row["natureza"] for row in rows)
 ed_rows = [row for row in rows if row["id"].startswith("ED91-")]
 tr_rows = [row for row in rows if row["id"].startswith("TR91-")]
 external_rows = [row for row in rows if row["natureza"] == "EXTERNO/CONTRATUAL"]
-non_software_rows = [row for row in rows if row["natureza"] in {"EXTERNO/CONTRATUAL", "OPERACAO_CONTRATUAL", "HABILITACAO_EMPRESARIAL"}]
+non_software_rows = [row for row in rows if row["natureza"] in {"EXTERNO/CONTRATUAL", "OPERACAO_CONTRATUAL", "HABILITACAO_EMPRESARIAL", "INTEGRACAO_EXTERNA"}]
 operation_rows = [row for row in rows if row["natureza"] == "OPERACAO_CONTRATUAL"]
 qualification_rows = [row for row in rows if row["natureza"] == "HABILITACAO_EMPRESARIAL"]
+integration_rows = [row for row in rows if row["natureza"] == "INTEGRACAO_EXTERNA"]
 tr_visually_reviewed = [row for row in tr_rows if row["validacao_fonte"] == "CONFERIDA_VISUALMENTE"]
 tr_ocr_pending = [row for row in tr_rows if row["validacao_fonte"] == "OCR_PENDENTE"]
 
@@ -30,7 +31,7 @@ report = [
     f"- Total de linhas/requisitos rastreados: **{len(rows)}**.",
     f"- Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **{len(ed_rows)}**.",
     f"- Requisitos extraídos do Termo de Referência: **{len(tr_rows)}**; transcrições conferidas visualmente: **{len(tr_visually_reviewed)}**; ainda pendentes de cotejo visual: **{len(tr_ocr_pending)}**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.",
-    f"- Requisitos não estritamente de software (serviço/operação, obrigação externa/contratual ou habilitação empresarial): **{len(non_software_rows)}**; operação contratual **{len(operation_rows)}**, habilitação **{len(qualification_rows)}**, obrigações externas/contratuais **{len(external_rows)}**.",
+    f"- Requisitos não estritamente de software: **{len(non_software_rows)}**; operação contratual **{len(operation_rows)}**, integração externa **{len(integration_rows)}**, habilitação **{len(qualification_rows)}**, obrigações externas/contratuais **{len(external_rows)}**.",
     f"- Status `VALIDADO`: **{status_counts['VALIDADO']}**. Não há alegação de 100% de aderência.", "",
     "## Contagem por status", "", "| Status | Linhas |", "|---|---:|"
 ]
