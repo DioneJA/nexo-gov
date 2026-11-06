@@ -22,7 +22,7 @@ SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
-VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 60
+VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 64
 BOILERPLATE = (
     "prefeitura municipal de mata de sao joao", "secretaria de administracao e financas",
     "para verificar a validade", "assinado por 1 pessoa", "1doc.com.br/verificacao",
@@ -326,7 +326,7 @@ def extract_candidates(text):
                 continue
 
             heading = SECTION.match(line)
-            if heading and (line == line.upper() or len(line) < 110):
+            if heading and re.search(r"[A-Za-zÀ-ÿ]", heading.group(2)) and (line == line.upper() or len(line) < 110):
                 flush_normal()
                 flush_bullet()
                 appendix_suffix = " (Anexo II)" if appendix_ii_active else ""
@@ -451,6 +451,12 @@ def extract_candidates(text):
               merged[-1]["section"] == candidate["section"] and "§9" in candidate["section"] and
               folded(merged[-1]["body"]).endswith("configuracao de campo") and
               body_low.startswith("personalizado com funcionalidade de validacao automatica da existencia de cnpj")):
+            merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
+            merged[-1]["page_end"] = candidate["page_end"]
+        elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
+              merged[-1]["section"] == candidate["section"] and "§10" in candidate["section"] and
+              folded(merged[-1]["body"]).endswith("caso o cpf nao estiver associado") and
+              body_low.startswith("a um cadastro existente")):
             merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
             merged[-1]["page_end"] = candidate["page_end"]
         elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
@@ -882,11 +888,80 @@ def extract_candidates(text):
     ):
         if phrase not in project_full_text:
             raise SystemExit(f"Anexo II, item 9 Projetos não preservou: {phrase}")
+    sisobra_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§9" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "data e hora da criacao e do envio", "retificacao de alvara", "numero de protocolo da transmissao anterior",
+        "cancelamento de alvara", "reativacao de alvara", "transmissao da versao retificada",
+        "cancelamento de documento de “habite-se”", "reativacao de documento de “habite-se”",
+        "retorno de erro enviado pelo sisobra", "historico de cada alteracao",
+    ):
+        if phrase not in sisobra_text:
+            raise SystemExit(f"Anexo II, item 9 Sisobra não preservou: {phrase}")
+    mobile_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§10" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "aplicativo movel nativo", "android e ios", "play store e app store", "ordenadas por proximidade",
+        "identidade visual", "integrado a plataforma web", "gov.br", "cpf nao estiver associado a um cadastro existente",
+        "novo contato externo sera criado automaticamente", "pessoa fisica ou juridica", "em aberto", "arquivado",
+        "sigla do setor", "12.527/2011", "mantera a conexao", "tramitacoes e os anexos",
+        "documentos de diferentes modulos", "botao “novo”", "subassuntos", "assuntos em destaque",
+        "obrigatoriedade de anexos e campos adicionais", "salvo imediatamente", "qual setor recebeu a demanda",
+        "confirmacao de abertura", "organograma completo", "informacoes de contato",
+    ):
+        if phrase not in mobile_text:
+            raise SystemExit(f"Anexo II, item 10 Aplicativo Móvel não preservou: {phrase}")
+    workflow_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§11" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "impressao do processo em modo cronologico", "conteudos e seus anexos em pdf",
+        "arvore do processo", "exportacao em formato pdf", "workflow basico por assunto",
+        "ordem pre-estabelecida", "ordenar os anexos",
+    ):
+        if phrase not in workflow_text:
+            raise SystemExit(f"Anexo II, item 11 Workflow não preservou: {phrase}")
+    batch_signature_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§12" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "assinaturas pendentes", "assinatura digital em lote", "campo tipo checkbox", "formato de fila",
+        "caso de falha", "nova tentativa", "assinatura nativa", "assinatura icp- brasil",
+        "varias assinaturas simultaneamente", "documentos que ja foram assinados",
+    ):
+        if phrase not in batch_signature_text:
+            raise SystemExit(f"Anexo II, item 12 Assinatura em Lote não preservou: {phrase}")
+    pad_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§13" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "processo administrativo disciplinar - pad", "tipo de infracao", "legislacao municipal",
+        "informacoes de ajuda", "validacao automatica da existencia de cpf e cnpj", "modelos de texto",
+        "documentos complementares", "anexos nos atos administrativos", "numeracao propria",
+        "prazos de apresentacao de documentos, defesas, julgamento",
+    ):
+        if phrase not in pad_text:
+            raise SystemExit(f"Anexo II, item 13 PAD não preservou: {phrase}")
+    selection_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§14" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    if "recebimento de inscricoes" not in selection_text or "vagas" not in selection_text:
+        raise SystemExit("Anexo II, item 14 Processo Seletivo não preservou o início da especificação.")
     return filtered
 
 
 def module_for(section, body):
     text = folded(section + " " + body)
+    if "§10" in section:
+        return "PORTAL_EXTERNO"
     if "§44" in section:
         return "OPERACAO_E_INTEGRACOES"
     if "§45" in section:
@@ -937,7 +1012,7 @@ def module_for(section, body):
 def nature_for(section, body):
     """Classify the obligation type independently from source-review state."""
     text = folded(section + " " + body)
-    if "§42" in section or "icp-brasil" in text or "tramita gov.br" in text or "sisobra" in text:
+    if "§42" in section or "icp-brasil" in text or "tramita gov.br" in text or "sisobra" in text or "gov.br" in text:
         return "INTEGRACAO_EXTERNA"
     if "§41" in section:
         return "POC"

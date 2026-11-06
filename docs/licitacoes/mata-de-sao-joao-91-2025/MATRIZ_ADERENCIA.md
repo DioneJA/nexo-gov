@@ -4,17 +4,17 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 ## Estado atual
 
-- Total de linhas/requisitos rastreados: **1416**.
+- Total de linhas/requisitos rastreados: **1391**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Requisitos extraídos do Termo de Referência: **770**; transcrições conferidas visualmente: **659**; ainda pendentes de cotejo visual: **111**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
-- Requisitos não estritamente de software: **218**; operação contratual **115**, integração externa **73**, habilitação **4**, obrigações externas/contratuais **26**.
+- Requisitos extraídos do Termo de Referência: **745**; transcrições conferidas visualmente: **713**; ainda pendentes de cotejo visual: **32**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
+- Requisitos não estritamente de software: **222**; operação contratual **114**, integração externa **78**, habilitação **4**, obrigações externas/contratuais **26**.
 - Status `VALIDADO`: **0**. Não há alegação de 100% de aderência.
 
 ## Contagem por status
 
 | Status | Linhas |
 |---|---:|
-| `BLOQUEADO` | 770 |
+| `BLOQUEADO` | 745 |
 | `EM_DESENVOLVIMENTO` | 10 |
 | `NAO_INICIADO` | 636 |
 
@@ -22,26 +22,26 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Módulo | Linhas |
 |---|---:|
-| `ADMINISTRACAO` | 91 |
-| `APROVACAO_PROJETOS` | 114 |
-| `ASSINATURAS` | 118 |
+| `ADMINISTRACAO` | 90 |
+| `APROVACAO_PROJETOS` | 113 |
+| `ASSINATURAS` | 117 |
 | `CAPACIDADE_E_LICENCIAMENTO` | 5 |
 | `CHAMADO_TECNICO` | 8 |
 | `COMUNICACAO_OFICIAL` | 71 |
 | `CONTRATUAL` | 16 |
 | `E_SIC` | 11 |
-| `GESTAO_DOCUMENTAL` | 180 |
+| `GESTAO_DOCUMENTAL` | 167 |
 | `HABILITACAO_EMPRESARIAL` | 3 |
 | `IDENTIDADE_E_SEGURANCA` | 92 |
-| `IMPLANTACAO_E_SUPORTE` | 8 |
+| `IMPLANTACAO_E_SUPORTE` | 7 |
 | `MIGRACAO` | 1 |
 | `NOTIFICACOES` | 19 |
 | `OPERACAO_E_INTEGRACOES` | 25 |
 | `OUVIDORIA` | 66 |
-| `PLATAFORMA_E_ARQUITETURA` | 182 |
+| `PLATAFORMA_E_ARQUITETURA` | 145 |
 | `POC` | 1 |
 | `POC_E_OPERACAO` | 7 |
-| `PORTAL_EXTERNO` | 42 |
+| `PORTAL_EXTERNO` | 71 |
 | `PRAZOS` | 14 |
 | `PROCESSOS_ADMINISTRATIVOS` | 112 |
 | `PROCESSO_ADMINISTRATIVO_DISCIPLINAR` | 12 |
@@ -59,11 +59,11 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 |---|---:|
 | `EXTERNO/CONTRATUAL` | 26 |
 | `HABILITACAO_EMPRESARIAL` | 4 |
-| `INTEGRACAO_EXTERNA` | 73 |
-| `OPERACAO_CONTRATUAL` | 115 |
+| `INTEGRACAO_EXTERNA` | 78 |
+| `OPERACAO_CONTRATUAL` | 114 |
 | `POC` | 5 |
 | `PREFERENCIAL` | 1 |
-| `SOFTWARE` | 1192 |
+| `SOFTWARE` | 1163 |
 
 ## Regra de aceite
 
