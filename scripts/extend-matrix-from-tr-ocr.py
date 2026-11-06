@@ -19,6 +19,7 @@ NORMATIVE = re.compile(
     r"garantir|realizar|manter|fornecer|possuir|disponibilizar|registrar|a contratada|"
     r"o sistema|a plataforma|a solucao|integracao|permitir|constituir|necessaria)\b", re.I)
 SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s+(.{3,150})$")
+SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
 BOILERPLATE = (
@@ -49,6 +50,24 @@ def corrected_bullet(line, page_number, section):
     """Restore obvious OCR-dropped list markers where the scanned pages were checked."""
     low = folded(line)
     section_low = folded(section)
+    if page_number == 7 and "§5.c" in section_low:
+        for prefix, label in (
+            ("e administrador geral:", "acl-admin"), ("e nivel 1:", "acl-level1"),
+            ("e nivel 2:", "acl-level2"), ("e nivel 3:", "acl-level3"),
+        ):
+            if low.startswith(prefix):
+                return label, line[2:].strip()
+    if page_number == 8 and "§5.d" in section_low and low.startswith("e "):
+        portal_items = (
+            ("e abertura de atendimento", "portal-task-1"),
+            ("e consulta de autenticidade", "portal-task-2"),
+            ("e consulta de boletos", "portal-task-3"),
+            ("e consulta, acompanhamento", "portal-task-4"),
+            ("e anexo de novos arquivos", "portal-task-5"),
+        )
+        for prefix, label in portal_items:
+            if low.startswith(prefix):
+                return label, line[2:].strip()
     if page_number == 3 and "caracteristicas tecnicas" in section_low:
         sla = re.match(r"^o\s+At[eé]\s+(2|4|24)\s+horas?\s*[-–]\s*(.+)$", line, re.I)
         if sla:
@@ -125,11 +144,15 @@ def extract_candidates(text):
         page_number = int(marker.group(1))
         end = markers[page_index + 1].start() if page_index + 1 < len(markers) else len(text)
         raw_page = text[marker.end():end]
-        for raw_line in raw_page.splitlines():
-            line = clean_source_line(raw_line)
+        page_lines = [clean_source_line(raw_line) for raw_line in raw_page.splitlines()]
+        while page_lines and not page_lines[0]:
+            page_lines.pop(0)
+        while page_lines and not page_lines[-1]:
+            page_lines.pop()
+        for line in page_lines:
             if not line:
-                if bullet is None:
-                    flush_normal()
+                flush_normal()
+                flush_bullet()
                 continue
 
             heading = SECTION.match(line)
@@ -144,6 +167,13 @@ def extract_candidates(text):
                 flush_normal()
                 flush_bullet()
                 section = "§4 CARACTERISTICAS TÉCNICAS DA SOLUÇÃO"
+                continue
+
+            subsection = SUBSECTION.match(line)
+            if subsection and (folded(section).startswith("§5 ") or folded(section).startswith("§5.")):
+                flush_normal()
+                flush_bullet()
+                section = f"§5.{subsection.group(1).lower()} {subsection.group(2).strip()}"
                 continue
 
             item = corrected_bullet(line, page_number, section)
@@ -168,8 +198,11 @@ def extract_candidates(text):
                     normal_section = section
                 normal_lines.append(line)
 
-        flush_normal()
-        # A trailing bullet can continue at the top of the next scanned page.
+        # Preserve only visibly incomplete text across a page boundary.
+        if normal_lines and re.search(r"[.;:!?][\"'”’)]?$", normalized(" ".join(normal_lines))):
+            flush_normal()
+        if bullet and re.search(r"[.;:!?][\"'”’)]?$", normalized(" ".join(bullet["lines"]))):
+            flush_bullet()
 
     flush_normal()
     flush_bullet()
@@ -179,7 +212,7 @@ def extract_candidates(text):
         body = candidate["body"]
         low = folded(body)
         section_low = folded(candidate["section"])
-        is_scope = any(term in section_low for term in ("objeto", "justificativa", "objetivo do projeto", "caracteristicas tecnicas"))
+        is_scope = any(term in section_low for term in ("objeto", "justificativa", "objetivo do projeto", "caracteristicas tecnicas")) or section_low.startswith("§5.")
         if candidate["marker"] or is_scope or NORMATIVE.search(low):
             filtered.append(candidate)
 
@@ -222,6 +255,21 @@ def extract_candidates(text):
     missing_phrases = [phrase for phrase in required_phrases if phrase not in section_four]
     if missing_phrases:
         raise SystemExit(f"OCR do §4 não trouxe itens técnicos esperados: {missing_phrases}")
+    internal_access = [row for row in filtered if "§5.c" in folded(row["section"])]
+    internal_text = " ".join(folded(row["body"]) for row in internal_access)
+    for phrase in ("recuperacao de senha", "certificado digital", "token", "suspensao de seu acesso", "auditor"):
+        if phrase not in internal_text:
+            raise SystemExit(f"OCR de §5.c não trouxe a exigência esperada: {phrase}")
+    acl_labels = {row["marker"] for row in internal_access}
+    if not {"acl-admin", "acl-level1", "acl-level2", "acl-level3"}.issubset(acl_labels):
+        raise SystemExit("OCR de §5.c não separou os quatro grupos de permissão visualmente identificados.")
+    external_access = [row for row in filtered if "§5.d" in folded(row["section"])]
+    portal_tasks = {row["marker"] for row in external_access}
+    if not {f"portal-task-{number}" for number in range(1, 6)}.issubset(portal_tasks):
+        raise SystemExit("OCR de §5.d não separou as cinco ações do portal externo.")
+    permission_continuation = [row for row in internal_access if "segmentacao das permissoes" in folded(row["body"])]
+    if not permission_continuation or "resolucao no 50/2022" not in folded(permission_continuation[0]["body"]):
+        raise SystemExit("A continuação do requisito de níveis de acesso não foi juntada entre as páginas 6–7.")
     return filtered
 
 

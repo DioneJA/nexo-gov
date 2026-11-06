@@ -22,7 +22,7 @@ O edital §9.9 (folha impressa 10) determina convocação da POC, prazo de até 
 
 ## Limite de leitura e bloqueios documentados
 
-A versão vigente foi obtida em 06/11/2026 na página oficial. O edital e a errata são PDFs pesquisáveis e foram examinados integralmente. O Termo de Referência é imagem; as 69 páginas receberam OCR em português para descoberta. As páginas 1–4 foram conferidas visualmente durante a revisão do extrator, que encontrou e corrigiu marcadores omitidos pelo OCR; as páginas 5–69 ainda não foram conferidas. O agrupamento pode conter erro e vários requisitos podem compartilhar um item. Todos os candidatos `TR91` permanecem bloqueados até cotejo integral e decomposição. A matriz não pode ser declarada integralmente validada até essa etapa.
+A versão vigente foi obtida em 06/11/2026 na página oficial. O edital e a errata são PDFs pesquisáveis e foram examinados integralmente. O Termo de Referência é imagem; as 69 páginas receberam OCR em português para descoberta. As páginas 1–8 foram conferidas visualmente durante a revisão do extrator, que encontrou e corrigiu marcadores omitidos pelo OCR e separou alguns grupos de parágrafos; as páginas 9–69 ainda não foram conferidas. O agrupamento pode conter erro e vários requisitos podem compartilhar um item. Todos os candidatos `TR91` permanecem bloqueados até cotejo integral e decomposição. A matriz não pode ser declarada integralmente validada até essa etapa.
 
 ## Evidência do primeiro incremento
 

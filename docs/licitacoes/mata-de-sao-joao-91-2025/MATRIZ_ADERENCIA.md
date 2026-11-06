@@ -4,9 +4,9 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 ## Estado atual
 
-- Total de linhas/requisitos rastreados: **1097**.
+- Total de linhas/requisitos rastreados: **1196**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Parágrafos e alíneas candidatos do Termo de Referência via OCR não conferido: **451**, todos `BLOQUEADO`.
+- Parágrafos e alíneas candidatos do Termo de Referência via OCR não conferido: **550**, todos `BLOQUEADO`.
 - Requisitos contratuais/empresariais fora do escopo exclusivo de software: **11**.
 - Status `VALIDADO`: **0**. Não há alegação de 100% de aderência.
 
@@ -14,7 +14,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Status | Linhas |
 |---|---:|
-| `BLOQUEADO` | 451 |
+| `BLOQUEADO` | 550 |
 | `EM_DESENVOLVIMENTO` | 10 |
 | `NAO_INICIADO` | 636 |
 
@@ -24,29 +24,29 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 |---|---:|
 | `ADMINISTRACAO` | 91 |
 | `APROVACAO_PROJETOS` | 91 |
-| `ASSINATURAS` | 97 |
+| `ASSINATURAS` | 132 |
 | `CAPACIDADE_E_LICENCIAMENTO` | 5 |
 | `CHAMADO_TECNICO` | 4 |
 | `COMUNICACAO_OFICIAL` | 55 |
 | `CONTRATUAL` | 1 |
 | `E_SIC` | 10 |
-| `GESTAO_DOCUMENTAL` | 162 |
+| `GESTAO_DOCUMENTAL` | 185 |
 | `HABILITACAO_EMPRESARIAL` | 3 |
-| `IDENTIDADE_E_SEGURANCA` | 76 |
+| `IDENTIDADE_E_SEGURANCA` | 94 |
 | `IMPLANTACAO_E_SUPORTE` | 2 |
 | `MIGRACAO` | 1 |
-| `NOTIFICACOES` | 17 |
-| `OPERACAO_E_INTEGRACOES` | 17 |
-| `OUVIDORIA` | 53 |
-| `PLATAFORMA_E_ARQUITETURA` | 163 |
+| `NOTIFICACOES` | 18 |
+| `OPERACAO_E_INTEGRACOES` | 18 |
+| `OUVIDORIA` | 52 |
+| `PLATAFORMA_E_ARQUITETURA` | 175 |
 | `POC` | 1 |
 | `POC_E_OPERACAO` | 2 |
-| `PORTAL_EXTERNO` | 31 |
+| `PORTAL_EXTERNO` | 42 |
 | `PRAZOS` | 14 |
 | `PROCESSOS_ADMINISTRATIVOS` | 91 |
 | `PROCESSO_ADMINISTRATIVO_DISCIPLINAR` | 2 |
 | `PROCESSO_SELETIVO_SIMPLIFICADO` | 3 |
-| `PROTOCOLO` | 36 |
+| `PROTOCOLO` | 35 |
 | `PROTOCOLO_LEGISLATIVO` | 4 |
 | `RELATORIOS_E_INDICADORES` | 42 |
 | `REQUERIMENTO_PESSOAL` | 15 |
@@ -57,7 +57,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Natureza | Linhas |
 |---|---:|
-| `CANDIDATO OCR PT NÃO CONFERIDO` | 451 |
+| `CANDIDATO OCR PT NÃO CONFERIDO` | 550 |
 | `EXTERNO/CONTRATUAL` | 11 |
 | `HABILITACAO_EMPRESARIAL` | 1 |
 | `OPERACAO_CONTRATUAL` | 59 |
