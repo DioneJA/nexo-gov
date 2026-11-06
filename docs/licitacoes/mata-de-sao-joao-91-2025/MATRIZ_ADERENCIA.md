@@ -6,7 +6,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 - Total de linhas/requisitos rastreados: **1416**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Requisitos extraídos do Termo de Referência: **770**; transcrições conferidas visualmente: **559**; ainda pendentes de cotejo visual: **211**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
+- Requisitos extraídos do Termo de Referência: **770**; transcrições conferidas visualmente: **610**; ainda pendentes de cotejo visual: **160**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
 - Requisitos não estritamente de software: **206**; operação contratual **115**, integração externa **61**, habilitação **4**, obrigações externas/contratuais **26**.
 - Status `VALIDADO`: **0**. Não há alegação de 100% de aderência.
 

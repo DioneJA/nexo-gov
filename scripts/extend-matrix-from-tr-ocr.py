@@ -22,7 +22,7 @@ SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
-VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 52
+VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 56
 BOILERPLATE = (
     "prefeitura municipal de mata de sao joao", "secretaria de administracao e financas",
     "para verificar a validade", "assinado por 1 pessoa", "1doc.com.br/verificacao",
@@ -442,6 +442,12 @@ def extract_candidates(text):
             merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
             merged[-1]["page_end"] = candidate["page_end"]
         elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
+              merged[-1]["section"] == candidate["section"] and "§7" in candidate["section"] and
+              folded(merged[-1]["body"]).endswith("atraves de composicoes") and
+              body_low.startswith("multiplas, favorecendo o envio de processos administrativos")):
+            merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
+            merged[-1]["page_end"] = candidate["page_end"]
+        elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
               merged[-1]["section"] == candidate["section"] and "§18" in candidate["section"] and
               ((folded(merged[-1]["body"]).endswith("mata de sao joao") and body_low.startswith("necessite realizar a hospedagem")) or
                (folded(merged[-1]["body"]).endswith("devera cooperar") and body_low.startswith("e auxiliar, prestando total suporte")) or
@@ -810,6 +816,45 @@ def extract_candidates(text):
     ):
         if phrase not in process_text:
             raise SystemExit(f"Anexo II, item 7 Processo Administrativo não preservou: {phrase}")
+    for phrase in (
+        "deferido", "indeferido", "sequencia a numeracao geral", "multiplos prazos",
+        "restricao de abertura e tramitacao", "anexos obrigatorios", "ordem preestabelecida",
+        "multiplos setores responsaveis", "sla ideal para cada etapa", "formato zip",
+        "anexos do processo como aprovados ou reprovados", "arquivo compilado e paginado",
+        "formato pdf", "processamento assincrono", "notificado quando finalizada a sua geracao",
+        "versao completa da arvore de processos", "verificacao de suas autenticidades",
+        "versao personalizada", "configuracao comprimida", "5 (cinco) megabytes",
+        "500 (quinhentos) kilobytes por pagina", "copias integrais atualizadas",
+        "ultima versao de cada uma das tres configuracoes", "pagina de referencia aos anexos",
+        "hiperlink de mencao", "pasta comprimida",
+    ):
+        if phrase not in process_text:
+            raise SystemExit(f"Anexo II, item 7 Processo Administrativo não preservou: {phrase}")
+    acts_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§8" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "atos oficiais da administracao publica", "roteamento automatico", "arquivos no formato .docx",
+        "formato pdf/a", "assinatura eletronica avancada e qualificada", "certificado digital icp-brasil",
+        "co-assinatura de documentos por usuarios externos", "consulta a documentos por usuarios externos",
+        "numeracao automatica geral", "numeracao automatica por assunto", "numeracao manual",
+        "qr-code identificador",
+    ):
+        if phrase not in acts_text:
+            raise SystemExit(f"Anexo II, item 8 Atos Oficiais não preservou: {phrase}")
+    project_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§9" in row["section"] and "(Anexo II)" in row["section"] and row["page_start"] <= 56
+    )
+    for phrase in (
+        "projetos de construcoes unifamiliares", "desmembramento, remembramento", "licenca ambiental previa",
+        "licenca ambiental de instalacao", "licenca ambiental de operacao", "plano de gerenciamento de residuos solidos",
+        "eia-rima", "alvaras/licencas", "fluxos de trabalho", "campos personalizados",
+        "codigo de enderecamento postal (cep)", "validacao automatica da existencia de cpf",
+    ):
+        if phrase not in project_text:
+            raise SystemExit(f"Anexo II, item 9 Projetos não preservou: {phrase}")
     return filtered
 
 

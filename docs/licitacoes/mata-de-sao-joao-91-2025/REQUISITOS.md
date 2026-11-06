@@ -23,7 +23,7 @@ O edital §9.9 (folha impressa 10) determina convocação da POC, prazo de até 
 
 ## Limite de leitura e bloqueios documentados
 
-A versão vigente foi obtida em 06/11/2026 na página oficial. O edital e a errata são PDFs pesquisáveis e foram examinados integralmente. O Termo de Referência é imagem; as 69 páginas receberam OCR em português para descoberta. As páginas 1–52 foram conferidas visualmente durante a revisão do extrator, com correções de marcadores omitidos, títulos de estrutura e continuações entre páginas. No estado atual, 559 transcrições do TR foram cotejadas visualmente e 211 candidatos das páginas 53–69 ainda aguardam revisão. Mesmo as transcrições conferidas permanecem `BLOQUEADO` até decomposição de obrigações compostas, aceite, vínculos backend/frontend, teste e evidência. A matriz não pode ser declarada integralmente validada enquanto houver pendências de fonte, produto ou operação.
+A versão vigente foi obtida em 06/11/2026 na página oficial. O edital e a errata são PDFs pesquisáveis e foram examinados integralmente. O Termo de Referência é imagem; as 69 páginas receberam OCR em português para descoberta. As páginas 1–56 foram conferidas visualmente durante a revisão do extrator, com correções de marcadores omitidos, títulos de estrutura e continuações entre páginas. No estado atual, 610 transcrições do TR foram cotejadas visualmente e 160 candidatos das páginas 57–69 ainda aguardam revisão. Mesmo as transcrições conferidas permanecem `BLOQUEADO` até decomposição de obrigações compostas, aceite, vínculos backend/frontend, teste e evidência. A matriz não pode ser declarada integralmente validada enquanto houver pendências de fonte, produto ou operação.
 
 ## Evidência do primeiro incremento
 
