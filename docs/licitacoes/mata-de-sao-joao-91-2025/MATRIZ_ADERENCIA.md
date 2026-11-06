@@ -4,9 +4,9 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 ## Estado atual
 
-- Total de linhas/requisitos rastreados: **1140**.
+- Total de linhas/requisitos rastreados: **1097**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Parágrafos candidatos do Termo de Referência via OCR não conferido: **494**, todos `BLOQUEADO`.
+- Parágrafos e alíneas candidatos do Termo de Referência via OCR não conferido: **451**, todos `BLOQUEADO`.
 - Requisitos contratuais/empresariais fora do escopo exclusivo de software: **11**.
 - Status `VALIDADO`: **0**. Não há alegação de 100% de aderência.
 
@@ -14,7 +14,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Status | Linhas |
 |---|---:|
-| `BLOQUEADO` | 494 |
+| `BLOQUEADO` | 451 |
 | `EM_DESENVOLVIMENTO` | 10 |
 | `NAO_INICIADO` | 636 |
 
@@ -22,32 +22,34 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Módulo | Linhas |
 |---|---:|
-| `ADMINISTRACAO` | 84 |
+| `ADMINISTRACAO` | 91 |
 | `APROVACAO_PROJETOS` | 91 |
-| `ASSINATURAS` | 135 |
-| `CAPACIDADE_E_LICENCIAMENTO` | 1 |
-| `CHAMADO_TECNICO` | 3 |
-| `COMUNICACAO_OFICIAL` | 51 |
+| `ASSINATURAS` | 97 |
+| `CAPACIDADE_E_LICENCIAMENTO` | 5 |
+| `CHAMADO_TECNICO` | 4 |
+| `COMUNICACAO_OFICIAL` | 55 |
 | `CONTRATUAL` | 1 |
 | `E_SIC` | 10 |
-| `GESTAO_DOCUMENTAL` | 89 |
+| `GESTAO_DOCUMENTAL` | 162 |
 | `HABILITACAO_EMPRESARIAL` | 3 |
-| `IDENTIDADE_E_SEGURANCA` | 70 |
-| `IMPLANTACAO_E_SUPORTE` | 1 |
+| `IDENTIDADE_E_SEGURANCA` | 76 |
+| `IMPLANTACAO_E_SUPORTE` | 2 |
 | `MIGRACAO` | 1 |
-| `NOTIFICACOES` | 13 |
-| `OPERACAO_E_INTEGRACOES` | 12 |
-| `OUVIDORIA` | 50 |
-| `PLATAFORMA_E_ARQUITETURA` | 291 |
+| `NOTIFICACOES` | 17 |
+| `OPERACAO_E_INTEGRACOES` | 17 |
+| `OUVIDORIA` | 53 |
+| `PLATAFORMA_E_ARQUITETURA` | 163 |
 | `POC` | 1 |
 | `POC_E_OPERACAO` | 2 |
 | `PORTAL_EXTERNO` | 31 |
 | `PRAZOS` | 14 |
-| `PROCESSOS_ADMINISTRATIVOS` | 88 |
-| `PROTOCOLO` | 35 |
+| `PROCESSOS_ADMINISTRATIVOS` | 91 |
+| `PROCESSO_ADMINISTRATIVO_DISCIPLINAR` | 2 |
+| `PROCESSO_SELETIVO_SIMPLIFICADO` | 3 |
+| `PROTOCOLO` | 36 |
 | `PROTOCOLO_LEGISLATIVO` | 4 |
 | `RELATORIOS_E_INDICADORES` | 42 |
-| `REQUERIMENTO_PESSOAL` | 9 |
+| `REQUERIMENTO_PESSOAL` | 15 |
 | `SUPORTE` | 1 |
 | `TREINAMENTO` | 7 |
 
@@ -55,7 +57,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Natureza | Linhas |
 |---|---:|
-| `CANDIDATO OCR PT NÃO CONFERIDO` | 494 |
+| `CANDIDATO OCR PT NÃO CONFERIDO` | 451 |
 | `EXTERNO/CONTRATUAL` | 11 |
 | `HABILITACAO_EMPRESARIAL` | 1 |
 | `OPERACAO_CONTRATUAL` | 59 |

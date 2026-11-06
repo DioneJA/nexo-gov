@@ -24,7 +24,7 @@ report = [
     "## Estado atual", "",
     f"- Total de linhas/requisitos rastreados: **{len(rows)}**.",
     f"- Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **{len(ed_rows)}**.",
-    f"- Parágrafos candidatos do Termo de Referência via OCR não conferido: **{len(tr_rows)}**, todos `BLOQUEADO`.",
+    f"- Parágrafos e alíneas candidatos do Termo de Referência via OCR não conferido: **{len(tr_rows)}**, todos `BLOQUEADO`.",
     f"- Requisitos contratuais/empresariais fora do escopo exclusivo de software: **{len(external_rows)}**.",
     f"- Status `VALIDADO`: **{status_counts['VALIDADO']}**. Não há alegação de 100% de aderência.", "",
     "## Contagem por status", "", "| Status | Linhas |", "|---|---:|"
