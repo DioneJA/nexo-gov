@@ -22,7 +22,7 @@ SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
-VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 40
+VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 44
 BOILERPLATE = (
     "prefeitura municipal de mata de sao joao", "secretaria de administracao e financas",
     "para verificar a validade", "assinado por 1 pessoa", "1doc.com.br/verificacao",
@@ -129,6 +129,35 @@ def corrected_bullet(line, page_number, section):
         for prefix, label in dashboard_items:
             if low.startswith(prefix):
                 return label, line.strip()
+    if page_number == 41 and "§43" in section:
+        dashboard_items = (
+            ("capacidade de realizacao de busca nominal", "dashboard-nominal-inactivity"),
+            ("capacidade de visualizacao do quantitativo do total de paginas", "dashboard-pages-native-count"),
+        )
+        for prefix, label in dashboard_items:
+            if low.startswith(prefix):
+                return label, line.strip()
+    if page_number == 42 and "§43" in section and line.lstrip().startswith("*"):
+        dashboard_items = (
+            ("* capacidade de visualizacao do quantitativo de assinaturas solicitadas", "dashboard-signatures-requested"),
+            ("* capacidade de visualizacao do quantitativo do tempo medio decorrido", "dashboard-mean-signature-time"),
+            ("* capacidade de disponibilizacao de grafico", "dashboard-resolved-by-user"),
+        )
+        for prefix, label in dashboard_items:
+            if low.startswith(prefix):
+                return label, line.lstrip("* ").strip()
+    if page_number == 43 and "§45" in section:
+        obligation_items = (
+            ("manter-se, durante o periodo de vigencia", "d"),
+            ("planejar, desenvolver, implantar, executar e manter", "e"),
+            ("reportar a prefeitura imediatamente", "f"),
+            ("reparar, corrigir, remover, reconstruir ou substituir", "g"),
+            ("nao transferir a outrem", "h"),
+            ("permitir o acompanhamento, pela prefeitura", "i"),
+        )
+        for prefix, label in obligation_items:
+            if low.startswith(prefix):
+                return label, line.strip()
     if page_number == 7 and "§5.c" in section_low:
         for prefix, label in (
             ("e administrador geral:", "acl-admin"), ("e nivel 1:", "acl-level1"),
@@ -190,6 +219,7 @@ def extract_candidates(text):
 
     candidates = []
     section = "Termo de Referência, anexo técnico"
+    appendix_ii_active = False
     normal_lines = []
     normal_page = None
     normal_end = None
@@ -200,13 +230,37 @@ def extract_candidates(text):
         nonlocal normal_lines, normal_page, normal_end, normal_section
         body = normalized(" ".join(normal_lines))
         if body and (len(body) >= 35 or (normal_section and normal_section.strip().startswith("§"))):
-            candidates.append({
-                "page_start": normal_page,
-                "page_end": normal_end or normal_page,
-                "section": normal_section,
-                "marker": "",
-                "body": body,
-            })
+            split_sentences = (normal_section and "(Anexo II)" in normal_section) or (
+                normal_page == 41 and normal_section and "§43" in normal_section
+            )
+            sentences = ([sentence.strip() for sentence in re.split(r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ])", body)
+                          if sentence.strip()] if split_sentences else [body])
+            for sentence in sentences:
+                marker = ""
+                if normal_page == 41 and normal_section and "§43" in normal_section:
+                    body_low = folded(sentence)
+                    dashboard_paragraphs = (
+                        ("que forem resolvidos durante um periodo", "dashboard-resolved"),
+                        ("paginas decorrentes de documentos anexados", "dashboard-pages-native-count"),
+                        ("grafico do quantitativo de processos tramitados na plataforma pela administracao publica", "dashboard-throughput-chart"),
+                        ("grafico de distribuicao percentual do status dos processos", "dashboard-archive-chart"),
+                        ("grafico do quantitativo de processos tramitados na plataforma, filtravel", "dashboard-process-filters"),
+                        ("quantitativo de processos recebidos, total ou por determinados setores", "dashboard-received-count"),
+                        ("quantitativo de processos criados e recebidos, total ou por determinados setores, modulos", "dashboard-created-count"),
+                        ("quantitativo de processos criados e recebidos, total ou por determinados setores", "dashboard-created-received"),
+                        ("quantitativo do tempo medio de resolucao", "dashboard-mean-resolution"),
+                    )
+                    for prefix, label in dashboard_paragraphs:
+                        if prefix in body_low:
+                            marker = label
+                            break
+                candidates.append({
+                    "page_start": normal_page,
+                    "page_end": normal_end or normal_page,
+                    "section": normal_section,
+                    "marker": marker,
+                    "body": sentence,
+                })
         normal_lines = []
         normal_page = None
         normal_end = None
@@ -236,11 +290,25 @@ def extract_candidates(text):
                 flush_bullet()
                 continue
 
+            if folded(line).strip(" .:") == "anexo ii":
+                flush_normal()
+                flush_bullet()
+                appendix_ii_active = True
+                section = "Anexo II — especificação técnica"
+                continue
+            if folded(line).strip(" .:") == "anexo iii":
+                flush_normal()
+                flush_bullet()
+                appendix_ii_active = False
+                section = "Anexo III — modelo de proposta e preços"
+                continue
+
             heading = SECTION.match(line)
             if heading and (line == line.upper() or len(line) < 110):
                 flush_normal()
                 flush_bullet()
-                section = f"§{heading.group(1)} {heading.group(2).strip()}"
+                appendix_suffix = " (Anexo II)" if appendix_ii_active else ""
+                section = f"§{heading.group(1)} {heading.group(2).strip()}{appendix_suffix}"
                 continue
 
             folded_line = folded(line.lstrip(". "))
@@ -296,6 +364,8 @@ def extract_candidates(text):
         low = folded(body)
         section_low = folded(candidate["section"])
         is_scope = candidate["section"].strip().startswith("§")
+        if "§45" in candidate["section"] and re.fullmatch(r"(?:[a-i]|[0-9])\)", low.strip()):
+            continue
         if not candidate["marker"] and low.rstrip(":.;") in {
             "devera conter", "conter", "informacoes gerenciais",
             "progresso no sistema de treinamento de usuarios", "quantitativo de documentos",
@@ -304,7 +374,11 @@ def extract_candidates(text):
             "abrangem os seguintes servicos para atendimento das demandas",
             "funcionalidades de relatorios e analises", "indicadores visuais de desempenho",
             "monitoramento de usuarios e setores", "metricas de eficiencia e engajamento",
+            "analise de processos e documentos", "graficos de tramite e desempenho",
         }:
+            continue
+        if ("§45" in candidate["section"] and
+                low.startswith("adicionalmente as responsabilidades estabelecidas nos demais topicos constantes neste termo")):
             continue
         if ("§36" in candidate["section"] and
                 low.startswith("de acordo com a utilizacao da plataforma, serao gerados automaticamente indicadores")):
@@ -465,8 +539,8 @@ def extract_candidates(text):
     if not {"ui-theme-color", "ui-background-photo", "ui-logo", "ui-print-cost", "ui-welcome-email"}.issubset(ui_markers):
         raise SystemExit("OCR da personalização da interface não separou os cinco itens visualizados na p.19.")
     section_ids = {row["section"].split()[0] for row in filtered}
-    if not {f"§{number}" for number in range(18, 44)}.issubset(section_ids):
-        raise SystemExit("OCR das páginas 17–40 não reconheceu todas as seções 18–43.")
+    if not {f"§{number}" for number in range(18, 46)}.issubset(section_ids):
+        raise SystemExit("OCR das páginas 17–43 não reconheceu todas as seções 18–45.")
     reviewed_text = " ".join(
         folded(row["section"] + " " + row["body"])
         for row in filtered if row["page_start"] >= 21 and row["page_end"] <= 24
@@ -588,14 +662,44 @@ def extract_candidates(text):
         raise SystemExit("A continuação da cláusula LGPD não foi unida e cotejada entre as páginas 36–37.")
     if not any(
         "§43" in row["section"] and "podera disponibilizar paineis de indicadores" in folded(row["body"])
-        for row in filtered
+    for row in filtered
     ):
         raise SystemExit("A declaração facultativa de painéis visuais do §43 não foi preservada.")
+    final_dashboard_markers = {
+        "dashboard-nominal-inactivity", "dashboard-created-received", "dashboard-resolved",
+        "dashboard-pages-native-count", "dashboard-throughput-chart", "dashboard-archive-chart",
+        "dashboard-process-filters", "dashboard-received-count", "dashboard-created-count",
+        "dashboard-mean-resolution", "dashboard-signatures-requested", "dashboard-mean-signature-time",
+        "dashboard-resolved-by-user",
+    }
+    if not final_dashboard_markers.issubset(dashboard_items):
+        raise SystemExit(f"OCR do §43 não separou as métricas das páginas 41–42; faltam {sorted(final_dashboard_markers - dashboard_items)}.")
+    update_text = " ".join(folded(row["body"]) for row in filtered if "§44" in row["section"])
+    for phrase in ("sem nenhuma interrupcao no servico", "no minimo 1 semana de antecedencia", "horario de brasilia"):
+        if phrase not in update_text:
+            raise SystemExit(f"A manutenção programada (§44) não preservou: {phrase}")
+    contract_items = {row["marker"] for row in filtered if "§45" in row["section"]}
+    if not set("abcdefghi").issubset(contract_items):
+        raise SystemExit(f"OCR do §45 não separou as obrigações a–i: {sorted(contract_items)}")
+    appendix_one = [row for row in filtered if "§1" in row["section"] and "(Anexo II)" in row["section"]]
+    appendix_text = " ".join(folded(row["body"]) for row in appendix_one)
+    for phrase in (
+        "numeracao automatica e sequencial", "geracao automatica de qr code", "tela cheia",
+        "respostas e encaminhamentos", "apenas o remetente e o destinatario", "folha de rosto",
+        "organograma cadastrado", "anexacao de multiplos arquivos", "modelos de documentos",
+        "formato pdf para assinatura eletronica", "multiplos prazos", "listagem dos setores envolvidos",
+    ):
+        if phrase not in appendix_text:
+            raise SystemExit(f"Anexo II, item 1 não preservou o requisito: {phrase}")
     return filtered
 
 
 def module_for(section, body):
     text = folded(section + " " + body)
+    if "§44" in section:
+        return "OPERACAO_E_INTEGRACOES"
+    if "§45" in section:
+        return "CONTRATUAL"
     if "§41" in section:
         return "POC_E_OPERACAO"
     if "§42" in section:
@@ -648,6 +752,10 @@ def nature_for(section, body):
         return "POC"
     if "§40" in section:
         return "OPERACAO_CONTRATUAL"
+    if "§44" in section:
+        return "OPERACAO_CONTRATUAL"
+    if "§45" in section:
+        return "EXTERNO/CONTRATUAL"
     if "§39" in section:
         return "EXTERNO/CONTRATUAL"
     if any(phrase in text for phrase in (
