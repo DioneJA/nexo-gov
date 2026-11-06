@@ -22,7 +22,7 @@ SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
-VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 64
+VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 69
 BOILERPLATE = (
     "prefeitura municipal de mata de sao joao", "secretaria de administracao e financas",
     "para verificar a validade", "assinado por 1 pessoa", "1doc.com.br/verificacao",
@@ -326,7 +326,7 @@ def extract_candidates(text):
                 continue
 
             heading = SECTION.match(line)
-            if heading and re.search(r"[A-Za-zÀ-ÿ]", heading.group(2)) and (line == line.upper() or len(line) < 110):
+            if heading and re.search(r"[A-Za-zÀ-ÿ]", heading.group(2)) and line == line.upper():
                 flush_normal()
                 flush_bullet()
                 appendix_suffix = " (Anexo II)" if appendix_ii_active else ""
@@ -386,6 +386,8 @@ def extract_candidates(text):
         low = folded(body)
         section_low = folded(candidate["section"])
         is_scope = candidate["section"].strip().startswith("§")
+        if low.strip() in {"ie]", "ie", "i e]"}:
+            continue
         if "§45" in candidate["section"] and re.fullmatch(r"(?:[a-i]|[0-9])\)", low.strip()):
             continue
         if not candidate["marker"] and low.rstrip(":.;") in {
@@ -953,8 +955,66 @@ def extract_candidates(text):
         folded(row["body"]) for row in filtered
         if "§14" in row["section"] and "(Anexo II)" in row["section"]
     )
-    if "recebimento de inscricoes" not in selection_text or "vagas" not in selection_text:
-        raise SystemExit("Anexo II, item 14 Processo Seletivo não preservou o início da especificação.")
+    for phrase in (
+        "recebimento de inscricoes", "vagas", "conta google", "modelo de documento",
+        "campos personalizados", "formato csv",
+    ):
+        if phrase not in selection_text:
+            raise SystemExit(f"Anexo II, item 14 Processo Seletivo não preservou: {phrase}")
+    legislative_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§15" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "requerimentos e indicacoes", "prazos de resposta", "proposicoes legislativas",
+        "relatorios gerenciais", "proposituras recebidas e respondidas",
+    ):
+        if phrase not in legislative_text:
+            raise SystemExit(f"Anexo II, item 15 Protocolo Legislativo não preservou: {phrase}")
+    personal_request_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§16" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "setor de gestao de pessoas", "13.709/2018", "identificacao atraves de buscas",
+        "qr-code", "login gov.br", "prazo automatico", "forma fisica",
+    ):
+        if phrase not in personal_request_text:
+            raise SystemExit(f"Anexo II, item 16 Requerimento Pessoal não preservou: {phrase}")
+    technical_ticket_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§17" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "chamados tecnicos", "manutencoes de equipamentos", "usuarios externos",
+        "em nome de outro usuario",
+    ):
+        if phrase not in technical_ticket_text:
+            raise SystemExit(f"Anexo II, item 17 Chamado Técnico não preservou: {phrase}")
+    qualification_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§18" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "atestados ou declaracoes de capacidade tecnica", "pessoa de direito publico ou privado",
+        "contrato(s) de sustentacao", "empresas desenvolvedoras", "revendas", "contrato em vigencia",
+    ):
+        if phrase not in qualification_text:
+            raise SystemExit(f"Anexo II, item 18 Qualificação Técnica não preservou: {phrase}")
+    filtered.append({
+        "page_start": 69,
+        "page_end": 69,
+        "section": "Anexo III — planilha de composição de custos",
+        "marker": "commercial-cost-breakdown",
+        "body": (
+            "Solicita-se apresentar junto com a planilha de preços uma planilha de composição de custos, "
+            "discriminando mão de obra, tributos, insumos, frete, lucro/BDI e outros, totalizando 100%."
+        ),
+    })
+    cost_composition_text = folded(filtered[-1]["body"])
+    for phrase in ("mao de obra", "tributos", "insumos", "frete", "lucro/bdi", "outros", "100%"):
+        if phrase not in cost_composition_text:
+            raise SystemExit(f"Anexo III, composição comercial não preservou: {phrase}")
     return filtered
 
 
@@ -962,6 +1022,10 @@ def module_for(section, body):
     text = folded(section + " " + body)
     if "§10" in section:
         return "PORTAL_EXTERNO"
+    if "§18" in section and "(Anexo II)" in section:
+        return "HABILITACAO_EMPRESARIAL"
+    if "Anexo III" in section:
+        return "PROPOSTA_COMERCIAL"
     if "§44" in section:
         return "OPERACAO_E_INTEGRACOES"
     if "§45" in section:
@@ -1022,6 +1086,10 @@ def nature_for(section, body):
         return "OPERACAO_CONTRATUAL"
     if "§45" in section:
         return "EXTERNO/CONTRATUAL"
+    if "§18" in section and "(Anexo II)" in section:
+        return "HABILITACAO_EMPRESARIAL"
+    if "Anexo III" in section:
+        return "PROPOSTA_COMERCIAL"
     if "§39" in section:
         return "EXTERNO/CONTRATUAL"
     if any(phrase in text for phrase in (
@@ -1035,10 +1103,12 @@ def nature_for(section, body):
         return "HABILITACAO_EMPRESARIAL"
     if any(phrase in text for phrase in (
         "backup", "hospedagem", "99% do horario", "data center", "treinamento",
-        "suporte tecnico", "atendimento presencial", "manutencao", "sla", "link de internet",
+        "suporte tecnico", "atendimento presencial", "manutencao", "link de internet",
         "durante a vigencia do contrato", "a contratada disponibilizara", "a contratada realizara",
         "devera cooperar e auxiliar", "migracao", "implantacao",
     )):
+        return "OPERACAO_CONTRATUAL"
+    if re.search(r"\bsla\b", text):
         return "OPERACAO_CONTRATUAL"
     return "SOFTWARE"
 
@@ -1065,6 +1135,8 @@ for index, candidate in enumerate(candidates, start=1):
                 else f"PDF pp.{candidate['page_start']}–{candidate['page_end']}")
     if candidate["marker"].startswith("d/SLA-"):
         item_ref = f", item d, subitem {candidate['marker'].split('/', 1)[1]}"
+    elif candidate["marker"] == "commercial-cost-breakdown":
+        item_ref = ", obrigação da proposta comercial"
     elif candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-", "dashboard-", "manifestation-", "identification-")):
         item_ref = ", subitem em lista no documento"
     else:
@@ -1075,7 +1147,7 @@ for index, candidate in enumerate(candidates, start=1):
         if visually_reviewed else "OCR em português ainda não conferido visualmente"
     )
     origin = f"Termo de Referência, {candidate['section']}{item_ref}, {page_ref}; {review_note}."
-    synthetic_marker = candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-", "dashboard-", "manifestation-", "identification-"))
+    synthetic_marker = candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-", "dashboard-", "manifestation-", "identification-", "commercial-"))
     summary = (
         candidate["body"] if synthetic_marker else
         f"{candidate['marker']}. {candidate['body']}" if candidate["marker"] else
