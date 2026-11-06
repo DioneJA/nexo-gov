@@ -4,9 +4,9 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 ## Estado atual
 
-- Total de linhas/requisitos rastreados: **1417**.
+- Total de linhas/requisitos rastreados: **1416**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Requisitos extraídos do Termo de Referência: **771**; transcrições conferidas visualmente: **502**; ainda pendentes de cotejo visual: **269**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
+- Requisitos extraídos do Termo de Referência: **770**; transcrições conferidas visualmente: **559**; ainda pendentes de cotejo visual: **211**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
 - Requisitos não estritamente de software: **206**; operação contratual **115**, integração externa **61**, habilitação **4**, obrigações externas/contratuais **26**.
 - Status `VALIDADO`: **0**. Não há alegação de 100% de aderência.
 
@@ -14,7 +14,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Status | Linhas |
 |---|---:|
-| `BLOQUEADO` | 771 |
+| `BLOQUEADO` | 770 |
 | `EM_DESENVOLVIMENTO` | 10 |
 | `NAO_INICIADO` | 636 |
 
@@ -46,7 +46,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 | `PROCESSOS_ADMINISTRATIVOS` | 112 |
 | `PROCESSO_ADMINISTRATIVO_DISCIPLINAR` | 12 |
 | `PROCESSO_SELETIVO_SIMPLIFICADO` | 7 |
-| `PROTOCOLO` | 51 |
+| `PROTOCOLO` | 50 |
 | `PROTOCOLO_LEGISLATIVO` | 8 |
 | `RELATORIOS_E_INDICADORES` | 110 |
 | `REQUERIMENTO_PESSOAL` | 20 |
@@ -63,7 +63,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 | `OPERACAO_CONTRATUAL` | 115 |
 | `POC` | 5 |
 | `PREFERENCIAL` | 1 |
-| `SOFTWARE` | 1205 |
+| `SOFTWARE` | 1204 |
 
 ## Regra de aceite
 

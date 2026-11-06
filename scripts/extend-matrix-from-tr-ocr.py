@@ -22,7 +22,7 @@ SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
-VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 48
+VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 52
 BOILERPLATE = (
     "prefeitura municipal de mata de sao joao", "secretaria de administracao e financas",
     "para verificar a validade", "assinado por 1 pessoa", "1doc.com.br/verificacao",
@@ -436,6 +436,12 @@ def extract_candidates(text):
             merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
             merged[-1]["page_end"] = candidate["page_end"]
         elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
+              merged[-1]["section"] == candidate["section"] and "§4" in candidate["section"] and
+              folded(merged[-1]["body"]).endswith("anexos identificados") and
+              body_low.startswith("por assunto de protocolo")):
+            merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
+            merged[-1]["page_end"] = candidate["page_end"]
+        elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
               merged[-1]["section"] == candidate["section"] and "§18" in candidate["section"] and
               ((folded(merged[-1]["body"]).endswith("mata de sao joao") and body_low.startswith("necessite realizar a hospedagem")) or
                (folded(merged[-1]["body"]).endswith("devera cooperar") and body_low.startswith("e auxiliar, prestando total suporte")) or
@@ -756,6 +762,54 @@ def extract_candidates(text):
     )
     if not all(phrase in protocol_text for phrase in ("abertura de protocolo", "central de atendimento", "lista ou calendario")):
         raise SystemExit("Anexo II, item 4 não preservou os modos de abertura e consulta de protocolo.")
+    protocol_extension = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§4" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "qr-code", "codigo externo", "movimentacoes", "direcionamento automatico",
+        "central de distribuicao", "concluido definitivamente", "interacoes externas",
+        "prazo automatico, em dias", "alertas de vencimento", "certificado icp-", "login gov.br",
+        "georreferenciamento", "pessoas envolvidas", "classificacao anterior", "avaliacao da qualidade",
+        "nota substituira", "comprovante com as informacoes do protocolo",
+    ):
+        if phrase not in protocol_extension:
+            raise SystemExit(f"Anexo II, item 4 de Protocolo Eletrônico não preservou: {phrase}")
+    esic_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§5" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "12.527/11", "diretamente pelo cidadao", "visita presencial, telefone ou correspondencia",
+        "qualquer setor cadastrado", "ao menos um usuario ativo", "inclusao de anexos",
+        "categorizacao das demandas por assunto", "grafico contendo informacoes de quantidade total",
+    ):
+        if phrase not in esic_text:
+            raise SystemExit(f"Anexo II, item 5 E-SIC não preservou: {phrase}")
+    oficio_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§6" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "rastreados", "notificacao por sms", "recepcao de respostas", "resposta do destinatario",
+        "manutencao de todo o historico", "base unica de contatos", "mesma numeracao",
+        "geracao de qr code",
+    ):
+        if phrase not in oficio_text:
+            raise SystemExit(f"Anexo II, item 6 Ofício Eletrônico não preservou: {phrase}")
+    process_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§7" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    for phrase in (
+        "criacao de processo administrativo", "assuntos pre-definidos", "setor destinatario inicial",
+        "campos personalizados", "obrigatoriedade de preenchimento", "informacoes de ajuda",
+        "codigo de enderecamento postal (cep)", "validacao automatica da existencia de cpf",
+        "validacao automatica da existencia de cnpj", "automacao de calculos",
+        "modelos de texto", "documentos complementares", "linha do tempo",
+    ):
+        if phrase not in process_text:
+            raise SystemExit(f"Anexo II, item 7 Processo Administrativo não preservou: {phrase}")
     return filtered
 
 
