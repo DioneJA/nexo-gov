@@ -22,7 +22,7 @@ SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
-VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 28
+VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 32
 BOILERPLATE = (
     "prefeitura municipal de mata de sao joao", "secretaria de administracao e financas",
     "para verificar a validade", "assinado por 1 pessoa", "1doc.com.br/verificacao",
@@ -72,6 +72,36 @@ def corrected_bullet(line, page_number, section):
         for prefix, label in security_items:
             if low.startswith(prefix):
                 return label, line[2:].strip()
+    if page_number in (30, 31) and "§36" in section:
+        report_items = (
+            ("e indicador de eficiencia de cada setor", "report-efficiency"),
+            ("e | indicador de eficiencia de cada setor", "report-efficiency"),
+            ("e indicador de qualidade de cada setor", "report-quality"),
+            ("e | indicador de qualidade de cada setor", "report-quality"),
+            ("e indicador de engajamento dos servidores", "report-engagement"),
+            ("e | indicador de engajamento dos servidores", "report-engagement"),
+            ("e indicador de assiduidade dos servidores", "report-attendance"),
+            ("e | indicador de assiduidade dos servidores", "report-attendance"),
+        )
+        for prefix, label in report_items:
+            if low.startswith(prefix):
+                return label, re.sub(r"^\s*e\s*\|?\s*", "", line, flags=re.I).strip()
+    if page_number == 32 and "§36" in section:
+        statistic_items = (
+            ("e total de usuarios", "stat-users"),
+            ("e | total de usuarios", "stat-users"),
+            ("e total de setores", "stat-departments"),
+            ("e | total de setores", "stat-departments"),
+            ("e total de documentos", "stat-documents"),
+            ("e | total de documentos", "stat-documents"),
+            ("e anexos e seu tamanho total", "stat-attachments"),
+            ("e | anexos e seu tamanho total", "stat-attachments"),
+            ("e acessos", "stat-accesses"),
+            ("e | acessos", "stat-accesses"),
+        )
+        for prefix, label in statistic_items:
+            if low.startswith(prefix):
+                return label, re.sub(r"^\s*e\s*\|?\s*", "", line, flags=re.I).strip()
     if page_number == 7 and "§5.c" in section_low:
         for prefix, label in (
             ("e administrador geral:", "acl-admin"), ("e nivel 1:", "acl-level1"),
@@ -159,7 +189,7 @@ def extract_candidates(text):
         nonlocal bullet
         if bullet:
             body = normalized(" ".join(bullet["lines"]))
-            if len(body) >= 12:
+            if body:
                 bullet["body"] = body
                 candidates.append(bullet)
         bullet = None
@@ -239,8 +269,25 @@ def extract_candidates(text):
         low = folded(body)
         section_low = folded(candidate["section"])
         is_scope = candidate["section"].strip().startswith("§")
-        if not candidate["marker"] and low.rstrip(":") in {"devera conter", "conter"}:
+        if not candidate["marker"] and low.rstrip(":") in {
+            "devera conter", "conter", "informacoes gerenciais",
+            "progresso no sistema de treinamento de usuarios", "quantitativo de documentos",
+            "acessos diarios", "estatistica", "informacoes sobre consumo de recursos",
+        }:
             continue
+        if ("§36" in candidate["section"] and
+                low.startswith("de acordo com a utilizacao da plataforma, serao gerados automaticamente indicadores")):
+            continue
+        if "§36" in candidate["section"]:
+            for heading in (
+                "progresso no sistema de treinamento de usuarios",
+                "quantitativo de documentos", "estatistica",
+                "informacoes sobre consumo de recursos",
+            ):
+                if low.startswith(heading + " "):
+                    candidate["body"] = normalized(candidate["body"][len(heading):])
+                    low = folded(candidate["body"])
+                    break
         if candidate["marker"] or is_scope or NORMATIVE.search(low):
             filtered.append(candidate)
 
@@ -276,6 +323,12 @@ def extract_candidates(text):
               merged[-1]["section"] == candidate["section"] and "§33" in candidate["section"] and
               folded(merged[-1]["body"]).endswith("por meio de") and
               body_low.startswith("digitacao do caractere especifico")):
+            merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
+            merged[-1]["page_end"] = candidate["page_end"]
+        elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
+              merged[-1]["section"] == candidate["section"] and "§36" in candidate["section"] and
+              folded(merged[-1]["body"]).endswith("informado pela") and
+              body_low.startswith("administracao publica")):
             merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
             merged[-1]["page_end"] = candidate["page_end"]
         else:
@@ -375,8 +428,8 @@ def extract_candidates(text):
     if not {"ui-theme-color", "ui-background-photo", "ui-logo", "ui-print-cost", "ui-welcome-email"}.issubset(ui_markers):
         raise SystemExit("OCR da personalização da interface não separou os cinco itens visualizados na p.19.")
     section_ids = {row["section"].split()[0] for row in filtered}
-    if not {f"§{number}" for number in range(18, 34)}.issubset(section_ids):
-        raise SystemExit("OCR das páginas 17–28 não reconheceu todas as seções 18–33.")
+    if not {f"§{number}" for number in range(18, 37)}.issubset(section_ids):
+        raise SystemExit("OCR das páginas 17–32 não reconheceu todas as seções 18–36.")
     reviewed_text = " ".join(
         folded(row["section"] + " " + row["body"])
         for row in filtered if row["page_start"] >= 21 and row["page_end"] <= 24
@@ -414,11 +467,42 @@ def extract_candidates(text):
     )
     if not spellcheck or spellcheck["page_end"] != 28 or "formatacao com tabelas" not in folded(spellcheck["body"]):
         raise SystemExit("A continuação de corretor ortográfico do §33 não foi juntada entre as páginas 27–28.")
+    reports_text = " ".join(
+        folded(row["section"] + " " + row["body"])
+        for row in filtered if row["page_start"] >= 29 and row["page_end"] <= 32
+    )
+    for phrase in (
+        "sistema de classificacao e busca por etiqueta digital", "insercao de etiquetas digitais em lote",
+        "organizacao das etiquetas de maneira estruturada", "material de treinamento preferencialmente em formato de video",
+        "aplicacao de avaliacao de aprendizado", "certificado eletronico de conclusao",
+        "indicador de eficiencia de cada setor", "indicador de qualidade de cada setor",
+        "indicador de engajamento dos servidores", "indicador de assiduidade dos servidores",
+        "90 (noventa) dias de inatividade", "exportacao dos relatorios de indicadores em formato csv",
+        "relatorio de progresso dos servidores habilitados inscritos", "relatorio quantitativo de documentos por setor",
+        "geracao assincrona de relatorio", "ultimos 5 (cinco) relatorios", "total de usuarios e por nivel de acesso",
+        "volume de anexos", "economia estimada de recursos", "preco da impressao por folha",
+        "acessos.",
+    ):
+        if phrase not in reports_text:
+            raise SystemExit(f"A revisão visual das páginas 29–32 não preservou o trecho: {phrase}")
+    attendance = next((row for row in filtered if row["marker"] == "report-attendance"), None)
+    if not attendance or attendance["page_end"] != 31 or "45 (quarenta e cinco) dias" not in attendance["body"]:
+        raise SystemExit("O indicador de assiduidade do §36 não foi unido entre as páginas 30–31.")
+    if not any(row["marker"] == "stat-accesses" and folded(row["body"]) == "acessos." for row in filtered):
+        raise SystemExit("O item curto ‘Acessos’ da lista estatística do §36 foi perdido.")
+    if not any("preco da impressao por folha informado pela administracao publica" in folded(row["body"]) for row in filtered):
+        raise SystemExit("A continuação do critério de custo de impressão foi separada na p.32.")
     return filtered
 
 
 def module_for(section, body):
     text = folded(section + " " + body)
+    if "§35" in section or "treinamento de usuarios" in text or "curso(s)" in text:
+        return "TREINAMENTO"
+    if "§36" in section or "relatorios de produtividade" in text:
+        return "RELATORIOS_E_INDICADORES"
+    if "§34" in section or "etiqueta digital" in text:
+        return "GESTAO_DOCUMENTAL"
     for needle, mapped in (
         ("ouvidoria", "OUVIDORIA"), ("e-sic", "E_SIC"), ("protocolo eletronico", "PROTOCOLO"),
         ("processo administrativo disciplinar", "PROCESSO_ADMINISTRATIVO_DISCIPLINAR"),
@@ -481,7 +565,7 @@ for index, candidate in enumerate(candidates, start=1):
                 else f"PDF pp.{candidate['page_start']}–{candidate['page_end']}")
     if candidate["marker"].startswith("d/SLA-"):
         item_ref = f", item d, subitem {candidate['marker'].split('/', 1)[1]}"
-    elif candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-")):
+    elif candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-")):
         item_ref = ", subitem em lista no documento"
     else:
         item_ref = f", item {candidate['marker']}" if candidate["marker"] else f", candidato OCR PT {index}"
@@ -491,7 +575,7 @@ for index, candidate in enumerate(candidates, start=1):
         if visually_reviewed else "OCR em português ainda não conferido visualmente"
     )
     origin = f"Termo de Referência, {candidate['section']}{item_ref}, {page_ref}; {review_note}."
-    synthetic_marker = candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-"))
+    synthetic_marker = candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-"))
     summary = (
         candidate["body"] if synthetic_marker else
         f"{candidate['marker']}. {candidate['body']}" if candidate["marker"] else

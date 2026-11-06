@@ -4,9 +4,9 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 ## Estado atual
 
-- Total de linhas/requisitos rastreados: **1355**.
+- Total de linhas/requisitos rastreados: **1349**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Requisitos extraídos do Termo de Referência: **709**; transcrições conferidas visualmente: **302**; ainda pendentes de cotejo visual: **407**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
+- Requisitos extraídos do Termo de Referência: **703**; transcrições conferidas visualmente: **341**; ainda pendentes de cotejo visual: **362**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.
 - Requisitos não estritamente de software (serviço/operação, obrigação externa/contratual ou habilitação empresarial): **125**; operação contratual **110**, habilitação **4**, obrigações externas/contratuais **11**.
 - Status `VALIDADO`: **0**. Não há alegação de 100% de aderência.
 
@@ -14,7 +14,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Status | Linhas |
 |---|---:|
-| `BLOQUEADO` | 709 |
+| `BLOQUEADO` | 703 |
 | `EM_DESENVOLVIMENTO` | 10 |
 | `NAO_INICIADO` | 636 |
 
@@ -24,21 +24,21 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 |---|---:|
 | `ADMINISTRACAO` | 91 |
 | `APROVACAO_PROJETOS` | 93 |
-| `ASSINATURAS` | 120 |
+| `ASSINATURAS` | 119 |
 | `CAPACIDADE_E_LICENCIAMENTO` | 5 |
 | `CHAMADO_TECNICO` | 8 |
 | `COMUNICACAO_OFICIAL` | 56 |
 | `CONTRATUAL` | 1 |
 | `E_SIC` | 10 |
-| `GESTAO_DOCUMENTAL` | 204 |
+| `GESTAO_DOCUMENTAL` | 189 |
 | `HABILITACAO_EMPRESARIAL` | 3 |
-| `IDENTIDADE_E_SEGURANCA` | 95 |
+| `IDENTIDADE_E_SEGURANCA` | 93 |
 | `IMPLANTACAO_E_SUPORTE` | 18 |
 | `MIGRACAO` | 1 |
-| `NOTIFICACOES` | 21 |
+| `NOTIFICACOES` | 19 |
 | `OPERACAO_E_INTEGRACOES` | 19 |
 | `OUVIDORIA` | 58 |
-| `PLATAFORMA_E_ARQUITETURA` | 269 |
+| `PLATAFORMA_E_ARQUITETURA` | 236 |
 | `POC` | 1 |
 | `POC_E_OPERACAO` | 2 |
 | `PORTAL_EXTERNO` | 42 |
@@ -48,10 +48,10 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 | `PROCESSO_SELETIVO_SIMPLIFICADO` | 6 |
 | `PROTOCOLO` | 35 |
 | `PROTOCOLO_LEGISLATIVO` | 8 |
-| `RELATORIOS_E_INDICADORES` | 42 |
+| `RELATORIOS_E_INDICADORES` | 84 |
 | `REQUERIMENTO_PESSOAL` | 18 |
 | `SUPORTE` | 1 |
-| `TREINAMENTO` | 7 |
+| `TREINAMENTO` | 12 |
 
 ## Natureza
 
@@ -62,7 +62,7 @@ Gerada em 2026-11-06 a partir de `MATRIZ_ADERENCIA.csv`.
 | `OPERACAO_CONTRATUAL` | 110 |
 | `POC` | 5 |
 | `PREFERENCIAL` | 1 |
-| `SOFTWARE` | 1224 |
+| `SOFTWARE` | 1218 |
 
 ## Regra de aceite
 
