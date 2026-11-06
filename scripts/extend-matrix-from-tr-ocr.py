@@ -22,7 +22,7 @@ SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
-VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 44
+VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 48
 BOILERPLATE = (
     "prefeitura municipal de mata de sao joao", "secretaria de administracao e financas",
     "para verificar a validade", "assinado por 1 pessoa", "1doc.com.br/verificacao",
@@ -158,6 +158,28 @@ def corrected_bullet(line, page_number, section):
         for prefix, label in obligation_items:
             if low.startswith(prefix):
                 return label, line.strip()
+    if page_number == 46 and "§3" in section:
+        labels = {
+            "denuncia": "manifestation-denuncia",
+            "elogio": "manifestation-elogio",
+            "reclamacao": "manifestation-reclamacao",
+            "solicitacao": "manifestation-solicitacao",
+            "sugestao": "manifestation-sugestao",
+        }
+        quoted = re.search(r'["“]([^"”]+)["”]', line)
+        if quoted and folded(quoted.group(1)) in labels:
+            body = re.sub(r"^\s*(?:e|¢|\*)\s*", "", line, flags=re.I).strip()
+            return labels[folded(quoted.group(1))], body
+    if page_number == 48 and "§3" in section:
+        labels = {
+            "sem sigilo": "identification-public",
+            "sigilosa": "identification-confidential",
+            "anonimo": "identification-anonymous",
+        }
+        quoted = re.search(r'["“]([^"”]+)["”]', line)
+        if quoted and folded(quoted.group(1)) in labels:
+            body = re.sub(r"^\s*(?:e|¢|\*)\s*", "", line, flags=re.I).strip()
+            return labels[folded(quoted.group(1))], body
     if page_number == 7 and "§5.c" in section_low:
         for prefix, label in (
             ("e administrador geral:", "acl-admin"), ("e nivel 1:", "acl-level1"),
@@ -691,6 +713,49 @@ def extract_candidates(text):
     ):
         if phrase not in appendix_text:
             raise SystemExit(f"Anexo II, item 1 não preservou o requisito: {phrase}")
+    communication_continuation = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§1" in row["section"] and "(Anexo II)" in row["section"] and row["page_start"] == 45
+    )
+    if not all(phrase in communication_continuation for phrase in ("linha do tempo", "historico claro e conciso")):
+        raise SystemExit("A continuação do item 1 do Anexo II não preservou a linha do tempo na p.45.")
+    circular_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§2" in row["section"] and "(Anexo II)" in row["section"] and row["page_start"] <= 45
+    )
+    for phrase in (
+        "carater informativo", 'prioridade "urgente"', "data e hora", "resposta aberta",
+        "restrita", "multiplos arquivos", "interrupcao das notificacoes", "setor nao envolvido",
+        "arquivamento automatico", "meramente informativa",
+    ):
+        if phrase not in circular_text:
+            raise SystemExit(f"Anexo II, item 2 não preservou a condição da Circular: {phrase}")
+    manifestation_items = {row["marker"] for row in filtered if row["marker"].startswith("manifestation-")}
+    if manifestation_items != {
+        "manifestation-denuncia", "manifestation-elogio", "manifestation-reclamacao",
+        "manifestation-solicitacao", "manifestation-sugestao",
+    }:
+        raise SystemExit(f"Anexo II, item 3 não separou as cinco finalidades da Ouvidoria: {sorted(manifestation_items)}")
+    identification_items = {row["marker"] for row in filtered if row["marker"].startswith("identification-")}
+    if identification_items != {"identification-public", "identification-confidential", "identification-anonymous"}:
+        raise SystemExit(f"Anexo II, item 3 não separou as três modalidades de identificação: {sorted(identification_items)}")
+    ouvidoria_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§3" in row["section"] and "(Anexo II)" in row["section"] and row["page_start"] <= 48
+    )
+    for phrase in (
+        "13.460/2017", "integracao com e-mail setorial", "geolocalizacao", "recategorizacao",
+        "resolucao unilateral", "decisao administrativa final", "avaliacao da qualidade",
+        "somente a ouvidoria tera acesso", "codigo externo",
+    ):
+        if phrase not in ouvidoria_text:
+            raise SystemExit(f"Anexo II, item 3 de Ouvidoria não preservou: {phrase}")
+    protocol_text = " ".join(
+        folded(row["body"]) for row in filtered
+        if "§4" in row["section"] and "(Anexo II)" in row["section"]
+    )
+    if not all(phrase in protocol_text for phrase in ("abertura de protocolo", "central de atendimento", "lista ou calendario")):
+        raise SystemExit("Anexo II, item 4 não preservou os modos de abertura e consulta de protocolo.")
     return filtered
 
 
@@ -799,7 +864,7 @@ for index, candidate in enumerate(candidates, start=1):
                 else f"PDF pp.{candidate['page_start']}–{candidate['page_end']}")
     if candidate["marker"].startswith("d/SLA-"):
         item_ref = f", item d, subitem {candidate['marker'].split('/', 1)[1]}"
-    elif candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-", "dashboard-")):
+    elif candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-", "dashboard-", "manifestation-", "identification-")):
         item_ref = ", subitem em lista no documento"
     else:
         item_ref = f", item {candidate['marker']}" if candidate["marker"] else f", candidato OCR PT {index}"
@@ -809,7 +874,7 @@ for index, candidate in enumerate(candidates, start=1):
         if visually_reviewed else "OCR em português ainda não conferido visualmente"
     )
     origin = f"Termo de Referência, {candidate['section']}{item_ref}, {page_ref}; {review_note}."
-    synthetic_marker = candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-", "dashboard-"))
+    synthetic_marker = candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-", "report-", "stat-", "dashboard-", "manifestation-", "identification-"))
     summary = (
         candidate["body"] if synthetic_marker else
         f"{candidate['marker']}. {candidate['body']}" if candidate["marker"] else
