@@ -17,6 +17,11 @@ nature_counts = Counter(row["natureza"] for row in rows)
 ed_rows = [row for row in rows if row["id"].startswith("ED91-")]
 tr_rows = [row for row in rows if row["id"].startswith("TR91-")]
 external_rows = [row for row in rows if row["natureza"] == "EXTERNO/CONTRATUAL"]
+non_software_rows = [row for row in rows if row["natureza"] in {"EXTERNO/CONTRATUAL", "OPERACAO_CONTRATUAL", "HABILITACAO_EMPRESARIAL"}]
+operation_rows = [row for row in rows if row["natureza"] == "OPERACAO_CONTRATUAL"]
+qualification_rows = [row for row in rows if row["natureza"] == "HABILITACAO_EMPRESARIAL"]
+tr_visually_reviewed = [row for row in tr_rows if row["validacao_fonte"] == "CONFERIDA_VISUALMENTE"]
+tr_ocr_pending = [row for row in tr_rows if row["validacao_fonte"] == "OCR_PENDENTE"]
 
 report = [
     "# Matriz de aderência — resumo de rastreabilidade", "",
@@ -24,8 +29,8 @@ report = [
     "## Estado atual", "",
     f"- Total de linhas/requisitos rastreados: **{len(rows)}**.",
     f"- Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **{len(ed_rows)}**.",
-    f"- Parágrafos e alíneas candidatos do Termo de Referência via OCR não conferido: **{len(tr_rows)}**, todos `BLOQUEADO`.",
-    f"- Requisitos contratuais/empresariais fora do escopo exclusivo de software: **{len(external_rows)}**.",
+    f"- Requisitos extraídos do Termo de Referência: **{len(tr_rows)}**; transcrições conferidas visualmente: **{len(tr_visually_reviewed)}**; ainda pendentes de cotejo visual: **{len(tr_ocr_pending)}**. Todos seguem `BLOQUEADO` até definição de aceite, teste e evidência.",
+    f"- Requisitos não estritamente de software (serviço/operação, obrigação externa/contratual ou habilitação empresarial): **{len(non_software_rows)}**; operação contratual **{len(operation_rows)}**, habilitação **{len(qualification_rows)}**, obrigações externas/contratuais **{len(external_rows)}**.",
     f"- Status `VALIDADO`: **{status_counts['VALIDADO']}**. Não há alegação de 100% de aderência.", "",
     "## Contagem por status", "", "| Status | Linhas |", "|---|---:|"
 ]
@@ -36,9 +41,9 @@ report += ["", "## Natureza", "", "| Natureza | Linhas |", "|---|---:|"]
 for nature, count in sorted(nature_counts.items()): report.append(f"| `{nature}` | {count} |")
 report += [
     "", "## Regra de aceite", "",
-    "A planilha CSV contém o resumo do requisito, origem documental, prioridade, módulo, natureza, critério, backend/frontend, teste, roteiro POC, evidência e status para cada ID. Requisitos com OCR não validado permanecem bloqueados; nenhum status é elevado a `VALIDADO` por ter uma tela, endpoint ou documento. Atualize o CSV após cada incremento e execute `scripts/check-matrix.py`.",
+    "A planilha CSV contém o resumo do requisito, origem documental, prioridade, módulo, natureza, estado de conferência da fonte, critério, backend/frontend, teste, roteiro POC, evidência e status para cada ID. A conferência visual valida a transcrição, não a implementação. Nenhum status é elevado a `VALIDADO` por ter uma tela, endpoint ou documento. Atualize o CSV após cada incremento e execute `scripts/check-matrix.py`.",
     "", "## Fontes e ressalvas", "",
-    "O edital e a Errata I são PDFs pesquisáveis; o Termo de Referência foi digitalizado. Cada linha `TR91` traz página PDF e bloco OCR para localizar o trecho, mas exige comparação visual com `edital-original/TERMODEREFERENCIAEJUSTIFICATIVAPE912025.pdf`. A numeração dos IDs é interna e não altera a numeração oficial dos itens.",
+    "O edital e a Errata I são PDFs pesquisáveis; o Termo de Referência foi digitalizado. Cada linha `TR91` traz página PDF e bloco de texto para localizar o trecho. A coluna `validacao_fonte` informa se a transcrição foi conferida visualmente; requisitos ainda precisam de decomposição atômica e critérios de aceite. A numeração dos IDs é interna e não altera a numeração oficial dos itens.",
 ]
 (base / "MATRIZ_ADERENCIA.md").write_text("\n".join(report) + "\n", encoding="utf-8")
 
@@ -64,16 +69,21 @@ poc = [
     "8. Salve como evidências o teste Testcontainers, PDF, JSON de estado, vídeo/captura da interface, logs sem segredos e planilha com IDs cobertos.",
     "", "**Limites do ensaio:** o fluxo ainda é um primeiro recorte e não prova os demais requisitos; HTTP Basic/seed existem apenas em perfil `local`; anexos, notificações, assinatura, dados reais, e-mail, integrações externas e proteções contra abuso não fazem parte desta demonstração.",
     "", "## Cobertura individual rastreada", "",
-    "A lista abaixo gera um cenário por requisito. Para itens já construídos, a referência de cenário/teste/evidência deve ser específica no CSV. Para todos os demais, o cenário está registrado como pendente e o roteiro só pode ser finalizado depois de implementar e conhecer os dados de teste do módulo. Itens `TR91` estão bloqueados até conferência visual do scan.",
+    "A lista abaixo gera um cenário por requisito. Para itens já construídos, a referência de cenário/teste/evidência deve ser específica no CSV. Para os demais, o cenário permanece pendente até implementação e definição dos dados de teste. A coluna `validacao_fonte` diferencia transcrições visualmente conferidas das que ainda dependem de cotejo; ambas continuam bloqueadas até aceite, teste e evidência de produto.",
     "", "| Código | Origem (resumo) | Estado inicial e dados | Passos | Resultado esperado | Evidência | Status |", "|---|---|---|---|---|---|---|"
 ]
 for row in rows:
     source = row["origem_documento_pagina_secao_item"].replace("|", "\\|")
     summary = row["requisito_resumo_fiel"].replace("|", "\\|").replace("\n", " ")
     if row["status"] == "BLOQUEADO":
-        initial = "Conferir primeiro o scan oficial e decompor o texto OCR."
-        steps = "Bloqueado até revisão visual; não simular OCR como requisito confirmado."
-        expected = "Critério pendente de fixação após conferência da fonte."
+        if row["validacao_fonte"] == "OCR_PENDENTE":
+            initial = "Conferir a página do PDF oficial e decompor o texto OCR."
+            steps = "Bloqueado até revisar a transcrição; não tratar OCR como texto confirmado."
+            expected = "Critério pendente de fixação após conferência visual da fonte."
+        else:
+            initial = "Fonte oficial conferida; dados fictícios do módulo definidos após decomposição do requisito."
+            steps = "Bloqueado até decompor obrigações, definir critério/teste e implementar; sem demonstração registrada."
+            expected = row["criterio_de_aceite"].replace("|", "\\|")
     else:
         initial = f"Dados fictícios apropriados ao módulo `{row['modulo']}`; configuração atual registrada no CSV."
         steps = f"{row['roteiro_poc']} Requisito: {summary}"

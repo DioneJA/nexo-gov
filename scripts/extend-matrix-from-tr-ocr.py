@@ -22,6 +22,7 @@ SECTION = re.compile(r"^\s*(\d{1,2})[.)]\s*(.{3,150})$")
 SUBSECTION = re.compile(r"^\s*([a-dA-D])[.)]\s+(.{3,150})$")
 BULLET = re.compile(r"^\s*([a-zA-Z]|[ivxlcdm]{1,5}|\d{1,2})[.)]\s+(.+)$")
 PAGE_MARKER = re.compile(r"^===== PÁGINA PDF (\d+) =====\s*$", re.M)
+VISUALLY_REVIEWED_THROUGH_PDF_PAGE = 28
 BOILERPLATE = (
     "prefeitura municipal de mata de sao joao", "secretaria de administracao e financas",
     "para verificar a validade", "assinado por 1 pessoa", "1doc.com.br/verificacao",
@@ -50,6 +51,27 @@ def corrected_bullet(line, page_number, section):
     """Restore obvious OCR-dropped list markers where the scanned pages were checked."""
     low = folded(line)
     section_low = folded(section)
+    if page_number == 19 and "§21" in section:
+        ui_items = (
+            ("e cor do tema predominante", "ui-theme-color"),
+            ("e fotos para background", "ui-background-photo"),
+            ("e brasao/logo", "ui-logo"),
+            ("e custo da impressao/copia", "ui-print-cost"),
+            ("e customizacao do e-mail de boas-vindas", "ui-welcome-email"),
+        )
+        for prefix, label in ui_items:
+            if low.startswith(prefix):
+                return label, line[2:].strip()
+    if page_number in (25, 26) and "§32" in section:
+        security_items = (
+            ("e certificacao digital dos documentos", "fraud-certification"),
+            ("e trilha de auditoria dos documentos", "fraud-audit-trail"),
+            ("e criptografia dos documentos armazenados", "fraud-encryption"),
+            ("e validacao de assinaturas com certificado digital", "fraud-icp-validation"),
+        )
+        for prefix, label in security_items:
+            if low.startswith(prefix):
+                return label, line[2:].strip()
     if page_number == 7 and "§5.c" in section_low:
         for prefix, label in (
             ("e administrador geral:", "acl-admin"), ("e nivel 1:", "acl-level1"),
@@ -113,22 +135,24 @@ def extract_candidates(text):
     section = "Termo de Referência, anexo técnico"
     normal_lines = []
     normal_page = None
+    normal_end = None
     normal_section = None
     bullet = None
 
     def flush_normal():
-        nonlocal normal_lines, normal_page, normal_section
+        nonlocal normal_lines, normal_page, normal_end, normal_section
         body = normalized(" ".join(normal_lines))
-        if body and len(body) >= 35:
+        if body and (len(body) >= 35 or (normal_section and normal_section.strip().startswith("§"))):
             candidates.append({
                 "page_start": normal_page,
-                "page_end": normal_page,
+                "page_end": normal_end or normal_page,
                 "section": normal_section,
                 "marker": "",
                 "body": body,
             })
         normal_lines = []
         normal_page = None
+        normal_end = None
         normal_section = None
 
     def flush_bullet():
@@ -195,8 +219,10 @@ def extract_candidates(text):
             else:
                 if normal_page is None:
                     normal_page = page_number
+                    normal_end = page_number
                     normal_section = section
                 normal_lines.append(line)
+                normal_end = page_number
 
         # Preserve only visibly incomplete text across a page boundary.
         if normal_lines and re.search(r"[.;:!?][\"'”’)]?$", normalized(" ".join(normal_lines))):
@@ -213,6 +239,8 @@ def extract_candidates(text):
         low = folded(body)
         section_low = folded(candidate["section"])
         is_scope = candidate["section"].strip().startswith("§")
+        if not candidate["marker"] and low.rstrip(":") in {"devera conter", "conter"}:
+            continue
         if candidate["marker"] or is_scope or NORMATIVE.search(low):
             filtered.append(candidate)
 
@@ -231,6 +259,23 @@ def extract_candidates(text):
               ((folded(merged[-1]["body"]).endswith("mediante") and body_low.startswith("identificacao do usuario")) or
                (folded(merged[-1]["body"]).endswith("qual usuario") and body_low.startswith("responsavel na linha do tempo")) or
                (folded(merged[-1]["body"]).endswith("historico de usuarios ao") and body_low.startswith("longo do mes")))):
+            merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
+            merged[-1]["page_end"] = candidate["page_end"]
+        elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
+              merged[-1]["section"] == candidate["section"] and "§18" in candidate["section"] and
+              ((folded(merged[-1]["body"]).endswith("mata de sao joao") and body_low.startswith("necessite realizar a hospedagem")) or
+               (folded(merged[-1]["body"]).endswith("devera cooperar") and body_low.startswith("e auxiliar, prestando total suporte")) or
+               (folded(merged[-1]["body"]).endswith("pedido da") and body_low.startswith("administracao, limitada a uma copia")) or
+               (folded(merged[-1]["body"]).endswith("ultima ie]") and body_low.startswith("solicitacao, a contratada disponibilizara")))):
+            left = merged[-1]["body"]
+            if folded(left).endswith("ultima ie]"):
+                left = left[:left.rfind("IE]")].rstrip()
+            merged[-1]["body"] = normalized(left + " " + candidate["body"])
+            merged[-1]["page_end"] = candidate["page_end"]
+        elif (not candidate["marker"] and merged and not merged[-1]["marker"] and
+              merged[-1]["section"] == candidate["section"] and "§33" in candidate["section"] and
+              folded(merged[-1]["body"]).endswith("por meio de") and
+              body_low.startswith("digitacao do caractere especifico")):
             merged[-1]["body"] = normalized(merged[-1]["body"] + " " + candidate["body"])
             merged[-1]["page_end"] = candidate["page_end"]
         else:
@@ -319,6 +364,56 @@ def extract_candidates(text):
     ):
         if phrase not in later_sections_text:
             raise SystemExit(f"OCR das páginas 13–16 não preservou o trecho de referência: {phrase}")
+    hosting_text = " ".join(folded(row["body"]) for row in filtered if "§18" in row["section"])
+    for phrase in (
+        "servidor seguro", "99% do horario padrao", "backup diario, semanal e mensal",
+        "prestando total suporte em tal procedimento", "por nao menos que 180 dias da ultima solicitacao",
+    ):
+        if phrase not in hosting_text:
+            raise SystemExit(f"OCR da hospedagem segura, pp.17–19, não preservou: {phrase}")
+    ui_markers = {row["marker"] for row in filtered if "§21" in row["section"]}
+    if not {"ui-theme-color", "ui-background-photo", "ui-logo", "ui-print-cost", "ui-welcome-email"}.issubset(ui_markers):
+        raise SystemExit("OCR da personalização da interface não separou os cinco itens visualizados na p.19.")
+    section_ids = {row["section"].split()[0] for row in filtered}
+    if not {f"§{number}" for number in range(18, 34)}.issubset(section_ids):
+        raise SystemExit("OCR das páginas 17–28 não reconheceu todas as seções 18–33.")
+    reviewed_text = " ".join(
+        folded(row["section"] + " " + row["body"])
+        for row in filtered if row["page_start"] >= 21 and row["page_end"] <= 24
+    )
+    for phrase in (
+        "busca avancada dentro dos documentos gerados", "reconhecimento optico de caracteres",
+        "contrassenha gerada tera numero limitado de uso", "marcadores do setor ficarao disponiveis",
+        "visualizacao das demandas em modo kanban", "demandas com georeferenciamento em modo mapa",
+        "geracao automatica de certificados no padrao x509", "formato pades",
+        "fluxos de signatarios sequenciais e em paralelo",
+    ):
+        if phrase not in reviewed_text:
+            raise SystemExit(f"A revisão visual das páginas 21–24 não preservou o trecho: {phrase}")
+    signature_editor_text = " ".join(
+        folded(row["section"] + " " + row["body"])
+        for row in filtered if row["page_start"] >= 25 and row["page_end"] <= 28
+    )
+    for phrase in (
+        "a cada nova assinatura no documento sera enviado um e-mail",
+        "mecanismos que visem a seguranca e prevencao de fraudes",
+        "certificacao digital dos documentos", "trilha de auditoria dos documentos",
+        "criptografia dos documentos armazenados", "validacao de assinaturas com certificado digital",
+        "certificados digitais individuais", "co-assinar documentos previamente assinados",
+        "a1 ou a3 emitido icp-brasil", "co-assinaturas na linha do tempo",
+        "editor de texto em tela cheia", "salvamento automatico do rascunho",
+        "por um unico servidor habilitado", "variaveis de conteudo",
+        "modelos de resposta", "hiperlink automatico entre os documentos",
+        "passara a ter acesso automaticamente ao documento",
+    ):
+        if phrase not in signature_editor_text:
+            raise SystemExit(f"A revisão visual das páginas 25–28 não preservou o trecho: {phrase}")
+    spellcheck = next(
+        (row for row in filtered if row["page_start"] == 27 and "corretor ortografico" in folded(row["body"])),
+        None,
+    )
+    if not spellcheck or spellcheck["page_end"] != 28 or "formatacao com tabelas" not in folded(spellcheck["body"]):
+        raise SystemExit("A continuação de corretor ortográfico do §33 não foi juntada entre as páginas 27–28.")
     return filtered
 
 
@@ -349,10 +444,36 @@ def module_for(section, body):
     return "PLATAFORMA_E_ARQUITETURA"
 
 
+def nature_for(section, body):
+    """Classify the obligation type independently from source-review state."""
+    text = folded(section + " " + body)
+    if any(phrase in text for phrase in (
+        "prova de conceito", "demonstracao da solucao", "apresentacao do sistema",
+    )):
+        return "POC"
+    if any(phrase in text for phrase in (
+        "atestado de capacidade tecnica", "qualificacao tecnica", "habilitacao empresarial",
+        "registro no conselho profissional", "certidao de acervo tecnico",
+    )):
+        return "HABILITACAO_EMPRESARIAL"
+    if any(phrase in text for phrase in (
+        "backup", "hospedagem", "99% do horario", "data center", "treinamento",
+        "suporte tecnico", "atendimento presencial", "manutencao", "sla", "link de internet",
+        "durante a vigencia do contrato", "a contratada disponibilizara", "a contratada realizara",
+        "devera cooperar e auxiliar", "migracao", "implantacao",
+    )):
+        return "OPERACAO_CONTRATUAL"
+    return "SOFTWARE"
+
+
 with CSV_PATH.open(encoding="utf-8-sig", newline="") as stream:
     reader = csv.DictReader(stream, delimiter=";")
     fields = reader.fieldnames
     rows = [row for row in reader if not row["id"].startswith("TR91-")]
+if "validacao_fonte" not in fields:
+    fields.append("validacao_fonte")
+for row in rows:
+    row["validacao_fonte"] = "CONFERIDA_NO_DOCUMENTO_OFICIAL"
 
 candidates = extract_candidates(OCR_PATH.read_text(encoding="utf-8", errors="replace"))
 for index, candidate in enumerate(candidates, start=1):
@@ -360,24 +481,50 @@ for index, candidate in enumerate(candidates, start=1):
                 else f"PDF pp.{candidate['page_start']}–{candidate['page_end']}")
     if candidate["marker"].startswith("d/SLA-"):
         item_ref = f", item d, subitem {candidate['marker'].split('/', 1)[1]}"
+    elif candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-")):
+        item_ref = ", subitem em lista no documento"
     else:
         item_ref = f", item {candidate['marker']}" if candidate["marker"] else f", candidato OCR PT {index}"
-    origin = f"Termo de Referência, {candidate['section']}{item_ref}, {page_ref}; OCR em português não conferido visualmente."
-    summary = f"{candidate['marker']}. {candidate['body']}" if candidate["marker"] else candidate["body"]
+    visually_reviewed = candidate["page_end"] <= VISUALLY_REVIEWED_THROUGH_PDF_PAGE
+    review_note = (
+        "transcrição conferida visualmente no PDF oficial"
+        if visually_reviewed else "OCR em português ainda não conferido visualmente"
+    )
+    origin = f"Termo de Referência, {candidate['section']}{item_ref}, {page_ref}; {review_note}."
+    synthetic_marker = candidate["marker"].startswith(("ui-", "acl-", "portal-task-", "fraud-"))
+    summary = (
+        candidate["body"] if synthetic_marker else
+        f"{candidate['marker']}. {candidate['body']}" if candidate["marker"] else
+        candidate["body"]
+    )
+    if visually_reviewed:
+        acceptance = (
+            "BLOQUEADO: transcrição conferida; decompor obrigações, definir aceite observável, "
+            "responsáveis backend/frontend, teste e evidência antes de avaliar implementação."
+        )
+        test = "Transcrição visualmente conferida; teste automatizado pendente de decomposição e critério de aceite."
+        evidence = f"Conferido visualmente no PDF oficial, {page_ref}; implementação e teste ainda sem evidência."
+        poc = f"POC-TR91-{index:04d}: roteiro pendente de decomposição e implementação; fonte conferida, sem demonstração registrada."
+    else:
+        acceptance = "BLOQUEADO: comparar com o scan e dividir obrigações distintas deste item antes de definir aceite observável."
+        test = "BLOQUEADO até confirmar a transcrição e decompor as obrigações deste item OCR."
+        evidence = "Aguardando conferência da imagem oficial; OCR anexado apenas para descoberta."
+        poc = f"POC-TR91-{index:04d}: bloqueado até validação visual da página {candidate['page_start']} do Termo de Referência."
     rows.append({
         "id": f"TR91-{index:04d}",
         "requisito_resumo_fiel": summary,
         "origem_documento_pagina_secao_item": origin,
         "prioridade": "OBRIGATÓRIO",
         "modulo": module_for(candidate["section"], candidate["body"]),
-        "natureza": "CANDIDATO OCR PT NÃO CONFERIDO",
-        "criterio_de_aceite": "BLOQUEADO: comparar com o scan e dividir obrigações distintas deste item antes de definir aceite observável.",
+        "natureza": nature_for(candidate["section"], candidate["body"]),
+        "criterio_de_aceite": acceptance,
         "backend_envolvido": "A definir após validação visual e decomposição do requisito.",
         "frontend_envolvido": "A definir após validação visual e decomposição do requisito.",
-        "teste_automatizado": "BLOQUEADO até confirmar a transcrição e decompor as obrigações deste item OCR.",
-        "roteiro_poc": f"POC-TR91-{index:04d}: bloqueado até validação visual da página {candidate['page_start']} do Termo de Referência.",
-        "evidencia": "Aguardando conferência da imagem oficial; OCR anexado apenas para descoberta.",
+        "teste_automatizado": test,
+        "roteiro_poc": poc,
+        "evidencia": evidence,
         "status": "BLOQUEADO",
+        "validacao_fonte": "CONFERIDA_VISUALMENTE" if visually_reviewed else "OCR_PENDENTE",
     })
 
 rows.sort(key=lambda row: (0 if row["id"].startswith("ED91-") else 1 if row["id"].startswith("TR91-") else 2, row["id"]))
@@ -385,4 +532,6 @@ with CSV_PATH.open("w", encoding="utf-8-sig", newline="") as stream:
     writer = csv.DictWriter(stream, fieldnames=fields, delimiter=";", quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
     writer.writeheader()
     writer.writerows(rows)
-print(f"Matriz atualizada: {len(rows)} linhas; {len(candidates)} candidatos do TR (alíneas e parágrafos) marcados BLOQUEADO até conferência visual.")
+verified_count = sum(row["validacao_fonte"] == "CONFERIDA_VISUALMENTE" for row in rows if row["id"].startswith("TR91-"))
+pending_count = sum(row["validacao_fonte"] == "OCR_PENDENTE" for row in rows if row["id"].startswith("TR91-"))
+print(f"Matriz atualizada: {len(rows)} linhas; {len(candidates)} requisitos TR, {verified_count} transcrições conferidas visualmente e {pending_count} pendentes. Os requisitos TR seguem BLOQUEADO até decomposição, critérios, testes e evidências.")

@@ -7,7 +7,8 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 matrix = root / "docs/licitacoes/mata-de-sao-joao-91-2025/MATRIZ_ADERENCIA.csv"
 allowed = {"NAO_INICIADO", "EM_DESENVOLVIMENTO", "IMPLEMENTADO_NAO_TESTADO", "VALIDADO", "BLOQUEADO", "NAO_APLICAVEL_JUSTIFICADO"}
-required = {"id", "requisito_resumo_fiel", "origem_documento_pagina_secao_item", "prioridade", "modulo", "natureza", "criterio_de_aceite", "backend_envolvido", "frontend_envolvido", "teste_automatizado", "roteiro_poc", "evidencia", "status"}
+required = {"id", "requisito_resumo_fiel", "origem_documento_pagina_secao_item", "prioridade", "modulo", "natureza", "criterio_de_aceite", "backend_envolvido", "frontend_envolvido", "teste_automatizado", "roteiro_poc", "evidencia", "status", "validacao_fonte"}
+valid_source_states = {"CONFERIDA_NO_DOCUMENTO_OFICIAL", "CONFERIDA_VISUALMENTE", "OCR_PENDENTE"}
 with matrix.open(encoding="utf-8-sig", newline="") as stream:
     reader = csv.DictReader(stream, delimiter=";")
     missing = required - set(reader.fieldnames or [])
@@ -17,12 +18,15 @@ with matrix.open(encoding="utf-8-sig", newline="") as stream:
 ids = [row["id"] for row in rows]
 duplicates = [key for key, count in Counter(ids).items() if count != 1]
 bad = [(row["id"], row["status"]) for row in rows if row["status"] not in allowed]
+bad_source = [(row["id"], row["validacao_fonte"]) for row in rows if row["validacao_fonte"] not in valid_source_states]
 empty = [(row["id"], key) for row in rows for key in required if not row.get(key, "").strip()]
-if duplicates or bad or empty:
-    raise SystemExit(f"IDs duplicados={duplicates}; status inválidos={bad}; campos vazios={empty[:20]}")
+if duplicates or bad or bad_source or empty:
+    raise SystemExit(f"IDs duplicados={duplicates}; status inválidos={bad}; validação de fonte inválida={bad_source}; campos vazios={empty[:20]}")
 statuses = Counter(row["status"] for row in rows)
 modules = Counter(row["modulo"] for row in rows)
 print(f"Linhas rastreadas: {len(rows)}")
 print("Status: " + ", ".join(f"{k}={v}" for k, v in sorted(statuses.items())))
 print("Módulos: " + ", ".join(f"{k}={v}" for k, v in sorted(modules.items())))
 print(f"Validados: {statuses['VALIDADO']}/{len(rows)}")
+source_counts = Counter(row["validacao_fonte"] for row in rows)
+print("Fonte: " + ", ".join(f"{k}={v}" for k, v in sorted(source_counts.items())))
