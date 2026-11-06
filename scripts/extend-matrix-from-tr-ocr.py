@@ -325,6 +325,11 @@ def extract_candidates(text):
                 section = "Anexo III — modelo de proposta e preços"
                 continue
 
+            if folded(line).strip(" .:") == "observacoes complementares":
+                flush_normal()
+                flush_bullet()
+                continue
+
             heading = SECTION.match(line)
             if heading and re.search(r"[A-Za-zÀ-ÿ]", heading.group(2)) and line == line.upper():
                 flush_normal()
@@ -1001,6 +1006,8 @@ def extract_candidates(text):
     ):
         if phrase not in qualification_text:
             raise SystemExit(f"Anexo II, item 18 Qualificação Técnica não preservou: {phrase}")
+    if any(folded(row["body"]).strip(" .:") == "observacoes complementares" for row in filtered):
+        raise SystemExit("Um título editorial foi incluído indevidamente como requisito.")
     filtered.append({
         "page_start": 69,
         "page_end": 69,
