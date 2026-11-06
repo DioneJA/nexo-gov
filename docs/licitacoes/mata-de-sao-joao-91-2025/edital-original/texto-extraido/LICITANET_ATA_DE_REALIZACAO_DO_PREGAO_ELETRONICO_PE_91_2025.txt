@@ -1,0 +1,937 @@
+MUNICÍPIO DE MATA DE SÃO
+JOÃO/BA
+ATA DE REALIZAÇÃO DO PREGÃO
+ELETRÔNICO
+
+PREGÃO ELETRÔNICO Nº 91/2025
+PROCESSO LICITATÓRIO 14390/2025
+Às 09:01:22 horas do dia 16 de Setembro de 2025 reuniram-se no site www.licitanet.com.br, o(a) Pregoeiro(a) Oficial e respectivos membros da Equipe de Apoio,
+abaixo relacionados, com a finalidade de realizar todos os procedimentos relativos ao referido pregão eletrônico que tem como objeto: Contratação de empresa
+especializada para concessão de licença de uso de software de sistema integrado de comunicação e protocolo, com serviços de migração de dados,
+implantação, treinamento e suporte técnico, visando a gestão eletrônica de documentos, elaboração, tramitação, certificação eletrônica, controle de
+atendimento de demandas, contendo os módulos: memorando, circular, protocolo web, ofício, gestão de ouvidoria, gestão de e-sic, aprovação de projetos
+de construção, processos administrativos, chamado técnico, para atender as necessidades da Prefeitura de Mata de São João/BA. .
+O(a) Pregoeiro(a) conduziu a sessão de PREGÃO ELETRÔNICO , conforme disposições contidas na Lei Federal nº 14.133/21; na Lei Complementar nº 123/06; e
+pelas disposições fixadas no edital e anexos, realizar os procedimentos relativos ao aludido processo.
+Iniciando os trabalhos o(a) Pregoeiro(a) abriu a Sessão Pública em atendimento às disposições contidas no edital, divulgando as propostas recebidas. Abriu-se em
+seguida a fase de lances para classificação dos licitantes relativamente aos lances ofertados.
+
+Fornecedor(es) participante(s)
+Participou(aram) deste processo o(s) fornecedor(es) abaixo relacionado(s):
+Fornecedor
+
+CNPJ
+
+Enquadramento
+
+GILIX TECNOLOGIA DA INFORMACAO LTDA
+
+35.555.133/0001-09
+
+Microempresa
+
+MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC INTELIGENCIA DOCUMENTAL LTDA
+
+10.317.537/0001-33
+
+Microempresa
+
+1DOC TECNOLOGIA S.A
+
+19.625.833/0001-76
+
+Grande Porte
+
+Propostas
+A participação na presente disputa do(s) lote(s)ou item(ns) evidencia(m) ter o proponente examinado todos os termos deste edital e seus anexos aceitando
+irretratavelmente suas exigências por declaração aceita quando do envio de sua proposta inicial pela plataforma eletrônica. Termo aceito: "DECLARO QUE TENHO
+PLENO CONHECIMENTO E ATENDO A TODAS AS EXIGÊNCIAS DE HABILITAÇÃO E ESPECIFICAÇÕES TÉCNICAS PREVISTAS NO EDITAL".
+
+Histórico de propostas, lances e mensagens
+Propostas Inicias do Lote 1
+ID
+
+Fornecedor
+
+CNPJ
+
+Marca
+
+Modelo
+
+Proposta R$
+
+Situação
+
+Motivo
+
+98369
+
+GILIX TECNOLOGIA DA INFORMACAO LTDA
+
+35555133000109
+
+SERVIÇ
+O
+
+SERVIÇ
+O
+
+R$
+373.000,00
+
+Classificada
+
+--
+
+74136
+
+MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC
+INTELIGENCIA DOCUMENTAL LTDA
+
+10317537000133
+
+SERVIÇ
+O
+
+SERVIÇ
+O
+
+R$
+397.095,52
+
+Classificada
+
+--
+
+20054
+
+1DOC TECNOLOGIA S.A
+
+19625833000176
+
+SERVIÇ
+O
+
+SERVIÇ
+O
+
+R$
+397.095,52
+
+Classificada
+
+--
+
+Lances do Lote 1
+
+Fornecedor
+
+CNPJ
+
+Valor Lance
+R$
+
+Data/Hora
+
+Tipo
+
+MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC
+INTELIGENCIA DOCUMENTAL LTDA
+
+10.317.537/000133
+
+R$
+397.095,52
+
+08/09/2025
+20:31:42
+
+Fornecedor
+Inabilitado
+
+Pagina 1 de 8
+
+Lances do Lote 1
+
+Fornecedor
+
+CNPJ
+
+Valor Lance
+R$
+
+Data/Hora
+
+Tipo
+
+1DOC TECNOLOGIA S.A
+
+19.625.833/000176
+
+R$
+397.095,52
+
+15/09/2025
+15:09:29
+
+Classificado
+
+GILIX TECNOLOGIA DA INFORMACAO LTDA
+
+35.555.133/000109
+
+R$
+373.000,00
+
+08/09/2025
+15:54:42
+
+Fornecedor
+Inabilitado
+
+MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC
+INTELIGENCIA DOCUMENTAL LTDA
+
+10.317.537/000133
+
+R$
+372.800,00
+
+16/09/2025
+09:08:59
+
+Fornecedor
+Inabilitado
+
+GILIX TECNOLOGIA DA INFORMACAO LTDA
+
+35.555.133/000109
+
+R$
+372.500,00
+
+16/09/2025
+09:09:31
+
+Fornecedor
+Inabilitado
+
+MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC
+INTELIGENCIA DOCUMENTAL LTDA
+
+10.317.537/000133
+
+R$
+372.300,00
+
+16/09/2025
+09:10:58
+
+Fornecedor
+Inabilitado
+
+GILIX TECNOLOGIA DA INFORMACAO LTDA
+
+35.555.133/000109
+
+R$
+368.700,00
+
+16/09/2025
+09:11:01
+
+Fornecedor
+Inabilitado
+
+MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC
+INTELIGENCIA DOCUMENTAL LTDA
+
+10.317.537/000133
+
+R$
+368.500,00
+
+16/09/2025
+09:12:32
+
+Fornecedor
+Inabilitado
+
+GILIX TECNOLOGIA DA INFORMACAO LTDA
+
+35.555.133/000109
+
+R$
+366.000,00
+
+16/09/2025
+09:12:38
+
+Fornecedor
+Inabilitado
+
+Mensagens do Lote 1
+Usuário
+
+Data/Hora
+
+Mensagem
+
+16/09/2025
+09:01:22
+
+O LOTE 1 foi ordenado e classificado. Boa sorte!
+
+16/09/2025
+09:01:27
+
+O LOTE 1 está na fase competitiva e sua disputa durará 10 (dez) minutos. Sr(s). Fornecedor(es), não havendo novos lances nos últimos 02
+(dois) minutos da fase competitiva o LOTE 1 será encerrado automaticamente!
+
+16/09/2025
+09:11:37
+
+A etapa de envio de lances do LOTE 1 foi prorrogada automaticamente e será de 02 (dois) minutos. Boa sorte!
+
+16/09/2025
+09:14:45
+
+A prorrogação automática do LOTE 1 está encerrada.
+
+16/09/2025
+09:17:21
+
+O LOTE 1 está em negociação e ficará aberto para lances pelo período de 10 minutos.
+
+16/09/2025
+09:27:21
+
+O tempo de negociação está encerrado.
+
+16/09/2025
+09:28:42
+
+A proposta do fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA do LOTE - 1, foi ACEITA pelo valor de R$366.000,00.
+
+16/09/2025
+09:28:47
+
+Sr(s). fornecedor(es) está aberto o prazo de 10 minutos para intenção de Recurso/Reconsideração, se houver interesse em recorrer esse o
+momento para se manifestar.
+
+16/09/2025
+09:38:50
+
+Despacho: Pela ausência de manifestação de intenção de Recurso/Reconsideração, operou-se a decadência do direito de recorrer
+administrativamente, nos termos previsto no instrumento editalício.
+
+Pagina 2 de 8
+
+Mensagens do Lote 1
+Usuário
+
+Data/Hora
+
+Mensagem
+
+22/09/2025
+10:31:13
+
+Empresa: GILIX TECNOLOGIA DA INFORMACAO LTDA - 35555133000109, INABILITADA por descumprir as regras do Edital, conforme
+despacho: Muito embora coubesse diligência referente a apresentação dos termos de abertura e encerramento do balanço
+patrimonial do exercício de 2023, a empresa será inabilitada conforme relatório técnico do Departamento de Tecnologia da
+Informação: O atestado apresentado declara que a licitante executou serviços de fornecimento, implantação, migração de dados,
+treinamento e suporte técnico de sistema informatizado para gestão eletrônica de documentos, protocolo digital, processos
+internos e administrativos, gestão de chamados técnicos e atendimento a clientes, em contrato vigente até dezembro/2025.
+Entretanto, ao confrontar o referido documento com os requisitos editalícios, observa-se o seguinte: Item 9.7.3.1 Atestado em
+conformidade com o objeto da licitação O documento não faz referência expressa a sistema integrado, conforme previsto no
+Termo de Referência e exigido no edital. Ademais, o atestado descreve apenas parte do objeto (gestão documental, protocolo
+digital e processos administrativos), não contemplando os demais módulos previstos no edital, como gestão de ouvidoria, e-SIC,
+aprovação de projetos, fiscalização de obras e mapa de viabilidade. Dessa forma, a comprovação apresentada é parcial e
+insuficiente para atestar aptidão plena para execução do objeto licitado. Item 9.7.3.2 Empresas desenvolvedoras, revendas ou
+representantes autorizados Não há documento que comprove a condição da empresa como desenvolvedora ou revenda
+autorizada, deixando lacuna quanto à sua efetiva aptidão no ramo específico. Item 9.7.3.3 Contrato de representação para revendas
+Não há documento que menciona vínculo de representação ou contrato de parceria, requisito obrigatório caso a empresa não seja
+a desenvolvedora do sistema. Diante do exposto, verifica-se que a documentação apresentada não atende integralmente às
+exigências do item 9.7.3 do Edital nº 91/2025, uma vez que: Não comprova a execução de sistema integrado em sua completude;
+Descreve apenas funcionalidades parciais, distintas da totalidade do objeto licitado; Não evidencia a condição da empresa como
+desenvolvedora ou, se for o caso, a relação de revenda/representação autorizada. Por fim, diante das inconsistências
+apresentadas, não é possível validar a documentação da proponente GILIX TECNOLOGIA DA INFORMAÇÃO LTDA. A ANÁLISE
+COMPLETA FICARÁ DISPONÍVEL NO CAMPO DOCUMENTOS. !
+
+22/09/2025
+10:31:13
+
+A proposta do fornecedor MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC INTELIGENCIA DOCUMENTAL LTDA do
+LOTE - 1, foi ACEITA pelo valor de R$368.500,00.
+
+23/09/2025
+10:23:44
+
+Empresa: MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC INTELIGENCIA DOCUMENTAL LTDA - 10317537000133,
+INABILITADA por descumprir as regras do Edital, conforme despacho: A empresa será inabilitada conforme relatório técnico do
+Departamento de Tecnologia da Informação, que detém da expertise necessária para análise dos requisitos técnicos requeridos no
+instrumento convocatório: Os atestados apresentados declaram que a licitante executou serviços de fornecimento de sistema de
+gestão eletrônica de documentos (GED) e processos administrativos em ambiente web, contemplando funcionalidades como
+protocolo digital, geração automática de números de processo, editor de documentos, anexação de arquivos em PDF pesquisável,
+assinatura eletrônica no padrão ICP-Brasil, definição de fluxos de processos, customização de workflows, suporte técnico,
+treinamento e manutenção. Entretanto, ao confrontar os documentos com os requisitos editalícios, observa-se o seguinte: Item
+9.7.3.1 Atestado em conformidade com o objeto da licitação Os atestados não fazem referência expressa a sistema integrado,
+conforme previsto no Termo de Referência e exigido no edital. Do memso modo, descrevem apenas parte do objeto (gestão
+documental, protocolo digital e processos administrativos), não contemplando os demais módulos previstos, como gestão de
+ouvidoria, gestão de e-SIC, módulo de aprovação de projetos de construção, módulo de fiscalização de obras e posturas, bem
+como mapa de viabilidade com visualização georreferenciada. Também não há menção a funcionalidades específicas exigidas,
+como painéis de indicadores e dashboards, central de atendimento público com integração GOV.BR/Google, emissão de QR Code
+para documentos, geração automática de certificados digitais e verificação técnica das assinaturas digitais em conformidade com
+o e-ARQ (Requisito 7.5.3), etc. Dessa forma, a comprovação apresentada é parcial e insuficiente para atestar aptidão plena para
+execução do objeto licitado. Item 9.7.3.2 Empresas desenvolvedoras, revendas ou representantes autorizados Não há documento
+que comprove, de forma inequívoca, a condição da empresa como desenvolvedora ou revenda autorizada da solução, deixando
+lacuna quanto à sua efetiva aptidão no ramo específico. Item 9.7.3.3 Contrato de representação para revendas Não foi apresentado
+qualquer documento que mencione vínculo de representação ou contrato de parceria, requisito obrigatório caso a empresa não
+seja a desenvolvedora do sistema. Diante do exposto, verifica-se que a documentação apresentada não atende integralmente às
+exigências do item 9.7.3 do Edital nº 91/2025, uma vez que: Não comprova a execução de sistema integrado em sua completude;
+Descreve apenas funcionalidades parciais, distintas da totalidade do objeto licitado; Não evidencia a condição da empresa como
+desenvolvedora ou, se for o caso, a relação de revenda/representação autorizada. Por fim, diante das inconsistências
+apresentadas, não é possível validar a documentação da proponente MEMORIATEC INTELIGÊNCIA DOCUMENTAL LTDA. O
+RELATÓRIO COMPLETO FICARÁ DISPONÍVEL NO CAMPO DOCUMENTOS.!
+
+23/09/2025
+10:23:44
+
+A proposta do fornecedor 1DOC TECNOLOGIA S.A do LOTE - 1, foi ACEITA pelo valor de R$397.095,52.
+
+24/09/2025
+14:02:23
+
+Boa tarde! Cientes, obrigado!
+
+25/09/2025
+15:07:27
+
+Prezado pregoeiro, boa tarde! Hoje pela manhã enviamos o e-mail de agendamento da prova de conceito. Até o momento não recebemos a
+confirmação de leitura, bem como o aceite no dia e horário proposto. Tentamos contato telefônico no nº informado em sua convocação,
+porém, sem sucesso. Seria possível confirmar por gentileza?
+
+03/10/2025
+14:43:32
+
+Srs. licitantes, após a análise dos documentos inseridos na plataforma, hei por bem, HABILITAR o fornecedor 1DOC TECNOLOGIA S.A19.625.833/0001-76 , tendo em vista, que cumpriu os requisitos habilitatórios exigidos no instrumento convocatório.
+O fornecedor 1DOC TECNOLOGIA S.A -19.625.833/0001-76 venceu o LOTE -1 pelo valor de R$397.095,52.
+
+03/10/2025
+14:43:43
+
+Sr(s). fornecedor(es) está aberto o prazo de 10 minutos para intenção de Recurso/Reconsideração, se houver interesse em recorrer esse o
+momento para se manifestar.
+
+Pagina 3 de 8
+
+Mensagens do Lote 1
+Usuário
+
+Data/Hora
+
+Mensagem
+
+03/10/2025
+14:53:45
+
+Despacho: Pela ausência de manifestação de intenção de Recurso/Reconsideração, operou-se a decadência do direito de recorrer
+administrativamente, nos termos previsto no instrumento editalício.
+
+03/10/2025
+15:10:24
+
+A disputa do LOTE 1 está encerrada. Despacho: .
+
+Classificação Final do Lote 1
+Posição
+
+Licitante
+
+CNPJ
+
+1º
+
+1DOC TECNOLOGIA S.A
+
+19.625.833/0001-76
+
+Melhor Oferta R$
+R$ 397.095,52
+
+Mensagens Geral
+Usuário
+
+Data/Hora
+
+Mensagem
+
+16/09/2025
+09:01:27
+
+Foi iniciada a fase competitiva do(s) item(s): 1 às 09:01:27
+
+16/09/2025
+09:39:48
+
+O prazo para envio da proposta final, estará disponível através do módulo - PROPOSTA FINAL no rol de menus da Sala de Disputa, do dia
+16/09/2025 09:40:00hs até o dia 16/09/2025 11:40:00hs para o(s) fornecedor(es):
+GILIX TECNOLOGIA DA INFORMACAO LTDA.
+
+16/09/2025
+09:40:06
+
+O prazo para envio da documentação necessária, estará disponível através do módulo - DOCS. LEGAL no rol de menus da Sala de
+Disputa, do dia 16/09/2025 09:40:00hs até o dia 16/09/2025 11:40:00hs para o(s) fornecedor(es):
+GILIX TECNOLOGIA DA INFORMACAO LTDA.
+
+16/09/2025
+09:40:16
+
+Srs. fornecedores, o canal de mensagens da sala de disputa foi LIBERADO para vencedores !
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 11_improbidade_administrativa_gilix_1758031139.pdf no
+menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+12_0_gilix_balanco_sped_contabil_2024_1_1758031139.pdf no menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 4_certidao_federal_gilix_15_09_2025_1758031139.pdf no
+menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+12_1_gilix_balanco_sped_contabil_2024_2_1758031139.pdf no menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+12_4_gilix_balanco_sped_contabil_2024_5_1758031139.pdf no menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+12_3_gilix_balanco_sped_contabil_2024_4_1758031139.pdf no menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+13_1_gilix_balanco_sped_contabil_2023_3_1758031139.pdf no menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+2_certidao_concordata_e_falencia_gilix_15_09_2025_1758031139.pdf no menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+6_certidao_municipal_pos_neg_gilix_15_09_25_1758031139.pdf no menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+13_0_gilix_balanco_sped_contabil_2023_2_1758031139.pdf no menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+13_3_gilix_balanco_sped_contabil_2023_1_1758031139.pdf no menu Docs. Legal.
+
+16/09/2025
+10:58:59
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+12_2_gilix_balanco_sped_contabil_2024_3_1758031139.pdf no menu Docs. Legal.
+
+Pagina 4 de 8
+
+Usuário
+
+Data/Hora
+
+Mensagem
+
+16/09/2025
+10:59:00
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 9_certidao_negativa_correcional_gilix_1758031140.pdf no
+menu Docs. Legal.
+
+16/09/2025
+10:59:00
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+25_gilix_certidao_simplificada_juceb_16_09_1758031140.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:00
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 3_certidao_estadual_gilix_15_09_2025_1758031140.pdf
+no menu Docs. Legal.
+
+16/09/2025
+10:59:00
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+13_2_gilix_balanco_sped_contabil_2023_4_1758031140.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:00
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 8_cnpj_1758031140.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:00
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 10_certidao_negativa_inidoneos_gilix_1758031140.pdf no
+menu Docs. Legal.
+
+16/09/2025
+10:59:00
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 5_certidao_fgts_gilix_15_09_2025_1758031140.pdf no
+menu Docs. Legal.
+
+16/09/2025
+10:59:00
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 7_certidao_trabalhista_gilix_15_09_25_1758031139.pdf
+no menu Docs. Legal.
+
+16/09/2025
+10:59:01
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+14_atestado_de_capacidade_tecnica_pfb_1758031140.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:01
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR cnh_igorbarros_1758031141.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:01
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 20_declaracao_de_enquadramento_1758031141.pdf no
+menu Docs. Legal.
+
+16/09/2025
+10:59:01
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 19_declaracao_de_dados_bancarios_1758031141.pdf no
+menu Docs. Legal.
+
+16/09/2025
+10:59:01
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+17_declaracao_atendimento_as_exigencias_do_edital_1758031141.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:01
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+18_declaracao_de_atendimento_as_exigencias_do_edital_1758031141.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:01
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+22_declaracao_de_informacao_do_e_mail_1758031141.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:01
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+23_declaracao_de_nao_exploracao_de_mao_de_obra_infantil_1758031141.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:01
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 21_declaracao_de_inclusao_de_custos_1758031141.pdf
+no menu Docs. Legal.
+
+16/09/2025
+10:59:02
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+21_declaracao_de_inexistencia_de_veiculo_com_a_prefeitura_1758031141.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:02
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR cnh_rafael_1758031142.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:02
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR 16_proposta_de_preco_1758031142.pdf no menu Docs.
+Legal.
+
+16/09/2025
+10:59:02
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+15_carta_de_apresentacao_da_proposta_1_1758031141.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:02
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+24_declaracao_de_representantes_legais_1758031141.pdf no menu Docs. Legal.
+
+16/09/2025
+10:59:04
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+1_gilix_2_alteracao_contratual_e_consolidacao_1_1758031144.pdf no menu Docs. Legal.
+
+16/09/2025
+11:06:06
+
+O fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA acabou de ENVIAR
+13_3_gilix_balanco_sped_contabil_2023_1_1758031566.pdf no menu Docs. Legal.
+
+16/09/2025
+11:40:02
+
+O prazo para o fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA enviar a documentação legal está encerrado.
+
+Pagina 5 de 8
+
+Usuário
+
+Data/Hora
+
+Mensagem
+
+16/09/2025
+11:40:02
+
+O prazo para o fornecedor GILIX TECNOLOGIA DA INFORMACAO LTDA enviar a proposta final está encerrado.
+
+22/09/2025
+10:22:58
+
+REABERTURA DA SESSÃO PARA CONTINUIDADE DO CERTAME
+Sr(s). Fornecedor(es),
+.
+Sintam-se todos desde já NOTIFICADOS.
+
+22/09/2025
+10:31:27
+
+O prazo para envio da proposta final, estará disponível através do módulo - PROPOSTA FINAL no rol de menus da Sala de Disputa, do dia
+22/09/2025 10:35:00hs até o dia 22/09/2025 12:35:00hs para o(s) fornecedor(es):
+MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC INTELIGENCIA DOCUMENTAL LTDA.
+
+22/09/2025
+10:31:40
+
+O prazo para envio da documentação necessária, estará disponível através do módulo - DOCS. LEGAL no rol de menus da Sala de
+Disputa, do dia 22/09/2025 10:35:00hs até o dia 22/09/2025 12:35:00hs para o(s) fornecedor(es):
+MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC INTELIGENCIA DOCUMENTAL LTDA.
+
+22/09/2025
+10:32:20
+
+MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC INTELIGENCIA DOCUMENTAL LTDA.
+Sr(s). Fornecedor(es),
+Fica a empresa convidada para encartar todos os documentos de habilitação e proposta no prazo e forma do edital.
+Sintam-se todos desde já NOTIFICADOS.
+
+22/09/2025
+10:33:11
+
+O CONDUTOR DO PROCESSO acabou ENVIAR o arquivo gilix_tecnologia_da_informacao_ltda_analise_tecnica_1758547991.pdf do
+processo, o mesmo fica disponível para ser baixado através da opção 'Baixar Documentos' ao lado esquerdo no menu 'Documentos'.
+
+22/09/2025
+12:20:35
+
+O fornecedor MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC INTELIGENCIA DOCUMENTAL LTDA acabou de
+ENVIAR proposta_e_habilitacao_1758554434.zip no menu Docs. Legal.
+
+22/09/2025
+12:35:01
+
+O prazo para o fornecedor MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC INTELIGENCIA DOCUMENTAL LTDA
+enviar a documentação legal está encerrado.
+
+22/09/2025
+12:35:01
+
+O prazo para o fornecedor MEMORIATEC INTELIGENCIA DOCUMENTAL LTDAMEMORIATEC INTELIGENCIA DOCUMENTAL LTDA
+enviar a proposta final está encerrado.
+
+23/09/2025
+10:21:25
+
+REABERTURA DA SESSÃO PARA CONTINUIDADE DO CERTAME
+Sr(s). Fornecedor(es),
+.
+Sintam-se todos desde já NOTIFICADOS.
+
+23/09/2025
+10:24:15
+
+O CONDUTOR DO PROCESSO acabou ENVIAR o arquivo memoriatec_inteligencia_analise_tecnica_1758633855.pdf do processo, o
+mesmo fica disponível para ser baixado através da opção 'Baixar Documentos' ao lado esquerdo no menu 'Documentos'.
+
+23/09/2025
+12:27:43
+
+Sr(s). Fornecedor(es), o Processo nº 91/2025 foi SUSPENSO.
+Motivo: .. A REABERTURA será no dia 23/09/2025 13:00 (horário de Brasília), para continuação do certame.
+Sintam-se todos desde já NOTIFICADOS.
+
+23/09/2025
+13:08:33
+
+Sr(s). Fornecedor(es), o Processo nº 91/2025 foi REABERTO, para continuação do certame.
+Sintam-se todos desde já NOTIFICADOS.
+
+23/09/2025
+13:08:47
+
+O prazo para envio da proposta final, estará disponível através do módulo - PROPOSTA FINAL no rol de menus da Sala de Disputa, do dia
+23/09/2025 13:10:00hs até o dia 23/09/2025 15:10:00hs para o(s) fornecedor(es):
+1DOC TECNOLOGIA S.A.
+
+23/09/2025
+13:08:58
+
+O prazo para envio da documentação necessária, estará disponível através do módulo - DOCS. LEGAL no rol de menus da Sala de
+Disputa, do dia 23/09/2025 13:10:00hs até o dia 23/09/2025 15:10:00hs para o(s) fornecedor(es):
+1DOC TECNOLOGIA S.A.
+
+23/09/2025
+13:09:30
+
+1DOC TECNOLOGIA S.A.
+Sr(s). Fornecedor(es),
+Fica a empresa convidada para encartar todos os documentos de habilitação e proposta no prazo e forma do edital.
+
+Sintam-se todos desde já NOTIFICADOS.
+
+Pagina 6 de 8
+
+Usuário
+
+Data/Hora
+
+Mensagem
+
+23/09/2025
+14:03:34
+
+O fornecedor 1DOC TECNOLOGIA S.A acabou de ENVIAR proposta_23_09_2025_1758647014.pdf no proposta final.
+
+23/09/2025
+14:15:31
+
+O fornecedor 1DOC TECNOLOGIA S.A acabou de ENVIAR arquivos_1758647730.zip no menu Docs. Legal.
+
+23/09/2025
+15:10:01
+
+O prazo para o fornecedor 1DOC TECNOLOGIA S.A enviar a documentação legal está encerrado.
+
+23/09/2025
+15:10:01
+
+O prazo para o fornecedor 1DOC TECNOLOGIA S.A enviar a proposta final está encerrado.
+
+24/09/2025
+13:53:14
+
+1DOC TECNOLOGIA S.A
+Sr(s). Fornecedor(es),
+Fica a empresa convocada a partir da presente data para realização da Prova de Conceito.
+9.9. DA PROVA DE CONCEITO:
+Após análise e conformidade dos documentos de proposta e de habilitação da empresa, será necessário o comparecimento no prazo
+máximo de 72 (setenta e duas) horas úteis ou por meio de plataforma digital de reuniões (em caso remoto).após agendamento de data e
+horário através do e-mail suporte@pmsj.ba.gov.br, devendo a proponente pedir confirmação de recebimento – ou seja, caso o e-mail entre
+na lista de spam ou haja bloqueio pelo firewall, caso não seja dado o retorno de confirmação, a solicitação deve ser efetivada através do
+telefone: (71)3635–1310 para a demonstração técnica e apresentação detalhada do Sistema, expondo as característica/especificações
+técnicas necessárias exigidas em Edital, com todas as funcionalidades expostas, devidamente munidos de material necessário para a
+apresentação ( exemplares dos sistemas, microcomputador, notebook, datashow, internet, etc), os quais serão de sua inteira
+responsabilidade.), posteriormente submetidas à análise dos responsáveis técnicos, designados pela Prefeitura Municipal de Mata de São
+João, que, emitirá o laudo conclusivo das análises, aprovando ou reprovando o sitio e suas funcionalidades.
+9.9.1. REQUISITOS DA PROVA DE CONCEITO: (conforme errata I)
+A demonstração permitirá a averiguação prática das funcionalidades e características dos sistemas e sua real compatibilidade com os
+requisitos obrigatórios especificados neste Edital. Durante a demonstração serão feitos questionamentos à LICITANTE permitindo a
+verificação dos requisitos constantes deste instrumento. É facultado o acompanhamento da apresentação da demonstração técnica aos
+demais licitantes. Caso não compareçam ficarão impossibilitados de reclamações posteriores sobre os softwares apresentados e por
+ventura considerados aptos pela equipe técnica. As apresentações deverão ter duração de 90’ (noventa minutos), podendo ser prorrogada.
+
+Sintam-se todos desde já NOTIFICADOS.
+29/09/2025
+12:34:25
+
+Fornecedor 20054: Favor, entrar em contato com esse numero 55 71 9617-7243 Falar com Hélio Alves
+
+03/10/2025
+13:53:38
+
+REABERTURA DA SESSÃO
+Sr(s). Fornecedor(es),
+Reabertura da Sessão- 03/10/2025, às 14h20.
+Sintam-se todos desde já NOTIFICADOS.
+
+03/10/2025
+14:42:53
+
+Aviso
+Sr(s). Fornecedor(es),
+
+Conforme análise técnica da equipe do Setor de Tecnologia, a empresa será habilitada, tendo em
+vista a sua aprovação na Prova de Conceito. A ANÁLISE DA SETOR DE TECNOLOGIA FICARÁ
+DISPONÍVEL NO CAMPO DOCUMENTOS!
+Sintam-se todos desde já NOTIFICADOS.
+03/10/2025
+14:43:12
+
+O CONDUTOR DO PROCESSO acabou ENVIAR o arquivo
+prefeitura_de_mata_de_sao_joao_1doc_pe_91_2025_relatorio_tecnico_1759513392.pdf do processo, o mesmo fica disponível para ser
+baixado através da opção 'Baixar Documentos' ao lado esquerdo no menu 'Documentos'.
+
+Nada mais havendo a declarar, foi encerrada a sessão às 15:10:24 horas do dia 03 de Outubro de 2025 cuja ata foi lavrada pelo(a) Pregoeiro(a) .
+
+Pagina 7 de 8
+
+AIZI DE OLIVEIRA ROLEMBERG
+Pregoeiro(a) Oficial
+
+DANIELE LOPES DO CARMO
+Equipe de Apoio
+
+VANESSA SANTOS ARAGÃO
+Equipe de Apoio
+
+Autenticação: 5B7AC64336B4D3ECF12A1A1C088331C8
+
+Pagina 8 de 8
+
+

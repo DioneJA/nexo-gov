@@ -1,0 +1,10 @@
+.env
+.env.*.local
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+backend/target/
+*.log
+.DS_Store
+*.tsbuildinfo

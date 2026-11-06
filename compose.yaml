@@ -1,0 +1,20 @@
+name: nexogov-local
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${NEXOGOV_DB_NAME:-nexogov_dev}
+      POSTGRES_USER: ${NEXOGOV_DB_USERNAME:-nexogov_dev}
+      POSTGRES_PASSWORD: ${NEXOGOV_DB_PASSWORD:-nexogov-local-only}
+    ports:
+      - "127.0.0.1:${NEXOGOV_DB_PORT:-55433}:5432"
+    volumes:
+      - nexogov_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NEXOGOV_DB_USERNAME:-nexogov_dev} -d ${NEXOGOV_DB_NAME:-nexogov_dev}"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+volumes:
+  nexogov_pgdata:

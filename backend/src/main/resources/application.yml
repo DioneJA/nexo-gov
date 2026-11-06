@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: nexogov-api
+  datasource:
+    url: ${NEXOGOV_DB_URL:jdbc:postgresql://localhost:55433/nexogov_dev}
+    username: ${NEXOGOV_DB_USERNAME:nexogov_dev}
+    password: ${NEXOGOV_DB_PASSWORD:nexogov-local-only}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    default-property-inclusion: non_null
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+  shutdown: graceful
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+nexogov:
+  public-base-url: ${NEXOGOV_PUBLIC_BASE_URL:http://localhost:9000}
+  cors:
+    allowed-origin: ${NEXOGOV_ALLOWED_ORIGIN:http://localhost:9000}

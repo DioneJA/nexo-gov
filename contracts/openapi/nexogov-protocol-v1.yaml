@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: NexoGov Protocol API
+  version: 0.1.0
+  description: First versioned protocol service contract. Staff routes require a validated organization membership.
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /public/organizations:
+    get:
+      operationId: listDemoOrganizations
+      responses:
+        '200':
+          description: Public organization choices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Organization' }
+  /public/protocols:
+    post:
+      operationId: openProtocol
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OpenProtocolRequest' }
+      responses:
+        '200':
+          description: Protocol created. The tracking token is returned once.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProtocolCreated' }
+        '400': { description: Invalid request. }
+  /public/protocols/tracking:
+    get:
+      operationId: trackProtocol
+      security: [{ TrackingToken: [] }]
+      responses:
+        '200':
+          description: Public events only; applicant contact details are excluded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrackingView' }
+        '404': { description: Invalid token or unavailable protocol. }
+  /public/protocols/{id}/receipt:
+    get:
+      operationId: downloadProtocolReceipt
+      security: [{ TrackingToken: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: PDF receipt with QR code., content: { application/pdf: { schema: { type: string, format: binary } } } }
+        '404': { description: Invalid token or unavailable protocol. }
+  /staff/departments:
+    get:
+      operationId: listDepartments
+      security: [{ StaffBasic: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200': { description: Departments in the validated organization. }
+        '403': { description: No active membership. }
+  /staff/protocols:
+    get:
+      operationId: listProtocols
+      security: [{ StaffBasic: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: query, name: status, required: false, schema: { type: string } }
+      responses:
+        '200': { description: Protocols belonging to the validated organization. }
+  /staff/protocols/{id}/{action}:
+    post:
+      operationId: transitionProtocol
+      security: [{ StaffBasic: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: action, required: true, schema: { type: string, enum: [forward, receive, dispatch, complete] } }
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransitionRequest' }
+      responses:
+        '200': { description: State transition recorded in the append-only event history. }
+        '403': { description: Actor lacks active organization or department membership. }
+        '404': { description: Protocol or target department unavailable in this organization. }
+        '409': { description: Transition is invalid for the current state. }
+components:
+  parameters:
+    OrganizationId:
+      in: header
+      name: X-Organization-Id
+      required: true
+      schema: { type: string, format: uuid }
+  securitySchemes:
+    TrackingToken:
+      type: http
+      scheme: bearer
+      description: 256-bit random token returned once at creation; only its SHA-256 digest is persisted.
+    StaffBasic:
+      type: http
+      scheme: basic
+      description: Development profile only. Production identity is not implemented yet.
+  schemas:
+    Organization:
+      type: object
+      required: [id, slug, name]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+    OpenProtocolRequest:
+      type: object
+      required: [organizationSlug, applicantName, applicantEmail, subject, initialMessage]
+      properties:
+        organizationSlug: { type: string, maxLength: 80 }
+        applicantName: { type: string, maxLength: 180 }
+        applicantEmail: { type: string, format: email, maxLength: 254 }
+        subject: { type: string, maxLength: 240 }
+        initialMessage: { type: string, maxLength: 8000 }
+    ProtocolCreated:
+      type: object
+      required: [id, protocolNumber, status, createdAt, trackingToken, receiptPath]
+      properties:
+        id: { type: string, format: uuid }
+        protocolNumber: { type: string }
+        status: { type: string, enum: [OPEN] }
+        createdAt: { type: string, format: date-time }
+        trackingToken: { type: string, description: Secret; shown once only. }
+        receiptPath: { type: string }
+    TransitionRequest:
+      type: object
+      properties:
+        destinationDepartmentId: { type: string, format: uuid }
+        note: { type: string, maxLength: 500 }
+        visibleToApplicant: { type: boolean, default: false }
+    TrackingView:
+      type: object
+      properties:
+        protocolNumber: { type: string }
+        subject: { type: string }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              action: { type: string }
+              summary: { type: string }
+              createdAt: { type: string, format: date-time }
