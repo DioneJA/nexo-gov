@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -36,6 +37,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("local")
@@ -234,6 +236,76 @@ class AdministrativeWorkflowIntegrationTest {
         assertThat((List<?>) betaPage.get("items")).hasSize(1);
         assertThat(((Map<?, ?>) ((List<?>) betaPage.get("items")).getFirst()).get("id"))
                 .isEqualTo(betaProcessId.toString());
+    }
+
+    @Test
+    void processDeadlinesAreAppendOnlyAuthorizedTenantScopedAndOrdered() {
+        String subjectKey = "process-multiple-deadlines";
+        assertThat(createWorkflow(organizationId, ADMIN, workflowBody(subjectKey, "Análise documental", List.of(
+                step("Recebimento", intakeDepartmentId),
+                step("Análise", analysisDepartmentId)))).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID processId = createProcess(subjectKey, intakeDepartmentId, "Projeto de reforma da praça");
+
+        OffsetDateTime laterDueAt = OffsetDateTime.parse("2026-11-20T17:00:00-03:00");
+        OffsetDateTime earlierDueAt = OffsetDateTime.parse("2026-11-12T12:30:00-03:00");
+        ResponseEntity<Map> first = addProcessDeadline(organizationId, ADMIN, processId,
+                Map.of("title", "Enviar plantas revisadas", "dueAt", laterDueAt));
+        assertThat(first.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(first.getHeaders().getCacheControl()).isEqualTo("no-store");
+        List<?> firstDeadlines = (List<?>) Objects.requireNonNull(first.getBody()).get("deadlines");
+        assertThat(firstDeadlines).hasSize(1);
+        Map<?, ?> firstDeadline = (Map<?, ?>) firstDeadlines.getFirst();
+        assertThat(firstDeadline.get("title")).isEqualTo("Enviar plantas revisadas");
+        assertThat(firstDeadline.get("createdBy")).isEqualTo(ADMIN);
+        assertThat(firstDeadline.get("createdAt")).isNotNull();
+        assertThat(OffsetDateTime.parse(firstDeadline.get("dueAt").toString()))
+                .isEqualTo(laterDueAt);
+
+        ResponseEntity<String> wrongDepartment = addProcessDeadline(organizationId, OTHER_STAGE_MEMBER,
+                processId, Map.of("title", "Prazo de setor alheio", "dueAt", earlierDueAt), String.class);
+        assertThat(wrongDepartment.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(countProcessDeadlines(organizationId, processId)).isEqualTo(1);
+
+        addDepartmentMember(organizationId, OTHER_STAGE_MEMBER, intakeDepartmentId);
+        ResponseEntity<Map> second = addProcessDeadline(organizationId, OTHER_STAGE_MEMBER, processId,
+                Map.of("title", "Completar formulário", "dueAt", earlierDueAt));
+        assertThat(second.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        List<?> orderedDeadlines = (List<?>) Objects.requireNonNull(second.getBody()).get("deadlines");
+        assertThat(orderedDeadlines).hasSize(2);
+        assertThat(((Map<?, ?>) orderedDeadlines.getFirst()).get("title")).isEqualTo("Completar formulário");
+        assertThat(((Map<?, ?>) orderedDeadlines.getLast()).get("title")).isEqualTo("Enviar plantas revisadas");
+
+        ResponseEntity<Map> reloaded = getProcess(organizationId, ADMIN, processId, Map.class);
+        assertThat((List<?>) Objects.requireNonNull(reloaded.getBody()).get("deadlines"))
+                .usingRecursiveComparison().isEqualTo(orderedDeadlines);
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM administrative_process_deadlines
+                 WHERE organization_id=? AND process_id=? AND created_by=? AND created_at IS NOT NULL
+                """, Integer.class, organizationId, processId, OTHER_STAGE_MEMBER)).isEqualTo(1);
+        UUID firstDeadlineId = UUID.fromString(((Map<?, ?>) orderedDeadlines.getLast()).get("id").toString());
+        assertThatThrownBy(() -> jdbc.update("""
+                UPDATE administrative_process_deadlines SET title='Alteração indevida'
+                 WHERE organization_id=? AND process_id=? AND id=?
+                """, organizationId, processId, firstDeadlineId)).isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> jdbc.update("""
+                DELETE FROM administrative_process_deadlines
+                 WHERE organization_id=? AND process_id=? AND id=?
+                """, organizationId, processId, firstDeadlineId)).isInstanceOf(DataAccessException.class);
+        assertThat(countProcessDeadlines(organizationId, processId)).isEqualTo(2);
+
+        UUID anotherProcess = UUID.randomUUID();
+        ResponseEntity<String> crossTenant = addProcessDeadline(otherOrganizationId, ADMIN, processId,
+                Map.of("title", "Tentativa de acesso", "dueAt", earlierDueAt), String.class);
+        ResponseEntity<String> absent = addProcessDeadline(otherOrganizationId, ADMIN, anotherProcess,
+                Map.of("title", "Tentativa de acesso", "dueAt", earlierDueAt), String.class);
+        assertThat(crossTenant.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(crossTenant.getBody()).isEqualTo(absent.getBody());
+        assertThat(countProcessDeadlines(organizationId, processId)).isEqualTo(2);
+
+        ResponseEntity<String> invalid = addProcessDeadline(organizationId, ADMIN, processId,
+                Map.of("title", "  ", "dueAt", laterDueAt), String.class);
+        assertThat(invalid.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(countProcessDeadlines(organizationId, processId)).isEqualTo(2);
     }
 
     @Test
@@ -1030,6 +1102,16 @@ class AdministrativeWorkflowIntegrationTest {
                 HttpMethod.GET, request(organization, actor, null), type);
     }
 
+    private ResponseEntity<Map> addProcessDeadline(UUID organization, String actor, UUID processId, Object body) {
+        return addProcessDeadline(organization, actor, processId, body, Map.class);
+    }
+
+    private <T> ResponseEntity<T> addProcessDeadline(UUID organization, String actor, UUID processId,
+                                                      Object body, Class<T> type) {
+        return http.exchange("/api/v1/staff/administrative-processes/" + processId + "/deadlines",
+                HttpMethod.POST, request(organization, actor, body), type);
+    }
+
     private <T> ResponseEntity<T> advance(UUID organization, String actor, UUID processId,
                                           int targetStep, UUID destinationDepartment, Class<T> type) {
         return http.exchange("/api/v1/staff/administrative-processes/" + processId + "/advance",
@@ -1191,6 +1273,13 @@ class AdministrativeWorkflowIntegrationTest {
                 SELECT count(*) FROM administrative_process_events
                  WHERE organization_id=? AND process_id=?
                 """, Long.class, organization, processId);
+    }
+
+    private int countProcessDeadlines(UUID organization, UUID processId) {
+        return jdbc.queryForObject("""
+                SELECT count(*) FROM administrative_process_deadlines
+                 WHERE organization_id=? AND process_id=?
+                """, Integer.class, organization, processId);
     }
 
     private void assertWorkflowDepartmentName(Map<?, ?> workflow, int stepOrder, String expectedName) {

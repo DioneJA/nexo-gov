@@ -42,6 +42,10 @@ public final class AdministrativeWorkflowDtos {
     public record ProcessAdvanceRequest(@Min(1) int toStepOrder, @NotNull UUID destinationDepartmentId) {}
     public enum ProcessDecision { DEFERIDO, INDEFERIDO }
     public record ProcessDecisionRequest(@NotNull ProcessDecision outcome) {}
+    public record ProcessDeadlineCreateRequest(@NotBlank @Size(max = 180) String title,
+                                              @NotNull OffsetDateTime dueAt) {}
+    public record ProcessDeadlineView(UUID id, String title, OffsetDateTime dueAt,
+                                      String createdBy, OffsetDateTime createdAt) {}
 
     public record ProcessStepView(int order, String name, List<WorkflowDepartmentView> departments) {}
     public record ProcessEventView(long id, String actor, String action, Integer fromStepOrder,
@@ -59,5 +63,5 @@ public final class AdministrativeWorkflowDtos {
                               String currentDepartmentName, String status, String decisionOutcome,
                               String decisionActor, OffsetDateTime decisionAt,
                               OffsetDateTime createdAt, List<ProcessStepView> steps,
-                              List<ProcessEventView> events) {}
+                              List<ProcessEventView> events, List<ProcessDeadlineView> deadlines) {}
 }

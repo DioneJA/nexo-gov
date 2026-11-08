@@ -9,6 +9,7 @@ const approvedScenarioNames = [
   'cidadão abre protocolo, servidor tramita e cidadão acompanha até a conclusão',
   'caixa mostra leitura por setor, por outro servidor e pelo usuário atual',
   'administrador publica workflow versionado e acompanha o snapshot do processo',
+  'process-multiple-deadlines — servidor registra e consulta múltiplos prazos no processo',
   'conversa de protocolo mantém respostas, anexos e visibilidade no fluxo real',
   'administrador configura o prazo automático no comprovante real do protocolo'
 ]
@@ -19,7 +20,7 @@ const safeScenarioPattern = new RegExp(`^(?:.*[ ›])?(?:${approvedScenarioNames
 
 export default defineConfig({
   ...baseConfig,
-  testMatch: /(?:^|[\\/])(?:organization-members|organization-contacts|protocol-participant-fields|protocol-attachments|protocol-flow|protocol-read-status|protocol-interactions|protocol-subject-catalog|process-workflow)\.spec\.ts$/,
+  testMatch: /(?:^|[\\/])(?:organization-members|organization-contacts|protocol-participant-fields|protocol-attachments|protocol-flow|protocol-read-status|protocol-interactions|protocol-subject-catalog|process-workflow|process-multiple-deadlines)\.spec\.ts$/,
   grep: safeScenarioPattern,
   retries: 0,
   workers: 1,

@@ -161,7 +161,7 @@ test('administrador publica workflow versionado e acompanha o snapshot do proces
       response.request().method() === 'POST'
       && new URL(response.url()).pathname.endsWith('/staff/administrative-processes')
     )
-    await panel.getByRole('button', { name: 'Abrir processo' }).click()
+    await panel.getByRole('button', { name: 'Abrir processo', exact: true }).click()
     await delayedOpen.intercepted
     await expect(subjectKeyInput).toBeDisabled()
     await expect(panel.getByRole('button', { name: 'Carregar fluxo' })).toBeDisabled()

@@ -39,7 +39,9 @@ case "$command" in
   process-decision-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=AdministrativeWorkflowIntegrationTest#processDecisionsAreConfiguredPerDepartmentSnapshottedAndTenantScoped+concurrentSameProcessDecisionIsSerializedAndDoesNotDuplicateHistory' test ;;
   process-workflow-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=AdministrativeWorkflowIntegrationTest test ;;
   process-list-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=AdministrativeWorkflowIntegrationTest#processListIsTenantScopedAuthorizedFilteredStableAndPaginated' test ;;
+  process-deadline-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=AdministrativeWorkflowIntegrationTest#processDeadlinesAreAppendOnlyAuthorizedTenantScopedAndOrdered' test ;;
   process-workflow-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'administrador publica workflow versionado e acompanha o snapshot do processo' ;;
+  process-deadline-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'servidor registra e consulta múltiplos prazos no processo' ;;
   matrix) exec python3 "$repo_root/scripts/check-matrix.py" ;;
   matrix-refresh)
     python3 "$repo_root/scripts/build-edital-matrix.py"
@@ -87,7 +89,9 @@ Uso: ./dev <comando>
   interaction-test Testa interações públicas/internas, anexos, isolamento, concorrência, reabertura e fluxo de navegador real (requer Docker e Chrome)
   process-workflow-test Testa publicação idempotente, snapshots, autorização da lotação no setor atribuído, etapas multi-setor, corridas de revogação/desativação e ausência de mutação após rejeição (requer Docker)
   process-list-test Testa listagem paginada, busca literal, ordenação estável, resumo enxuto, escopo de tenant e acesso por setor/admin organizacional (requer Docker)
+  process-deadline-test Testa múltiplos prazos persistidos, ordem estável, autoria, autorização por setor, validação, imutabilidade e isolamento entre organizações (requer Docker)
   process-workflow-e2e Demonstra v1/v2, setores decisores por etapa, decisão Deferido com status ACTIVE, persistência após recarga, shell ocupada, lista e recusas 409/403 (requer Docker e Chrome)
+  process-deadline-e2e Demonstra pela interface a criação e a persistência de dois prazos em um processo administrativo (requer Docker e Chrome)
   matrix          Confere a matriz e informa quantos critérios ainda aguardam decomposição observável
   matrix-refresh  Regenera matriz, relatório e roteiro POC
 

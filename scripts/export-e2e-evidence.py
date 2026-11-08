@@ -213,6 +213,19 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
             "outro resultado ou idempotência, encerramento do processo, condições avançadas, exportação, notificações, POC oficial ou critérios integrais."
         ),
     },
+    (
+        "process-multiple-deadlines.spec.ts",
+        "process-multiple-deadlines — servidor registra e consulta múltiplos prazos no processo",
+    ): {
+        "labels": {"processos-prazos-multiplos"},
+        "ids": {"TR91-0562"},
+        "id_labels": {"TR91-0562": {"processos-prazos-multiplos"}},
+        "nota": (
+            "Screenshot de viewport da área autenticada do servidor com dois prazos fictícios, ordenados pelo vencimento, "
+            "após recarga e nova autenticação. A imagem mostra somente a tela; persistência, autoria, validação, autorização "
+            "e isolamento dependem também do teste PostgreSQL/Testcontainers. Não é demonstração oficial da comissão."
+        ),
+    },
 }
 
 SENSITIVE_SPEC_REASONS = {

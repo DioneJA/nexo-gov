@@ -5,6 +5,8 @@ import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessAdvanceRequest;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessCreateRequest;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessDecision;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessDecisionRequest;
+import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessDeadlineCreateRequest;
+import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessDeadlineView;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessEventView;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessPageView;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessSummaryView;
@@ -262,6 +264,30 @@ public class AdministrativeWorkflowService {
         return processView(organizationId, processId);
     }
 
+    @Transactional
+    public ProcessView addProcessDeadline(String actor, UUID processId, ProcessDeadlineCreateRequest request) {
+        UUID organizationId = TenantContext.requireTenantId();
+        UUID currentDepartmentId = jdbc.query("""
+                SELECT current_department_id
+                  FROM administrative_processes
+                 WHERE organization_id=? AND id=?
+                 FOR UPDATE
+                """, (rs, row) -> rs.getObject("current_department_id", UUID.class), organizationId, processId)
+                .stream().findFirst().orElseThrow(WorkflowNotFound::new);
+        if (!lockOrganizationAdministrator(actor, organizationId)
+                && !lockCurrentDepartmentMembership(actor, organizationId, currentDepartmentId)) {
+            throw new WorkflowForbidden();
+        }
+
+        jdbc.update("""
+                INSERT INTO administrative_process_deadlines(
+                    id, organization_id, process_id, title, due_at, created_by)
+                VALUES(?,?,?,?,?,?)
+                """, UUID.randomUUID(), organizationId, processId, request.title().trim(),
+                request.dueAt(), actor);
+        return processView(organizationId, processId);
+    }
+
     @Transactional(readOnly = true)
     public ProcessPageView listProcesses(String actor, Integer requestedPage, Integer requestedSize, String requestedQuery) {
         UUID organizationId = TenantContext.requireTenantId();
@@ -479,6 +505,15 @@ public class AdministrativeWorkflowService {
         return count != null && count > 0;
     }
 
+    private boolean lockOrganizationAdministrator(String actor, UUID organizationId) {
+        List<String> memberships = jdbc.query("""
+                SELECT username FROM organization_memberships
+                 WHERE username=? AND organization_id=? AND role_code='ADMIN' AND active=true
+                 FOR UPDATE
+                """, (rs, row) -> rs.getString("username"), actor, organizationId);
+        return !memberships.isEmpty();
+    }
+
     private void requireDepartmentMembership(UUID organizationId, UUID departmentId, String actor) {
         List<UUID> activeMemberships = jdbc.query("""
                 SELECT sm.department_id
@@ -648,11 +683,20 @@ public class AdministrativeWorkflowService {
                         rs.getObject("to_department_id", UUID.class),
                         rs.getString("decision_outcome"),
                         rs.getObject("occurred_at", OffsetDateTime.class)), organizationId, processId);
+        List<ProcessDeadlineView> deadlines = jdbc.query("""
+                SELECT id, title, due_at, created_by, created_at
+                  FROM administrative_process_deadlines
+                 WHERE organization_id=? AND process_id=?
+                 ORDER BY due_at, created_at, id
+                """, (rs, row) -> new ProcessDeadlineView(rs.getObject("id", UUID.class),
+                rs.getString("title"), rs.getObject("due_at", OffsetDateTime.class),
+                rs.getString("created_by"), rs.getObject("created_at", OffsetDateTime.class)),
+                organizationId, processId);
         return new ProcessView(process.id(), process.subjectKey(), process.subjectName(), process.workflowId(),
                 process.workflowVersion(), process.title(), process.currentStepOrder(), process.currentStepName(),
                 process.currentDepartmentId(), process.currentDepartmentName(), process.status(),
                 process.decisionOutcome(), process.decisionActor(), process.decisionAt(), process.createdAt(),
-                List.copyOf(steps), List.copyOf(events));
+                List.copyOf(steps), List.copyOf(events), List.copyOf(deadlines));
     }
 
     private List<WorkflowDepartmentView> processDepartments(UUID organizationId, UUID processId, int stepOrder) {

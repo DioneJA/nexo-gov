@@ -3,6 +3,7 @@ package br.com.nexo.gov.process;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessAdvanceRequest;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessCreateRequest;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessDecisionRequest;
+import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessDeadlineCreateRequest;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessPageView;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessView;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.WorkflowCreateRequest;
@@ -71,6 +72,13 @@ public class AdministrativeWorkflowController {
     @GetMapping("/administrative-processes/{processId}")
     public ProcessView getProcess(Authentication authentication, @PathVariable UUID processId) {
         return service.getProcess(authentication.getName(), processId);
+    }
+
+    @PostMapping("/administrative-processes/{processId}/deadlines")
+    public ResponseEntity<ProcessView> addDeadline(Authentication authentication, @PathVariable UUID processId,
+                                                   @Valid @RequestBody ProcessDeadlineCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore())
+                .body(service.addProcessDeadline(authentication.getName(), processId, request));
     }
 
     @PostMapping("/administrative-processes/{processId}/advance")

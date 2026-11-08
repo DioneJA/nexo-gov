@@ -6,7 +6,7 @@
   <groupId>br.com.nexo.gov</groupId><artifactId>nexo-gov-api</artifactId><version>0.1.0-SNAPSHOT</version>
   <name>NexoGov API</name><description>Independent public-sector management platform.</description>
   <properties>
-    <java.version>21</java.version><nexo-core.version>0.2.0</nexo-core.version>
+    <java.version>21</java.version><nexo-core.version>0.3.0</nexo-core.version>
     <testcontainers.version>1.21.4</testcontainers.version><springdoc.version>2.6.0</springdoc.version>
     <pdfbox.version>3.0.2</pdfbox.version><zxing.version>3.5.3</zxing.version>
     <aws-sdk.version>2.48.0</aws-sdk.version>

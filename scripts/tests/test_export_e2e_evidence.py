@@ -246,6 +246,13 @@ class ExportEvidencePolicyTests(unittest.TestCase):
         self.assertEqual({"ED91-0510", "ED91-0596", "TR91-0560", "TR91-0691"},
                          EXPORTER.supported_ids(policy, complete))
 
+    def test_process_deadline_capture_maps_only_the_multiple_deadlines_clause(self):
+        policy = policy_for("process-multiple-deadlines.spec.ts")
+        self.assertEqual({"TR91-0562"}, policy["ids"])
+        self.assertEqual({"TR91-0562": {"processos-prazos-multiplos"}}, policy["id_labels"])
+        self.assertEqual({"TR91-0562"}, EXPORTER.supported_ids(policy, {"processos-prazos-multiplos"}))
+        self.assertEqual(set(), EXPORTER.supported_ids(policy, set()))
+
     def test_unexpected_label_does_not_complete_an_allowlisted_scenario(self):
         policy = policy_for("protocol-interactions.spec.ts")
 

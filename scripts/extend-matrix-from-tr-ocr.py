@@ -1228,11 +1228,23 @@ for index, candidate in enumerate(candidates, start=1):
         "TR91-0111": "A demonstração parcial mantém setores isolados por organização; representação dinâmica que agregue usuários e setores ainda não está implementada.",
         "TR91-0112": "A demonstração parcial permite cadastrar setores; hierarquia pai/filho e subsetores sem limite de profundidade ainda não estão implementados.",
     }
+    process_deadline_requirements = {
+        "TR91-0562": (
+            "Aceite observável proposto para decompor a cláusula: um servidor autorizado no processo pode cadastrar mais de um prazo, cada qual com identificação e vencimento; após persistência, a consulta do processo retorna os prazos associados somente a esse processo, ordenados pelo vencimento e com os campos preservados. O backend valida a organização e a autorização do servidor. Este critério não inclui edição ou conclusão de prazos, alertas, feriados/dias úteis ou SLA, que não são descritos nesta cláusula.",
+            "Serviço/API de processo administrativo e persistência tenant-scoped; derivar a organização do TenantContext e validar o acesso vigente do servidor ao processo.",
+            "Painel do processo administrativo na área do servidor: formulário para identificar o prazo e informar vencimento, com lista persistida ordenada pelo vencimento.",
+            "`./dev process-deadline-test` (PostgreSQL Testcontainers) cobre múltiplos prazos, ordenação, autoria/registro, campos inválidos, imutabilidade, autorização organizacional/setorial, 403 sem mutação e 404 indistinguível entre organização alheia e ID ausente. `./dev process-deadline-e2e` percorre a interface contra API/PostgreSQL descartáveis, adiciona dois prazos, confirma ordenação e autoria, recarrega e autentica novamente para reabrir os dados persistidos.",
+            "POC-TR91-0562 (roteiro interno): autenticar no servidor com organização fictícia, abrir um processo, cadastrar dois prazos identificados com vencimentos distintos, recarregar e autenticar novamente; conferir persistência, autoria e ordenação. Testes automatizados também exercitam recusa a setor não autorizado e a outra organização. Este roteiro local não é a demonstração oficial da comissão.",
+            "Evidência local em `./dev process-deadline-test`, `./dev process-deadline-e2e` e screenshot `processos-prazos-multiplos` em Documentos, associado ao título exato `process-multiple-deadlines — servidor registra e consulta múltiplos prazos no processo` de `frontend/e2e/process-multiple-deadlines.spec.ts`. A imagem demonstra apenas a UI fictícia; autorização, validação e isolamento são provados pelo Testcontainers. Não é POC oficial nem aprovação da comissão.",
+        ),
+    }
     if requirement_id in partial_organization_requirements:
         acceptance = "Parcial — " + partial_organization_requirements[requirement_id]
         test = "ProtocolVerticalIntegrationTest.departmentAdministrationIsTenantScopedAdminOnlyAndAudited e teste E2E do cadastro de setor; a parte hierárquica/dinâmica do requisito permanece sem teste."
         evidence = "Teste PostgreSQL confirma criação autorizada, isolamento entre organizações e trilha append-only; consulte docs/INCREMENTO_15.md."
         poc = "POC-ADMIN-ORGANIZACAO: autenticar como ADMIN, cadastrar setor, atualizar lista e demonstrar que outra organização não vê o novo setor; registrar lacunas hierárquicas/dinâmicas."
+    if requirement_id in process_deadline_requirements:
+        acceptance, backend, frontend, test, poc, evidence = process_deadline_requirements[requirement_id]
     contact_requirements = {
         "TR91-0135": (
             "Demonstrar que ADMIN organizacional consegue criar, consultar, pesquisar, editar, arquivar e reativar contatos internos persistidos; autorização e isolamento são aplicados no servidor.",
@@ -1266,15 +1278,18 @@ for index, candidate in enumerate(candidates, start=1):
         "requisito_resumo_fiel": summary,
         "origem_documento_pagina_secao_item": origin,
         "prioridade": priority_for(candidate["section"], candidate["body"]),
-        "modulo": "ADMINISTRACAO" if requirement_id in contact_requirements else module_for(candidate["section"], candidate["body"]),
-        "natureza": "SOFTWARE" if requirement_id in contact_requirements else nature_for(candidate["section"], candidate["body"]),
+        "modulo": "ADMINISTRACAO" if requirement_id in contact_requirements else "PROCESSOS_ADMINISTRATIVOS" if requirement_id in process_deadline_requirements else module_for(candidate["section"], candidate["body"]),
+        "natureza": "SOFTWARE" if requirement_id in contact_requirements or requirement_id in process_deadline_requirements else nature_for(candidate["section"], candidate["body"]),
         "criterio_de_aceite": acceptance,
-        "backend_envolvido": backend if requirement_id in contact_requirements else "OrganizationAdminService, OrganizationAdminController e tabela departments com escopo validado por TenantContext." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
-        "frontend_envolvido": frontend if requirement_id in contact_requirements else "Área do servidor: cadastro e seleção de setores retornados pela organização atual." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
+        "backend_envolvido": backend if requirement_id in contact_requirements or requirement_id in process_deadline_requirements else "OrganizationAdminService, OrganizationAdminController e tabela departments com escopo validado por TenantContext." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
+        "frontend_envolvido": frontend if requirement_id in contact_requirements or requirement_id in process_deadline_requirements else "Área do servidor: cadastro e seleção de setores retornados pela organização atual." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
         "teste_automatizado": test,
         "roteiro_poc": poc,
         "evidencia": evidence,
-        "status": "EM_DESENVOLVIMENTO" if requirement_id in partial_organization_requirements else "NAO_INICIADO" if visually_reviewed else "BLOQUEADO",
+        # Matrix generation describes implementation progress; it cannot observe test
+        # execution or inspect exported evidence. Promotion to VALIDADO is a deliberate
+        # traceability update after those proofs have been reviewed.
+        "status": "EM_DESENVOLVIMENTO" if requirement_id in process_deadline_requirements or requirement_id in partial_organization_requirements else "NAO_INICIADO" if visually_reviewed else "BLOQUEADO",
         "validacao_fonte": "CONFERIDA_VISUALMENTE" if visually_reviewed else "OCR_PENDENTE",
     }
     if requirement_id in contact_requirements:

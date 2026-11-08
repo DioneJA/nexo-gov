@@ -42,6 +42,14 @@ interface ProcessEvent {
   occurredAt: string
 }
 
+interface ProcessDeadline {
+  id: string
+  title: string
+  dueAt: string
+  createdBy: string
+  createdAt: string
+}
+
 interface ProcessView {
   id: string
   subjectKey: string
@@ -60,6 +68,7 @@ interface ProcessView {
   createdAt: string
   steps: WorkflowStep[]
   events: ProcessEvent[]
+  deadlines: ProcessDeadline[]
 }
 
 interface ProcessSummary {
@@ -111,6 +120,8 @@ const loadingProcess = ref(false)
 const processAction = ref(false)
 const processNotice = ref('')
 const processError = ref('')
+const deadlineTitle = ref('')
+const deadlineDueAt = ref('')
 const nextDepartmentId = ref('')
 const processList = ref<ProcessSummary[]>([])
 const processListQuery = ref('')
@@ -173,6 +184,8 @@ watch(() => props.organizationId, () => {
   initialDepartmentId.value = ''
   processId.value = ''
   process.value = null
+  deadlineTitle.value = ''
+  deadlineDueAt.value = ''
   processNotice.value = ''
   processError.value = ''
   nextDepartmentId.value = ''
@@ -206,6 +219,8 @@ watch(subjectKey, value => {
   initialDepartmentId.value = ''
   processId.value = ''
   process.value = null
+  deadlineTitle.value = ''
+  deadlineDueAt.value = ''
   workflowNotice.value = ''
   workflowError.value = ''
   processNotice.value = ''
@@ -271,6 +286,8 @@ async function openListedProcess(summary: ProcessSummary) {
   const organizationId = props.organizationId
   processId.value = summary.id
   process.value = null
+  deadlineTitle.value = ''
+  deadlineDueAt.value = ''
   loadingProcess.value = true
   clearProcessMessages()
   try {
@@ -404,9 +421,52 @@ function processDepartmentName(departmentId: string | null) {
 }
 
 function applyProcess(value: ProcessView) {
+  if (processId.value !== value.id) {
+    deadlineTitle.value = ''
+    deadlineDueAt.value = ''
+  }
   process.value = value
   processId.value = value.id
   nextDepartmentId.value = nextDepartmentOptions.value[0]?.value || ''
+}
+
+async function addProcessDeadline() {
+  if (!process.value) return
+  const title = deadlineTitle.value.trim()
+  if (!title || !deadlineDueAt.value) {
+    processError.value = 'Informe o título e a data e hora do prazo.'
+    processNotice.value = ''
+    return
+  }
+  const dueAt = new Date(deadlineDueAt.value)
+  if (Number.isNaN(dueAt.getTime())) {
+    processError.value = 'Informe uma data e hora válidas para o prazo.'
+    processNotice.value = ''
+    return
+  }
+
+  const processIdToUpdate = process.value.id
+  const generation = contextGeneration
+  const organizationId = props.organizationId
+  processAction.value = true
+  clearProcessMessages()
+  try {
+    const response = await staffApi.post<ProcessView>(
+      `/staff/administrative-processes/${encodeURIComponent(processIdToUpdate)}/deadlines`,
+      { title, dueAt: dueAt.toISOString() },
+      { headers: organizationHeaders(organizationId) }
+    )
+    if (generation !== contextGeneration || organizationId !== props.organizationId) return
+    applyProcess(response.data)
+    deadlineTitle.value = ''
+    deadlineDueAt.value = ''
+    processNotice.value = `Prazo “${title}” adicionado ao processo.`
+  } catch (error: any) {
+    if (generation === contextGeneration && organizationId === props.organizationId)
+      processError.value = errorMessage(error, 'Não foi possível adicionar o prazo. Confira os dados e tente novamente.')
+  } finally {
+    if (generation === contextGeneration) processAction.value = false
+  }
 }
 
 async function openProcess() {
@@ -828,6 +888,48 @@ function formatDate(value: string) {
         />
       </div>
 
+      <section class="workflow-deadline-area" aria-labelledby="process-deadlines-title">
+        <div class="workflow-deadline-heading">
+          <div>
+            <h4 id="process-deadlines-title" class="workflow-next-title">Prazos do processo</h4>
+            <p class="member-access-note">Registre prazos separados para acompanhar as próximas providências.</p>
+          </div>
+        </div>
+        <form class="workflow-deadline-form" @submit.prevent="addProcessDeadline">
+          <q-input
+            v-model="deadlineTitle"
+            label="Título do prazo"
+            outlined dense maxlength="180" required
+            :disable="processBusy"
+          />
+          <q-input
+            v-model="deadlineDueAt"
+            label="Data e hora do prazo"
+            type="datetime-local"
+            outlined dense required
+            :disable="processBusy"
+          />
+          <q-btn
+            type="submit"
+            color="primary" unelevated no-caps label="Adicionar prazo"
+            :loading="processAction"
+            :disable="processBusy || !deadlineTitle.trim() || !deadlineDueAt"
+          />
+        </form>
+        <p v-if="!process.deadlines.length" class="workflow-empty-note" role="status">
+          Nenhum prazo foi registrado neste processo.
+        </p>
+        <ol v-else class="workflow-deadline-list" aria-label="Prazos do processo">
+          <li v-for="deadline in process.deadlines" :key="deadline.id" class="workflow-deadline-row">
+            <div class="workflow-deadline-copy">
+              <strong>{{ deadline.title }}</strong>
+              <span>Prazo: {{ formatDate(deadline.dueAt) }}</span>
+              <span class="muted">Registrado por {{ deadline.createdBy }} · {{ formatDate(deadline.createdAt) }}</span>
+            </div>
+          </li>
+        </ol>
+      </section>
+
       <h4 class="workflow-history-title">Histórico registrado</h4>
       <ol class="workflow-event-list" aria-label="Histórico de movimentações do processo">
         <li v-for="event in process.events" :key="event.id" class="workflow-event-row">
@@ -941,6 +1043,15 @@ function formatDate(value: string) {
 .workflow-current-label { grid-column: 2; color: var(--nexo-color-action); font-size: 12px; }
 .workflow-advance-area { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, .8fr) auto; align-items: end; gap: var(--nexo-space-4); margin-top: var(--nexo-space-6); padding: var(--nexo-space-5) 0; border-top: 1px solid var(--nexo-color-separator); border-bottom: 1px solid var(--nexo-color-separator); }
 .workflow-decision-area { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto; align-items: center; gap: var(--nexo-space-3); margin-top: var(--nexo-space-5); padding: var(--nexo-space-4) 0; border-bottom: 1px solid var(--nexo-color-separator); }
+.workflow-deadline-area { margin-top: var(--nexo-space-6); padding-top: var(--nexo-space-5); border-top: 1px solid var(--nexo-color-separator); }
+.workflow-deadline-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--nexo-space-4); }
+.workflow-deadline-heading .member-access-note { margin: var(--nexo-space-1) 0 0; }
+.workflow-deadline-form { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) auto; align-items: start; gap: var(--nexo-space-3); margin-top: var(--nexo-space-4); }
+.workflow-deadline-list { display: grid; margin: var(--nexo-space-4) 0 0; padding: 0; list-style: none; }
+.workflow-deadline-row { padding: var(--nexo-space-3) 0; border-top: 1px solid var(--nexo-color-separator); }
+.workflow-deadline-copy { display: grid; gap: var(--nexo-space-1); color: var(--nexo-color-text-secondary); font-size: 13px; line-height: 1.45; }
+.workflow-deadline-copy strong { color: var(--nexo-color-text); font-size: 14px; font-weight: 600; }
+.workflow-deadline-copy .muted { color: var(--nexo-color-text-tertiary); }
 .workflow-decision-state { color: var(--nexo-color-text-secondary); font-size: 14px; font-weight: 600; }
 .workflow-next-title,
 .workflow-history-title { margin: 0; color: var(--nexo-color-text); font-size: 16px; font-weight: 650; line-height: 1.35; }
@@ -968,6 +1079,7 @@ function formatDate(value: string) {
   .workflow-process-controls { align-items: stretch; flex-direction: column; }
   .workflow-process-search,
   .workflow-process-list-item { grid-template-columns: minmax(0, 1fr); }
+  .workflow-deadline-form { grid-template-columns: minmax(0, 1fr); }
   .workflow-lookup-row .q-btn,
   .workflow-editor-actions .q-btn,
   .workflow-process-controls .q-btn { width: 100%; }
