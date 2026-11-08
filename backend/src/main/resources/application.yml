@@ -10,7 +10,12 @@ spring:
     locations: classpath:db/migration
   jackson:
     default-property-inclusion: non_null
+  servlet:
+    multipart:
+      max-file-size: ${NEXOGOV_ATTACHMENT_MAX_FILE_SIZE:10MB}
+      max-request-size: ${NEXOGOV_ATTACHMENT_MAX_REQUEST_SIZE:105MB}
 server:
+  port: ${NEXOGOV_API_PORT:8080}
   error:
     include-message: never
     include-stacktrace: never
@@ -22,5 +27,17 @@ management:
         include: health,info
 nexogov:
   public-base-url: ${NEXOGOV_PUBLIC_BASE_URL:http://localhost:9000}
+  identity:
+    issuer-uri: ${NEXOGOV_IDENTITY_ISSUER_URI:}
+    jwk-set-uri: ${NEXOGOV_IDENTITY_JWK_SET_URI:}
+    audience: ${NEXOGOV_IDENTITY_AUDIENCE:}
   cors:
     allowed-origin: ${NEXOGOV_ALLOWED_ORIGIN:http://localhost:9000}
+  attachments:
+    bucket: ${NEXOGOV_STORAGE_BUCKET:nexogov-private-documents}
+    region: ${NEXOGOV_STORAGE_REGION:us-east-1}
+    endpoint-uri: ${NEXOGOV_STORAGE_ENDPOINT_URI:}
+    access-key: ${NEXOGOV_STORAGE_ACCESS_KEY:}
+    secret-key: ${NEXOGOV_STORAGE_SECRET_KEY:}
+    maximum-files: ${NEXOGOV_ATTACHMENT_MAX_FILES:10}
+    maximum-file-size-bytes: ${NEXOGOV_ATTACHMENT_MAX_FILE_SIZE_BYTES:10485760}

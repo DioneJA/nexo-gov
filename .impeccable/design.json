@@ -1,0 +1,402 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-06T23:12:09Z",
+  "title": "Design System: NexoGov",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "NEXO Blue",
+        "canonical": "#1769ff",
+        "tonalRamp": [
+          "#000827",
+          "#001b56",
+          "#00308a",
+          "#0047c2",
+          "#0d62f7",
+          "#4b89ff",
+          "#9abeff",
+          "#e6efff"
+        ]
+      },
+      "action": {
+        "role": "primary",
+        "displayName": "NEXO Action Blue",
+        "canonical": "#0051d5",
+        "tonalRamp": [
+          "#000826",
+          "#001b55",
+          "#003188",
+          "#0048c0",
+          "#1c66eb",
+          "#498aff",
+          "#99beff",
+          "#e6efff"
+        ]
+      },
+      "navy": {
+        "role": "secondary",
+        "displayName": "NEXO Navy",
+        "canonical": "#07194f",
+        "tonalRamp": [
+          "#000035",
+          "#091b51",
+          "#20376f",
+          "#39538e",
+          "#5470ad",
+          "#718ece",
+          "#9ebdff",
+          "#e7efff"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "#f8fafc",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#202223",
+          "#393b3c",
+          "#545557",
+          "#707273",
+          "#8d8f91",
+          "#bcbec0",
+          "#edeff1"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#222222",
+          "#3a3a3a",
+          "#555555",
+          "#717171",
+          "#8f8f8f",
+          "#bebebe",
+          "#eeeeee"
+        ]
+      },
+      "selection": {
+        "role": "neutral",
+        "displayName": "Selected Surface",
+        "canonical": "#eff6ff",
+        "tonalRamp": [
+          "#070b11",
+          "#1d2228",
+          "#363b42",
+          "#50565d",
+          "#6c727a",
+          "#899098",
+          "#b8bec7",
+          "#e8eff8"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Primary Text",
+        "canonical": "#0f172a",
+        "tonalRamp": [
+          "#040a1c",
+          "#182135",
+          "#313a50",
+          "#4b556c",
+          "#66718a",
+          "#848fa8",
+          "#b2bed8",
+          "#e7efff"
+        ]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Secondary Text",
+        "canonical": "#475569",
+        "tonalRamp": [
+          "#030b1b",
+          "#162233",
+          "#2e3b4e",
+          "#48566a",
+          "#647388",
+          "#8190a6",
+          "#afbfd6",
+          "#e5efff"
+        ]
+      },
+      "text-tertiary": {
+        "role": "neutral",
+        "displayName": "Tertiary Text",
+        "canonical": "#64748b",
+        "tonalRamp": [
+          "#020b1c",
+          "#152235",
+          "#2d3b50",
+          "#47566c",
+          "#63738a",
+          "#8090a8",
+          "#aebfd8",
+          "#e5efff"
+        ]
+      },
+      "outline": {
+        "role": "neutral",
+        "displayName": "Outline",
+        "canonical": "#cbd5e1",
+        "tonalRamp": [
+          "#060c13",
+          "#1b222b",
+          "#333b45",
+          "#4e5660",
+          "#6a737d",
+          "#87909b",
+          "#b5bfcb",
+          "#e5f0fc"
+        ]
+      },
+      "separator": {
+        "role": "neutral",
+        "displayName": "Section Separator",
+        "canonical": "#dce1e8",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#202224",
+          "#393a3e",
+          "#545559",
+          "#707275",
+          "#8d8f93",
+          "#bcbec1",
+          "#eceef2"
+        ]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Success Text",
+        "canonical": "#15803d",
+        "tonalRamp": [
+          "#001003",
+          "#002a0e",
+          "#00481d",
+          "#00672d",
+          "#208744",
+          "#46a661",
+          "#77d68e",
+          "#c7ffd1"
+        ]
+      },
+      "success-surface": {
+        "role": "semantic",
+        "displayName": "Success Surface",
+        "canonical": "#f0fdf4",
+        "tonalRamp": [
+          "#050d08",
+          "#1b241e",
+          "#333d37",
+          "#4e5851",
+          "#6a756d",
+          "#87938b",
+          "#b5c1b9",
+          "#e5f2e9"
+        ]
+      },
+      "success-outline": {
+        "role": "semantic",
+        "displayName": "Success Outline",
+        "canonical": "#bbf7d0",
+        "tonalRamp": [
+          "#000f05",
+          "#002a15",
+          "#074628",
+          "#2a6242",
+          "#47805e",
+          "#659e7b",
+          "#93cea8",
+          "#c4ffd9"
+        ]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Error Text",
+        "canonical": "#ba1a1a",
+        "tonalRamp": [
+          "#1f0000",
+          "#470002",
+          "#730005",
+          "#a3000a",
+          "#ca2e29",
+          "#ee5348",
+          "#ffa195",
+          "#ffe9e5"
+        ]
+      },
+      "danger-surface": {
+        "role": "semantic",
+        "displayName": "Error Surface",
+        "canonical": "#fef2f2",
+        "tonalRamp": [
+          "#100909",
+          "#281f1f",
+          "#413838",
+          "#5c5353",
+          "#796f6f",
+          "#978c8c",
+          "#c6bbbb",
+          "#f7ebeb"
+        ]
+      },
+      "danger-outline": {
+        "role": "semantic",
+        "displayName": "Error Outline",
+        "canonical": "#fecaca",
+        "tonalRamp": [
+          "#1e0003",
+          "#391416",
+          "#552d2e",
+          "#734849",
+          "#916464",
+          "#b18181",
+          "#e2afaf",
+          "#ffe8e8"
+        ]
+      },
+      "field-outline": {
+        "role": "neutral",
+        "displayName": "Field Outline",
+        "canonical": "#c5cdd8",
+        "tonalRamp": [
+          "#080c14",
+          "#1d242f",
+          "#353e4b",
+          "#505a69",
+          "#6c7787",
+          "#8995a6",
+          "#b7c2d1",
+          "#e8eef6"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "System UI — Page Title",
+        "purpose": "The primary task heading, 34–46 px."
+      },
+      "headline": {
+        "displayName": "System UI — Section Heading",
+        "purpose": "Names a real task section or work area."
+      },
+      "body": {
+        "displayName": "System UI — Body",
+        "purpose": "Supporting explanation and form copy."
+      },
+      "label": {
+        "displayName": "System UI — Label",
+        "purpose": "Compact metadata and plain-text status labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "keyboard-focus",
+        "value": "0 0 0 3px rgb(23 105 255 / 30%)",
+        "purpose": "Visible keyboard focus on interactive controls."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "600px"
+      },
+      {
+        "name": "compact-layout",
+        "value": "820px"
+      }
+    ],
+    "components": [
+      {
+        "name": "Primary Button",
+        "kind": "button",
+        "refersTo": "button-primary",
+        "description": "A dark navy action for submitting or advancing a real task.",
+        "html": "<button class=\"ds-button-primary\" type=\"button\">Registrar solicitação</button>",
+        "css": ".ds-button-primary{min-height:44px;padding:0 17px;border:0;border-radius:7px;background:var(--nexo-color-navy);color:#fff;font:600 14px/1.2 var(--nexo-font-body);cursor:pointer}.ds-button-primary:hover{filter:brightness(.92)}.ds-button-primary:focus-visible{outline:none;box-shadow:var(--nexo-focus-ring)}@media(pointer:coarse){.ds-button-primary{min-height:48px}}"
+      },
+      {
+        "name": "Outlined Field",
+        "kind": "input",
+        "refersTo": "field-outlined",
+        "description": "A labeled input with a restrained outline and visible keyboard focus.",
+        "html": "<label class=\"ds-field\"><span>Assunto *</span><input type=\"text\" autocomplete=\"off\"></label>",
+        "css": ".ds-field{display:grid;gap:6px;color:var(--nexo-color-text-secondary);font:400 13px/1.4 var(--nexo-font-body)}.ds-field input{width:100%;min-height:44px;padding:0 12px;border:1px solid #c5cdd8;border-radius:7px;background:var(--nexo-color-surface);color:var(--nexo-color-text);font:inherit}.ds-field input:focus-visible{outline:none;border-width:2px;box-shadow:var(--nexo-focus-ring)}"
+      },
+      {
+        "name": "Citizen Service Tabs",
+        "kind": "nav",
+        "refersTo": "tabs-active",
+        "description": "Two labeled tasks switch between opening and tracking a public protocol.",
+        "html": "<nav class=\"ds-tabs\" aria-label=\"Serviços de protocolo\"><a href=\"#nova\" class=\"ds-tab ds-tab-active\" aria-current=\"page\">Nova solicitação</a><a href=\"#acompanhar\" class=\"ds-tab\">Acompanhar protocolo</a></nav>",
+        "css": ".ds-tabs{display:flex;gap:28px;border-bottom:1px solid #dce1e8}.ds-tab{position:relative;display:flex;min-height:50px;align-items:center;padding-right:20px;color:var(--nexo-color-text-secondary);font:550 14px/1.4 var(--nexo-font-body);text-decoration:none}.ds-tab-active{color:var(--nexo-color-navy);font-weight:650}.ds-tab-active:after{position:absolute;right:20px;bottom:0;left:0;height:2px;background:var(--nexo-color-primary);content:\"\"}.ds-tab:focus-visible{outline:none;box-shadow:var(--nexo-focus-ring)}"
+      },
+      {
+        "name": "Guidance Margin",
+        "kind": "custom",
+        "refersTo": "service-aside",
+        "description": "Short, factual guidance sits beside the citizen form and links to protocol tracking.",
+        "html": "<aside class=\"ds-guidance\"><h2>Guarde o comprovante</h2><p>Ele contém o número e a chave para consultar as movimentações.</p><hr><a href=\"#acompanhar\">Já tenho um protocolo</a></aside>",
+        "css": ".ds-guidance{max-width:264px;padding-left:27px;border-left:1px solid #d6dce5}.ds-guidance h2{margin:0 0 9px;color:var(--nexo-color-text);font:620 22px/1.18 var(--nexo-font-body);letter-spacing:-.035em}.ds-guidance p{margin:0;color:var(--nexo-color-text-secondary);font:400 13px/1.65 var(--nexo-font-body)}.ds-guidance hr{margin:21px 0 19px;border:0;border-top:1px solid #dce1e8}.ds-guidance a{color:var(--nexo-color-action);font:650 13px/1.4 var(--nexo-font-body);text-underline-offset:3px}.ds-guidance a:focus-visible{outline:none;box-shadow:var(--nexo-focus-ring)}"
+      },
+      {
+        "name": "Protocol Record",
+        "kind": "custom",
+        "refersTo": "protocol-row",
+        "description": "A protocol is presented as a plain list record with its status and available action.",
+        "html": "<article class=\"ds-record\"><span class=\"ds-record-number\">2026/000001</span><h3>Solicitação de atendimento</h3><p>Requerente · Setor responsável</p><span class=\"ds-status\">Recebido</span></article>",
+        "css": ".ds-record{display:grid;gap:5px;padding:19px 0;border-top:1px solid #dce1e8}.ds-record-number{color:var(--nexo-color-action);font:700 12px/1.4 var(--nexo-font-body);letter-spacing:.035em}.ds-record h3{margin:0;color:var(--nexo-color-text);font:620 16px/1.4 var(--nexo-font-body)}.ds-record p{margin:0;color:var(--nexo-color-text-secondary);font:400 12px/1.5 var(--nexo-font-body)}.ds-status{color:var(--nexo-color-text-secondary);font:650 12px/1.4 var(--nexo-font-body)}"
+      },
+      {
+        "name": "Feedback Banner",
+        "kind": "custom",
+        "refersTo": "feedback-success",
+        "description": "Confirmation or recovery guidance announced as a status or alert.",
+        "html": "<div class=\"ds-feedback ds-feedback-success\" role=\"status\">Protocolo registrado.</div>",
+        "css": ".ds-feedback{margin:18px 0;padding:10px 0;border-top:1px solid var(--nexo-color-outline);font:400 14px/1.45 var(--nexo-font-body)}.ds-feedback-success{color:var(--nexo-color-success)}.ds-feedback-error{color:var(--nexo-color-danger)}"
+      }
+    ],
+    "narrative": {
+      "northStar": "Civic Register",
+      "overview": "NexoGov is a public-service workbench, presented as a clear municipal record rather than a generic SaaS dashboard. The request or protocol leads the page; its actual status and next action remain easy to find. The Apple Human Interface Guidelines inform clarity, alignment, restrained color, and straightforward controls while NexoGov retains its own identity.\n\nThe product uses a text wordmark and two separate application entry points: a public citizen portal and an authenticated staff work area. They share neutral tokens, API clients, and contracts, but keep distinct navigation and tasks. A flat layout, functional dividers, system typography, and real workflow copy replace decorative badges and repeated cards.",
+      "keyCharacteristics": [
+        "Text-first NexoGov wordmark without an isolated initial tile.",
+        "Navy for primary actions, with NEXO blue for selected emphasis and links.",
+        "Two purpose-specific frontends over one permission-enforcing API."
+      ],
+      "rules": [
+        {
+          "name": "The Civic Register Rule",
+          "body": "Put the person's current task first, show the record's actual state, and use layout only to clarify the next action.",
+          "section": "overview"
+        },
+        {
+          "name": "The No Badge Rule",
+          "body": "Use the product wordmark as text; do not invent a boxed initial or civic emblem.",
+          "section": "overview"
+        },
+        {
+          "name": "The One Accent Rule",
+          "body": "Keep most surfaces neutral. Use NEXO navy for primary actions and NEXO blue for links or selected emphasis.",
+          "section": "overview"
+        }
+      ],
+      "dos": [
+        "Do use the system UI stack and the NEXO Core token package.",
+        "Do keep citizen and staff interfaces as separate application entry points.",
+        "Do provide readable labels, visible keyboard focus, and reduced-motion support.",
+        "Do show only workflows, statuses, and data the application provides."
+      ],
+      "donts": [
+        "Don't use Apple logos, proprietary font files, SF Symbols, or Apple-specific interface chrome.",
+        "Don't add boxed initials, eyebrow labels, repeated cards, decorative gradients, or stock civic symbols.",
+        "Don't add unimplemented modules, invented metrics, municipal records, or unsupported claims.",
+        "Don't use color as the only indicator of status, success, or error."
+      ]
+    }
+  }
+}

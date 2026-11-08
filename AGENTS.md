@@ -1,0 +1,56 @@
+# Instruções de trabalho — NexoGov
+
+## Fronteiras
+
+- Este checkout é independente do NexoLar. Nunca leia ou altere dados de produção, segredos, buckets, branches ou arquivos do NexoLar; nunca faça o NexoGov depender dele.
+- O NEXO Core é outro produto e outro checkout. Use `NEXO_CORE_DIR` para encontrá-lo; não copie lógica de domínio do Gov para o Core.
+- Não publicar, fazer deploy nem compartilhar credenciais. Nunca versionar `.env`, dados reais, tokens ou arquivos de usuário.
+- Não declarar aderência integral ao Pregão 91/2025: cada status depende de fonte, critério, teste e evidência rastreáveis.
+
+## Fluxo de desenvolvimento
+
+- Antes de implementar, localize o módulo, contrato, migrações, UI e testes existentes. Prefira um incremento vertical pequeno e persistido.
+- Toda operação de servidor deve derivar organização e autorização de contexto validado no backend. A UI e o header da organização não concedem acesso.
+- Requisitos do edital: preserve IDs, origem/página/seção, transcrição e limites. Edite geradores; use `./dev matrix-refresh` para regenerar os artefatos derivados, depois confira a matriz e as diferenças.
+- A cada incremento, mantenha os três artefatos operacionais em sincronia: atualize a skill relevante com regras reutilizáveis aprendidas, registre decisões/testes/evidências/lacunas em `docs/INCREMENTO_NN.md` e ajuste o harness `./dev` para tornar repetíveis as verificações novas ou mais importantes. Se um deles não precisar de alteração, registre o motivo no documento do incremento.
+- Mantenha `README.md`, `AGENTS.md`, skills, harness, matriz e roteiros consistentes com o comportamento real; não deixe comandos ou instruções obsoletos após uma mudança.
+- Não migre conceitos de condomínio para este domínio. Separe obrigações de software das contratuais, empresariais e operacionais.
+
+## Harness
+
+- `./dev doctor`: dependências e configuração local.
+- `./dev verify-fast`: NEXO Core, testes de backend/Testcontainers, build frontend e matriz.
+- `./dev verify`: tudo acima, E2E local Basic e suite focada OIDC, em projetos/portas Compose descartáveis separados; os cenários de navegador rodam em um worker porque compartilham o banco e verificam revogação de acesso.
+- `./dev e2e`: E2E local Basic em um worker; cenários OIDC são condicionados ao modo e rodam por `./dev oidc-test`.
+- `./dev e2e --grep 'texto do cenário'`: E2E filtrado, mantendo infraestrutura e portas descartáveis.
+- `./dev evidence`: executa somente pares exatos spec/cenário da allowlist revisada, roda a regressão do exportador primeiro, mantém vídeo desligado porque gravações contínuas podem reter tokens/dados pessoais fora das máscaras pontuais, e exporta PNGs/manifesto privado para Documentos. Cada PNG captura somente o viewport e usa foco explícito com `scrollIntoViewIfNeeded()`; o helper posiciona o alvo abaixo do cabeçalho fixo quando necessário; corpos inline são decodificados estritamente. IDs exigem seus labels demonstrativos exatos e referência explícita na matriz. Capturas parciais permanecem parciais; lacunas não recebem mídia. A chave de acompanhamento é convertida em campo password, validada e passada como locator para a máscara do screenshot; teste estático valida esses pré-requisitos, e só a inspeção visual do PNG exportado valida pixels mascarados. A ausência do token bruto nos bytes PNG não é prova. O cenário de anexos inclui regra configurada, anexo listado pelo cidadão e anexo consultado/baixado pelo setor; S3Mock não prova o bucket produtivo.
+- `./dev evidence-export-test`: valida paridade da allowlist com a configuração Playwright, títulos/labels explícitos, IDs existentes e referências da matriz, e verifica estaticamente `type=password` + locator em `mask`; inclui testes negativos de captura parcial e de requisito composto sem mídia. Não prova os pixels mascarados e não requer Docker.
+- `./dev oidc-test`: UI OIDC com provedor simulado; verifica PKCE S256, state/nonce, callback, bearer, logout e fail-closed. As chamadas de servidor são simuladas; não é prova de IdP municipal.
+- `./dev identity-test`: prova focada da identidade federada por organização e da migração V9, com PostgreSQL Testcontainers/JWKS temporário; rejeita links globais ambíguos sem alteração de dados; requer Docker.
+- `./dev frontend-auth-bundle-test`: compila fora de `frontend/dist` e percorre imports do portal público, recusando helpers de Basic/Axios e campos internos de encaminhamento.
+- `./dev admin-access-test`: prova de listagem, suspensão/reativação, autorização por papel organizacional, isolamento, preservação de relações/histórico, revogação na requisição seguinte e proteção concorrente do último administrador; requer Docker.
+- `./dev subject-catalog-test`: prova do catálogo de assuntos por organização, autorização ADMIN, filtro público online, recusa de balcão/outro tenant antes da numeração e compatibilidade de snapshots; requer Docker.
+- `./dev participant-fields-test`: prova a configuração persistida de campos de identificação por assunto, validação, autorização ADMIN e isolamento de organização; cobre somente a configuração, não o acesso de participantes externos; requer Docker.
+- `./dev participant-fields-e2e`: prova criar, editar, persistir, recarregar e remover campos na interface contra a API real; requer Docker e Chrome.
+- `./dev participant-access-test`: prova cadastro inicial de participantes, validação antes da numeração, hash dos convites, escopo de protocolo, identidade própria, autoria anonimizada e revogação; requer Docker.
+- `./dev participant-access-e2e`: prova configuração do campo no servidor, criação de dois convites em contextos independentes, remoção do token da URL/armazenamento, troca/corrida de consultas sem mostrar dados antigos e revogação seletiva pela API real; requer Docker e Chrome.
+- `./dev protocol-read-status-test`: prova recibos idempotentes, projeção sem mutação na listagem, isolamento por organização/setor, membership ativa no setor corrente inclusive para ADMIN e recusa sem recibo cross-tenant; requer Docker.
+- `./dev protocol-read-status-e2e`: demonstra no portal do servidor os estados sem leitura, lido por colega e lido pelo usuário atual, além de persistência após recarga; requer Docker e Chrome. A evidência é por protocolo e não prova leitura individual de cada documento ou trilha nominal.
+- `./dev protocol-routing-test`: prova configuração ADMIN do setor por assunto, PDF com snapshot do setor inicial antes/depois de tramitações, ausência de destino inventado em protocolo legado, `forward` com body/destino obrigatório (400), bodies opcionais nas demais transições e negação cross-tenant (404 sem mutação) para `forward`, `receive`, `dispatch` e `complete`; requer Docker.
+- `./dev protocol-deadline-test`: prova configuração ADMIN de dias positivos por assunto, isolamento entre organizações, no-op de atualização quando o campo é omitido, limpeza quando `null` é enviado explicitamente, snapshot no protocolo, preservação do recibo e rejeição de zero; usa PostgreSQL Testcontainers.
+- `./dev openapi-check`: analisa o YAML versionado e confere campos opcionais/nulláveis e semântica documentada do contrato; não requer Docker.
+- `./dev attachment-test`: testa regras de anexos por assunto, rejeição antes da numeração, validação de conteúdo, armazenamento S3Mock, downloads autenticados e isolamento por tenant/setor; requer Docker. S3Mock é um dublê local de API S3, não uma prova de segurança ou operação do bucket de produção.
+- `./dev interaction-test`: executa testes PostgreSQL/Testcontainers de mensagens públicas/internas, downloads por cidadão/servidor, isolamento tenant/setor, recusa de anexo interno após desativar o setor, trilha append-only, bloqueio após conclusão, reabertura, concorrência e ordem histórica; depois executa o fluxo cidadão/servidor com API e storage descartáveis no Playwright. Requer Docker e Chrome; não é POC oficial nem prova de storage produtivo.
+- `./dev process-workflow-test`: verifica versionamento de workflows por assunto, snapshot do processo, avanço somente sequencial, autorização da lotação e isolamento entre organizações com PostgreSQL Testcontainers; não comprova interface, OpenAPI ou POC integral.
+- `./dev process-decision-test`: prova configuração decisória por etapa, snapshot do processo, membership ativa no setor corrente, idempotência para repetição do resultado, novo evento append-only quando o resultado muda, estado `ACTIVE` independente e isolamento tenant com PostgreSQL Testcontainers.
+- `./dev process-workflow-e2e`: demonstra publicação v1/v2, seleção de setores decisores na interface, registro de `Deferido` por chamada real, estado `ACTIVE` independente, histórico, shell ocupada durante decisão, listagem e persistência após recarga/nova autenticação. Também mantém os testes de snapshot, salto recusado (409), falta de lotação no setor atual (403), bloqueio dos controles de contexto durante abertura/avanço/refresh, spans de portal sem semântica de link enquanto há operação e sinal cancelável de `beforeunload`. Requer Docker e Chrome. `./dev process-list-test` cobre paginação e escopo tenant/setor; o GET de detalhe ainda tem regra histórica mais ampla que a listagem. Nenhum desses comandos comprova encerramento, workflows avançados ou POC oficial.
+- `./dev matrix` verifica sem alterar arquivos; `./dev matrix-refresh` regenera artefatos.
+- O ambiente local persistente usa volume/porta próprios; não execute comandos Compose de remoção fora do projeto temporário criado pelo E2E.
+
+## Skills locais
+
+Leia a skill correspondente em `.agents/skills/` antes de trabalhar em fatias verticais ou na matriz oficial. As instruções são complementares a este arquivo.
+
+Em trabalho visual, leia `frontend-design` para definir um caráter próprio ligado ao serviço público e `nexogov-design-system` para os tokens e estados do produto. No fim, aplique `frontend-design-review/references/quick-checklist.md` e registre desvios reais do sistema visual. Evite marcas de inicial em quadrado, gradientes decorativos, cartões repetidos, painéis com métricas inventadas e layouts genéricos de SaaS.
+
+O padrão visual obrigatório para telas novas ou alteradas é Apple HIG-inspired: hierarquia nítida, alinhamento e espaçamento deliberados, cores contidas, controles simples e tipografia de sistema. Preserve a identidade azul/navy NEXO e os tokens versionados do Core. Não use marca, SF Symbols, fontes proprietárias ou chrome nativo da Apple; só mude de sistema visual se o usuário pedir explicitamente.

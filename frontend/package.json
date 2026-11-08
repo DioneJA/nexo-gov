@@ -10,14 +10,17 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@nexo/core-ui": "file:../../nexo-core/packages/core-ui",
     "@quasar/extras": "2.1.0",
     "axios": "1.21.0",
+    "oidc-client-ts": "3.5.0",
     "quasar": "2.35.2",
     "vue": "3.5.45"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
     "@vitejs/plugin-vue": "6.0.10",
+    "pdfjs-dist": "4.10.38",
     "typescript": "5.9.3",
     "vite": "8.3.6",
     "vue-tsc": "3.3.14"

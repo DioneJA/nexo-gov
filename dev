@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export NEXO_CORE_DIR="${NEXO_CORE_DIR:-$repo_root/../nexo-core}"
+command="${1:-help}"
+if (( $# > 0 )); then shift; fi
+
+case "$command" in
+  doctor) exec "$repo_root/scripts/doctor.sh" ;;
+  setup|bootstrap) exec "$repo_root/scripts/bootstrap-local.sh" ;;
+  start) exec "$repo_root/scripts/start-local.sh" ;;
+  web) exec "$repo_root/scripts/start-web-local.sh" ;;
+  e2e) exec "$repo_root/scripts/run-e2e.sh" "$@" ;;
+  evidence) exec "$repo_root/scripts/capture-e2e-evidence.sh" "$@" ;;
+  evidence-export-test) exec python3 -m unittest discover -s "$repo_root/scripts/tests" -p 'test_export_e2e_evidence.py' ;;
+  oidc-test) export NEXOGOV_E2E_AUTH_MODE=oidc; exec "$repo_root/scripts/run-e2e.sh" --grep @oidc ;;
+  frontend-auth-bundle-test) exec "$repo_root/scripts/frontend-auth-bundle-test.sh" ;;
+  identity-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=FederatedIdentityIntegrationTest,MigrationSafetyIntegrationTest' test ;;
+  admin-access-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=OrganizationMemberAccessIntegrationTest test ;;
+  subject-catalog-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=ProtocolVerticalIntegrationTest#protocolSubjectCatalogIsTenantScopedOnlineOnlyAndKeepsSnapshots test ;;
+  participant-fields-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=ProtocolVerticalIntegrationTest#protocolSubjectParticipantFieldsAreTenantScopedAndAdminOnly test ;;
+  participant-fields-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'administrador configura e mantém campos de identificação por assunto' ;;
+  participant-access-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=ProtocolVerticalIntegrationTest#protocolParticipantsHaveIndividualScopedAccessAndRevocation test ;;
+  participant-access-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'cria acessos individuais, acompanha e revoga uma pessoa vinculada' ;;
+  protocol-read-status-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=ProtocolVerticalIntegrationTest#protocolInboxReadReceiptIsIdempotentAndTenantAndDepartmentScoped test ;;
+  protocol-read-status-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'caixa mostra leitura por setor, por outro servidor e pelo usuário atual' ;;
+  protocol-routing-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=ProtocolVerticalIntegrationTest#configuredSubjectRoutesProtocolAndReceiptWithoutCrossTenantLeakOrCounterConsumption+receiptKeepsTheOpeningDepartmentAfterForwardingAndDispatch+forwardingRequiresBodyAndDestinationDepartment+otherTransitionBodiesAreOptionalAndDoNotRequireDestination+staffTransitionsRejectProtocolsFromOtherOrganizationsWithoutMutation+protocolSubjectCatalogIsTenantScopedOnlineOnlyAndKeepsSnapshots' test ;;
+  protocol-deadline-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=ProtocolVerticalIntegrationTest#subjectDeadlineIsConfiguredSnapshottedAndPrintedOnReceipt' test ;;
+  openapi-check) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=OpenApiContractTest test ;;
+  attachment-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=ProtocolVerticalIntegrationTest#protocolAttachmentsAreRequiredValidatedPrivateAndTenantScoped' test ;;
+  interaction-test) exec "$repo_root/scripts/protocol-interaction-test.sh" ;;
+  process-decision-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=AdministrativeWorkflowIntegrationTest#processDecisionsAreConfiguredPerDepartmentSnapshottedAndTenantScoped+concurrentSameProcessDecisionIsSerializedAndDoesNotDuplicateHistory' test ;;
+  process-workflow-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=AdministrativeWorkflowIntegrationTest test ;;
+  process-list-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=AdministrativeWorkflowIntegrationTest#processListIsTenantScopedAuthorizedFilteredStableAndPaginated' test ;;
+  process-workflow-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'administrador publica workflow versionado e acompanha o snapshot do processo' ;;
+  matrix) exec python3 "$repo_root/scripts/check-matrix.py" ;;
+  matrix-refresh)
+    python3 "$repo_root/scripts/build-edital-matrix.py"
+    python3 "$repo_root/scripts/extend-matrix-from-tr-ocr.py"
+    python3 "$repo_root/scripts/render-traceability.py"
+    exec python3 "$repo_root/scripts/check-matrix.py"
+    ;;
+  verify-fast) exec "$repo_root/scripts/verify-local.sh" ;;
+  verify) exec "$repo_root/scripts/verify-local.sh" --with-e2e ;;
+  help|-h|--help)
+    cat <<'HELP'
+Uso: ./dev <comando>
+
+  doctor          Confere ferramentas, NEXO Core e arquivos locais
+  setup           Instala dependências e executa build/testes iniciais
+  start           Inicia PostgreSQL local e API
+  web             Inicia a interface local em outra janela de terminal
+  verify-fast     Testa Core e API, compila frontend e confere matriz
+  verify          Executa verify-fast, E2E local Basic e OIDC focado em projetos descartáveis separados
+  e2e [args...]   Executa Playwright local Basic em worker único e infraestrutura descartável; aceita --grep; não usa .env local
+  evidence        Exporta screenshots PNG de pares spec/cenário aprovados; vídeo desligado, chave mascarada, manifesto em Documentos
+  evidence-export-test Confere allowlist, labels/IDs/referências da matriz, máscara de bearer configurada no helper e recusa mídia incompleta; não valida pixels (requer inspeção visual do PNG)
+  oidc-test       Testa callback OIDC, PKCE, state/nonce, bearer e configuração fail-closed em E2E isolado
+  frontend-auth-bundle-test  Compila em pasta temporária e verifica isolamento do bundle público
+  identity-test   Testa JWT, vínculo externo por organização e segurança da migração V9 (requer Docker)
+  admin-access-test Testa autorização de mutação por papel setorial/organizacional, alvo de outro tenant, suspensão/reativação, auditoria e último administrador (requer Docker)
+  subject-catalog-test Testa catálogo de assuntos, filtro público, isolamento, numeração e snapshots (requer Docker)
+  participant-fields-test Testa configuração tenant-scoped de campos de pessoas envolvidas e autorização administrativa (requer Docker)
+  participant-fields-e2e Testa criar, editar, persistir, recarregar, remover e ajustar o layout em painel estreito via interface e API real (requer Docker e Chrome)
+  participant-access-test Testa cadastro, hashes, isolamento de dados, interação e revogação de convites individuais com PostgreSQL Testcontainers (requer Docker)
+  participant-access-e2e Testa configuração, convites, contextos independentes, fragmento/armazenamento, troca e corrida de consultas, ocultação de dados antigos e revogação pela API real (requer Docker e Chrome)
+  protocol-read-status-test Testa recibos idempotentes, projeção sem mutação na listagem, isolamento por organização/setor e membership ativa no setor atual (requer Docker)
+  protocol-read-status-e2e Demonstra os estados de leitura antes/depois de outro servidor e do usuário atual, com persistência após recarga (requer Docker e Chrome)
+  protocol-routing-test Testa recibo estável, contratos das transições e isolamento cross-tenant (requer Docker)
+  protocol-deadline-test Testa prazo por assunto, semântica de campo ausente/null no PUT, snapshot e comprovante PDF (requer Docker)
+  process-decision-test Testa configuração por etapa, snapshot, membership atual, idempotência, revisão auditada e isolamento entre organizações (requer Docker)
+  openapi-check  Valida sintaxe e semântica essencial do contrato OpenAPI versionado
+  attachment-test Testa regras obrigatórias por assunto, validação antes da numeração, S3Mock, downloads autenticados e isolamento por tenant/setor (requer Docker)
+  interaction-test Testa interações públicas/internas, anexos, isolamento, concorrência, reabertura e fluxo de navegador real (requer Docker e Chrome)
+  process-workflow-test Testa publicação idempotente, snapshots, autorização da lotação no setor atribuído, etapas multi-setor, corridas de revogação/desativação e ausência de mutação após rejeição (requer Docker)
+  process-list-test Testa listagem paginada, busca literal, ordenação estável, resumo enxuto, escopo de tenant e acesso por setor/admin organizacional (requer Docker)
+  process-workflow-e2e Demonstra v1/v2, setores decisores por etapa, decisão Deferido com status ACTIVE, persistência após recarga, shell ocupada, lista e recusas 409/403 (requer Docker e Chrome)
+  matrix          Confere estrutura e cobertura da matriz sem alterá-la
+  matrix-refresh  Regenera matriz, relatório e roteiro POC
+
+NEXO_CORE_DIR pode apontar para qualquer checkout independente do NEXO Core.
+HELP
+    ;;
+  *) echo "Comando desconhecido: $command" >&2; exit 2 ;;
+esac

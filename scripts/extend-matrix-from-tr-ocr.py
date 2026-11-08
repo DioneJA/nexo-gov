@@ -8,11 +8,14 @@ Source transcription review and product validation are tracked as separate state
 import csv
 import re
 import unicodedata
+from collections import Counter
 from pathlib import Path
+from matrix_id_registry import MatrixIdRegistry
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "docs/licitacoes/mata-de-sao-joao-91-2025"
 CSV_PATH = BASE / "MATRIZ_ADERENCIA.csv"
+ID_REGISTRY = MatrixIdRegistry(BASE / "MATRIZ_IDS.csv")
 OCR_PATH = BASE / "edital-original/texto-extraido/TERMODEREFERENCIAEJUSTIFICATIVAPE912025-ocr-por.txt"
 NORMATIVE = re.compile(
     r"\b(devera|deverao|permit|possibil|sera|serao|havera|podera|poderao|capacidade|"
@@ -1027,6 +1030,8 @@ def extract_candidates(text):
 
 def module_for(section, body):
     text = folded(section + " " + body)
+    if "pentest whitebox" in text:
+        return "IDENTIDADE_E_SEGURANCA"
     if "§10" in section:
         return "PORTAL_EXTERNO"
     if "§18" in section and "(Anexo II)" in section:
@@ -1097,6 +1102,14 @@ def nature_for(section, body):
         return "HABILITACAO_EMPRESARIAL"
     if "Anexo III" in section:
         return "PROPOSTA_COMERCIAL"
+    if "pentest whitebox" in text:
+        return "OPERACAO_CONTRATUAL"
+    if "§35" in section and any(phrase in text for phrase in (
+        "assista novamente as aulas",
+        "aplicacao de avaliacao de aprendizado",
+        "afericao do progresso no treinamento",
+    )):
+        return "SOFTWARE"
     if "§39" in section:
         return "EXTERNO/CONTRATUAL"
     if any(phrase in text for phrase in (
@@ -1127,16 +1140,47 @@ def priority_for(section, body):
     return "OBRIGATÓRIO"
 
 
+previous_progress = {}
 with CSV_PATH.open(encoding="utf-8-sig", newline="") as stream:
     reader = csv.DictReader(stream, delimiter=";")
-    fields = reader.fieldnames
-    rows = [row for row in reader if not row["id"].startswith("TR91-")]
+    fields = list(reader.fieldnames)
+    previous_progress = {row["id"]: row for row in reader}
+rows = [row for row in previous_progress.values() if not row["id"].startswith("TR91-")]
+previous_tr_rows = {row["id"]: row for row in previous_progress.values() if row["id"].startswith("TR91-")}
 if "validacao_fonte" not in fields:
     fields.append("validacao_fonte")
 for row in rows:
     row["validacao_fonte"] = "CONFERIDA_NO_DOCUMENTO_OFICIAL"
 
 candidates = extract_candidates(OCR_PATH.read_text(encoding="utf-8", errors="replace"))
+identity_occurrences = Counter()
+generated_tr_ids = set()
+partial_protocol_read_status_requirements = {
+    "TR91-0125": (
+        'Termo de Referência, §10 “Situação dos Documentos e Identificação Visual”, parágrafo '
+        '“Deverá conter identificação visual do status de leitura na caixa de entrada do setor”, '
+        'PDF p.12; transcrição conferida visualmente no PDF oficial. Correspondência: ED91-0120, '
+        'Edital, fl. impressa 17, §14.1.13, subtítulo “Situação dos documentos e identificação visual”.',
+        "Parcial — na caixa de entrada, o indicador distingue, por protocolo e setor atualmente responsável, nenhum servidor do setor tendo lido, leitura por outro servidor do setor sem leitura pelo usuário atual e leitura pelo próprio usuário. O registro ocorre após carregar o conteúdo do protocolo. A evidência não registra leitura de cada documento individual nem satisfaz o histórico de acesso/auditoria, downloads ou demais obrigações do parágrafo.",
+        "ProtocolService.recordRead e ProtocolController.persistem recibo idempotente em protocol_read_receipts (V21), com organização, protocolo, setor corrente, usuário e horário. A listagem calcula o estado sem gravar; POST exige lotação ativa no setor corrente e escopo da organização validado no backend.",
+        "StaffApp.vue apresenta os três estados em texto acessível e registra leitura somente após carregar com sucesso as interações do protocolo; a caixa não mostra nomes de leitores.",
+        "ProtocolVerticalIntegrationTest#protocolInboxReadReceiptIsIdempotentAndTenantAndDepartmentScoped (PostgreSQL Testcontainers) verifica listagem sem escrita, estados, idempotência, setor, organização e negação sem mutação. frontend/e2e/protocol-read-status.spec.ts verifica os três estados e persistência após recarga contra a API real. Esses testes não cobrem leitura por documento, trilha completa de acesso ou contagem de downloads.",
+        "POC-LEITURA-CAIXA (parcial para TR91-0125): em duas organizações fictícias, abrir um protocolo atribuído a um setor; conferir inicialmente “não lido pelo setor”; abrir seu conteúdo como um servidor e confirmar que a listagem de outro servidor da mesma lotação indica leitura por colega; abrir o conteúdo com o segundo servidor e confirmar “lido por mim”. Repetir sem vínculo ao setor e em outra organização, confirmando recusa sem registro. A demonstração é por protocolo/setor e não comprova leitura individual de cada documento, histórico de auditoria/acessos, downloads ou a POC oficial.",
+        "Implementação parcial em ProtocolService/Controller, migração V21 e StaffApp.vue; teste focal e E2E identificados acima. Capturas `leitura-nao-iniciada`, `leitura-por-colega` e `leitura-pelo-servidor` em frontend/e2e/protocol-read-status.spec.ts e no manifesto da execução aprovada. Status permanece EM_DESENVOLVIMENTO: o recibo representa leitura do conteúdo do protocolo no setor atual, não leitura por documento, e não demonstra auditoria/downloads nem o critério completo do edital.",
+    ),
+    "TR91-0145": (
+        'Termo de Referência, §15 “Status de Leitura e Rastreabilidade dos Documentos”, primeiro parágrafo '
+        '(identificação visual do status de leitura na caixa do setor), PDF p.14; transcrição conferida '
+        'visualmente no PDF oficial. Correspondência: ED91-0140, Edital, fl. impressa 18, §14.1.13, '
+        'subtítulo “Status de leitura e rastreabilidade dos documentos”.',
+        "Parcial — a caixa de entrada indica, por protocolo e setor atualmente responsável, se nenhum servidor habilitado do setor leu o conteúdo, se outro servidor do setor leu antes do usuário atual ou se o próprio usuário leu. O recibo só é gravado depois do carregamento do conteúdo do protocolo. Não há prova de leitura de cada documento/despacho individual, histórico cronológico completo de acessos, leitura por usuário externo ou contagem de downloads exigidos nos parágrafos seguintes.",
+        "ProtocolService.recordRead e ProtocolController gravam recibo idempotente na tabela protocol_read_receipts criada pela V21, particionado por organização, protocolo, setor atual e usuário. A caixa projeta o estado sem mutação; o servidor exige lotação ativa no setor responsável e aplica o tenant validado.",
+        "StaffApp.vue exibe rótulo textual acessível para cada estado e registra a leitura após carregar com sucesso o conteúdo/interações do protocolo; os nomes dos servidores não são expostos nesta fatia.",
+        "ProtocolVerticalIntegrationTest#protocolInboxReadReceiptIsIdempotentAndTenantAndDepartmentScoped (PostgreSQL Testcontainers) exercita estados, idempotência, mudança de setor, leitura sem mutação na listagem e negativas de setor/organização. frontend/e2e/protocol-read-status.spec.ts verifica o indicador e sua persistência após recarga contra a API real. Não cobre os demais registros de acesso, downloads ou usuário externo deste §15.",
+        "POC-LEITURA-CAIXA (parcial para TR91-0145): com dados fictícios, abrir conteúdo de protocolo na lotação responsável; demonstrar a caixa sem leitura, após leitura por colega e após leitura pelo próprio servidor; conferir que a listagem sozinha não cria recibo. Tentar registrar leitura com lotação de outro setor e organização e confirmar recusa sem mutação. Apresentar separadamente como pendentes leitura por documento/despacho, consulta de histórico cronológico, acessos externos e quantidade de downloads. Este ensaio não equivale à POC oficial.",
+        "Evidência parcial de recibo de leitura por protocolo/setor na migração V21, ProtocolService/Controller e teste Testcontainers. Capturas `leitura-nao-iniciada`, `leitura-por-colega` e `leitura-pelo-servidor` em frontend/e2e/protocol-read-status.spec.ts e no manifesto da execução aprovada. Não valida histórico de quem acessou cada documento, acesso externo, quantidade de downloads nem a POC integral; manter EM_DESENVOLVIMENTO.",
+    ),
+}
 for index, candidate in enumerate(candidates, start=1):
     page_ref = (f"PDF p.{candidate['page_start']}" if candidate["page_start"] == candidate["page_end"]
                 else f"PDF pp.{candidate['page_start']}–{candidate['page_end']}")
@@ -1160,41 +1204,435 @@ for index, candidate in enumerate(candidates, start=1):
         f"{candidate['marker']}. {candidate['body']}" if candidate["marker"] else
         candidate["body"]
     )
+    page_identity = (f"p.{candidate['page_start']}" if candidate["page_start"] == candidate["page_end"]
+                     else f"pp.{candidate['page_start']}-{candidate['page_end']}")
+    base_identity = ID_REGISTRY.identity("TR91", page_identity, summary)[0]
+    identity_occurrences[base_identity] += 1
+    requirement_id = ID_REGISTRY.assign("TR91", page_identity, summary, identity_occurrences[base_identity])
+    generated_tr_ids.add(requirement_id)
     if visually_reviewed:
         acceptance = (
-            "BLOQUEADO: transcrição conferida; decompor obrigações, definir aceite observável, "
-            "responsáveis backend/frontend, teste e evidência antes de avaliar implementação."
+            "Pendente de decomposição: separar as obrigações deste trecho, definir aceite observável, "
+            "responsáveis backend/frontend, teste e evidência antes de iniciar a implementação."
         )
-        test = "Transcrição visualmente conferida; teste automatizado pendente de decomposição e critério de aceite."
+        test = "Pendente: definir e executar teste automatizado específico após decompor o requisito e fixar seu aceite."
         evidence = f"Conferido visualmente no PDF oficial, {page_ref}; implementação e teste ainda sem evidência."
-        poc = f"POC-TR91-{index:04d}: roteiro pendente de decomposição e implementação; fonte conferida, sem demonstração registrada."
+        poc = f"POC-{requirement_id}: roteiro específico pendente de decomposição e implementação; fonte conferida, sem demonstração registrada."
     else:
         acceptance = "BLOQUEADO: comparar com o scan e dividir obrigações distintas deste item antes de definir aceite observável."
         test = "BLOQUEADO até confirmar a transcrição e decompor as obrigações deste item OCR."
         evidence = "Aguardando conferência da imagem oficial; OCR anexado apenas para descoberta."
-        poc = f"POC-TR91-{index:04d}: bloqueado até validação visual da página {candidate['page_start']} do Termo de Referência."
-    rows.append({
-        "id": f"TR91-{index:04d}",
+        poc = f"POC-{requirement_id}: bloqueado até validação visual da página {candidate['page_start']} do Termo de Referência."
+    partial_organization_requirements = {
+        "TR91-0015": "A demonstração parcial permite cadastrar e listar setores por organização; lista atualizada de contatos e organograma oficial ainda não estão implementados.",
+        "TR91-0111": "A demonstração parcial mantém setores isolados por organização; representação dinâmica que agregue usuários e setores ainda não está implementada.",
+        "TR91-0112": "A demonstração parcial permite cadastrar setores; hierarquia pai/filho e subsetores sem limite de profundidade ainda não estão implementados.",
+    }
+    if requirement_id in partial_organization_requirements:
+        acceptance = "Parcial — " + partial_organization_requirements[requirement_id]
+        test = "ProtocolVerticalIntegrationTest.departmentAdministrationIsTenantScopedAdminOnlyAndAudited e teste E2E do cadastro de setor; a parte hierárquica/dinâmica do requisito permanece sem teste."
+        evidence = "Teste PostgreSQL confirma criação autorizada, isolamento entre organizações e trilha append-only; consulte docs/INCREMENTO_15.md."
+        poc = "POC-ADMIN-ORGANIZACAO: autenticar como ADMIN, cadastrar setor, atualizar lista e demonstrar que outra organização não vê o novo setor; registrar lacunas hierárquicas/dinâmicas."
+    row = {
+        "id": requirement_id,
         "requisito_resumo_fiel": summary,
         "origem_documento_pagina_secao_item": origin,
         "prioridade": priority_for(candidate["section"], candidate["body"]),
         "modulo": module_for(candidate["section"], candidate["body"]),
         "natureza": nature_for(candidate["section"], candidate["body"]),
         "criterio_de_aceite": acceptance,
-        "backend_envolvido": "A definir após validação visual e decomposição do requisito.",
-        "frontend_envolvido": "A definir após validação visual e decomposição do requisito.",
+        "backend_envolvido": "OrganizationAdminService, OrganizationAdminController e tabela departments com escopo validado por TenantContext." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
+        "frontend_envolvido": "Área do servidor: cadastro e seleção de setores retornados pela organização atual." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
         "teste_automatizado": test,
         "roteiro_poc": poc,
         "evidencia": evidence,
-        "status": "BLOQUEADO",
+        "status": "EM_DESENVOLVIMENTO" if requirement_id in partial_organization_requirements else "NAO_INICIADO" if visually_reviewed else "BLOQUEADO",
         "validacao_fonte": "CONFERIDA_VISUALMENTE" if visually_reviewed else "OCR_PENDENTE",
-    })
+    }
+    federated_identity_backend = (
+        "SecurityConfiguration valida assinatura RS256 por JWKS, issuer, audience e validade; issuer e JWKS exigem HTTPS, com HTTP permitido apenas para loopback no perfil de teste; "
+        "JdbcExternalIdentityResolver resolve vínculo ativo por organization_id + issuer + subject somente quando user_accounts.active=true; "
+        "TenantMembershipFilter exige organização e membership ativa e recusa suspensão organizacional. "
+        "V9 bloqueia links globais legados sem backfill/reconciliação."
+    )
+    federated_identity_frontend = (
+        "A área do servidor implementa cliente público OIDC Authorization Code + PKCE, com validação de state/nonce e callback configurado; "
+        "Basic só é selecionado explicitamente em desenvolvimento, e sem configuração OIDC válida a interface não inicia o acesso. "
+        "O access token segue em Bearer e fica apenas em memória. Logout limpa a sessão local e não afirma revogação server-side do token. Os testes usam um provedor simulado; IdP municipal, provisionamento, "
+        "login por e-mail/senha e recuperação ainda estão pendentes."
+    )
+    federated_identity_test = (
+        "FederatedIdentityIntegrationTest cobre vínculo por organização, username/subject compartilhados, exigência de conta local ativa e recusa quando user_accounts.active=false, "
+        "link ausente/inativo, membership, suspensão e JWT inválido; MigrationSafetyIntegrationTest#blocksGlobalExternalIdentityLinksWithoutChangingLegacyData "
+        "verifica V9 sem backfill. Executar ./dev identity-test (PostgreSQL Testcontainers e JWKS RSA temporário). "
+        "staff-oidc.spec.ts, executado por ./dev oidc-test, valida state, nonce, PKCE, bearer, logout e callback com IdP simulado; não comprova integração com provedor municipal."
+    )
+    federated_identity_route = (
+        "POC-AUTH-FEDERADA-V9: executar ./dev identity-test. Demonstrar o mesmo username e issuer+subject em Alfa e Beta, "
+        "com conta local ativa, link ativo em Alfa e inativo em Beta; confirmar 200 em Alfa e 403 em Beta. Definir user_accounts.active=false e confirmar 403 em ambos; reativar e confirmar 200 em Alfa. "
+        "Demonstrar recusa sem link, membership ou após suspensão e rejeição de issuer/audience/exp inválidos. "
+        "No teste de migração, partir de V8 com link global legado: V9 deve falhar sem converter/remover o link nem alterar membership/conta. "
+        "Para o cliente da interface, executar ./dev oidc-test: verificar Authorization Code + PKCE S256, state, nonce, callback, bearer e logout com provedor simulado. "
+        "Logout não comprova revogação server-side do access token. Isso não prova homologação/integração com IdP municipal nem autorização documental completa."
+    )
+    federated_identity_evidence = (
+        "V9__organization_scoped_external_identity.sql; FederatedIdentityIntegrationTest e "
+        "MigrationSafetyIntegrationTest#blocksGlobalExternalIdentityLinksWithoutChangingLegacyData; ./dev identity-test. "
+        "docs/INCREMENTO_30.md e staff-oidc.spec.ts (./dev oidc-test; provedor simulado). Sem evidência de IdP real, provisionamento, login por e-mail/senha ou autorização documental completa."
+    )
+    partial_federated_identity_requirements = {
+        "TR91-0045": (
+            "Parcial — serviço de recursos valida JWT e resolve vínculo ativo issuer+subject na organização selecionada; membership ativa e suspensão organizacional são verificadas no backend. O cadastro de senha pessoal pelo administrador, IdP municipal/cliente OIDC real, provisionamento, login por e-mail/senha e autorização documental completa permanecem pendentes.",
+            federated_identity_backend,
+            federated_identity_frontend,
+            federated_identity_test,
+            federated_identity_route,
+            federated_identity_evidence,
+        ),
+        "TR91-0048": (
+            "Parcial — JWT/JWKS/issuer/audience e vínculo ativo issuer+subject por organização são verificados no backend. Cadastro por e-mail individual, senha pelo administrador, recuperação, cliente OIDC municipal e autorização documental completa não estão implementados.",
+            federated_identity_backend,
+            federated_identity_frontend,
+            federated_identity_test,
+            federated_identity_route,
+            federated_identity_evidence,
+        ),
+    }
+    if requirement_id in partial_federated_identity_requirements:
+        criterion, backend, frontend, test, route, evidence = partial_federated_identity_requirements[requirement_id]
+        row.update({
+            "criterio_de_aceite": criterion,
+            "backend_envolvido": backend,
+            "frontend_envolvido": frontend,
+            "teste_automatizado": test,
+            "roteiro_poc": route,
+            "evidencia": evidence,
+            "status": "EM_DESENVOLVIMENTO",
+        })
+    poc_requirement_details = {
+        "TR91-0385": (
+            "A POC é obrigatória e avalia se a solução ofertada atende às especificações técnicas do TR; registrar evidência observável para cada obrigação aplicável.",
+            "Sistema NexoGov e integrações demonstradas; não há teste automatizado que substitua a avaliação da comissão.",
+            "Interface da plataforma ofertada durante a sessão da POC; roteiro de demonstração versionado.",
+            "A ata registra que a 1DOC foi aprovada na POC em 03/10/2025; o NexoGov não participou daquela avaliação. Testes internos por requisito não equivalem a laudo oficial.",
+            "POC-TR91-0385: para benchmark interno, percorrer requisitos e integrações com dados fictícios, registrar evidência por ID e lacunas. A ata histórica registra a aprovação da 1DOC; este roteiro não reabre nem substitui aquele procedimento.",
+            "A ata oficial registra a aprovação da 1DOC em 03/10/2025 e informa que o relatório técnico foi enviado à Licitanet. O relatório detalhado não está preservado localmente e não há evidência de avaliação oficial do NexoGov.",
+        ),
+        "TR91-0386": (
+            "Realizar sessão pública na sede indicada ou remotamente; licitante fornece equipamentos e internet; Prefeitura pode disponibilizar o Auditório Central.",
+            "N/A — obrigação logística da sessão; operação e equipamentos são externos ao backend.",
+            "Plataforma apresentada em sessão presencial ou remota; equipamentos de apresentação fornecidos pela licitante.",
+            "Checklist logístico e ensaio de sessão pendentes; não comprovável por teste automatizado.",
+            "POC-TR91-0386: confirmar modalidade, endereço/data, público, equipamentos, internet e disponibilidade do auditório; guardar checklist e evidência da sessão.",
+            "Checklist e evidência operacional da POC ainda não existem.",
+        ),
+        "TR91-0387": (
+            "Demonstrar integralmente os itens de Integração dos Sistemas e os Requisitos Obrigatórios do TR; cada item deve apontar para evidência rastreável.",
+            "Módulos backend e conectores correspondentes aos requisitos obrigatórios; várias integrações ainda não implementadas/homologadas.",
+            "Interface real dos módulos e integrações do NexoGov; telas pendentes não podem ser representadas por mock.",
+            "Cobertura da matriz ainda tem requisitos NAO_INICIADO; POC integral não executada.",
+            "POC-TR91-0387 (ensaio interno de prontidão, não a POC do PE 91/2025): para cada requisito obrigatório e integração, abrir a evidência do CSV, executar o cenário e registrar resultado; não pular requisitos pendentes. A POC histórica do certame está encerrada; para outro certame, seguir seu edital e convocação próprios.",
+            "A matriz possui 5 de 742 requisitos TR validados somente em escopo delimitado; 717 de 742 ainda aguardam decomposição em aceite observável. A ata registra aprovação da 1DOC na POC de 03/10/2025; o NexoGov não participou, não possui laudo dessa comissão e não comprovou aderência global.",
+        ),
+        "TR91-0388": (
+            "A ata/laudo deve registrar o resultado; se a licitante classificada não obtiver êxito, a Administração convoca as subsequentes conforme edital.",
+            "N/A — consequência do procedimento licitatório, fora do software.",
+            "N/A — registro documental do resultado da sessão, não uma tela do NexoGov.",
+            "Não aplicável a teste de software; verificar o fluxo documental da avaliação e convocação.",
+            "POC-TR91-0388: conferir no registro oficial da sessão se aprovação/reprovação e eventual convocação subsequente foram documentadas conforme Edital §9.9.2.",
+            "Sem ata/laudo da POC do NexoGov; procedimento externo ao código.",
+        ),
+        "TR91-0389": (
+            "A POC deve confirmar, por demonstração prática, que o produto ofertado atende às especificações exigidas no edital.",
+            "N/A isoladamente; depende dos módulos reais e integrações descritos por requisito na matriz.",
+            "Plataforma NexoGov real em execução durante a demonstração integral, sem telas ou dados simulados para itens obrigatórios.",
+            "O teste E2E atual cobre apenas um fluxo parcial de protocolo; critérios restantes aguardam implementação e prova.",
+            "POC-TR91-0389: confrontar cada cenário obrigatório e sua evidência com a fonte oficial, registrar lacunas, questionamentos e laudo; ainda sem demonstração integral.",
+            "Sem laudo da comissão ou validação integral no NexoGov.",
+        ),
+    }
+    if requirement_id in poc_requirement_details:
+        criterion, backend, frontend, test, route, evidence = poc_requirement_details[requirement_id]
+        row.update({
+            "criterio_de_aceite": criterion,
+            "backend_envolvido": backend,
+            "frontend_envolvido": frontend,
+            "teste_automatizado": test,
+            "roteiro_poc": route,
+            "evidencia": evidence,
+            "status": "NAO_INICIADO",
+        })
+    previous = previous_progress.get(requirement_id)
+    if previous and previous["requisito_resumo_fiel"] == summary:
+        generated_blocker = previous["criterio_de_aceite"].startswith(
+            "BLOQUEADO: transcrição conferida; decompor obrigações, definir aceite observável"
+        )
+        preserve_previous = not generated_blocker and requirement_id not in partial_federated_identity_requirements and not (
+            requirement_id in poc_requirement_details and previous["status"] == "NAO_INICIADO"
+        )
+        if preserve_previous:
+            for field in ("criterio_de_aceite", "backend_envolvido", "frontend_envolvido", "teste_automatizado", "roteiro_poc", "evidencia", "status"):
+                row[field] = previous[field]
+    qualification_routes = {
+        "TR91-0738": "VERIFICACAO-HABILITACAO: avaliar, na fase de habilitação, atestados/declarações de capacidade técnica de entidade pública ou privada que demonstrem execução satisfatória de serviço pertinente e compatível; documento empresarial fora da demonstração funcional da POC.",
+        "TR91-0739": "VERIFICACAO-HABILITACAO: avaliar atestado(s) que comprovem contrato(s) de sustentação da solução; documento empresarial fora da demonstração funcional da POC.",
+        "TR91-0740": "VERIFICACAO-HABILITACAO: conferir a condição legal da licitante como desenvolvedora ou revenda/representante autorizada estabelecida no país; avaliação empresarial fora da demonstração funcional da POC.",
+        "TR91-0741": "VERIFICACAO-HABILITACAO: se a licitante for representante/revenda, conferir contrato de autorização vigente pelo período previsto de atendimento do contrato administrativo; documento empresarial fora da demonstração funcional da POC.",
+    }
+    if requirement_id in qualification_routes:
+        row["roteiro_poc"] = qualification_routes[requirement_id]
+    partial_member_access_requirements = {
+        "TR91-0052": (
+            "Parcial — a API e a área do servidor listam membros e permitem suspender/reativar somente o acesso à organização; criação de contas e inclusão/alteração de vínculos ainda não estão implementadas.",
+            "OrganizationAdminService/Controller, memberships organizacionais e tabela organization_member_access_status; TenantContext define a organização e exige papel ADMIN organizacional.",
+            "A área do servidor mostra papéis organizacionais e de setor separadamente, confirma suspensão e oferece reativação; não cadastra nem provisiona contas.",
+            "OrganizationMemberAccessIntegrationTest (PostgreSQL Testcontainers) cobre autorização de mutação com ADMIN apenas setorial (403) e alvo exclusivo de outro tenant (404), além de escopo, suspensão, reativação, preservação e último administrador; organization-members.spec.ts cobre confirmação, nomes acessíveis e estado de erro de ação isolado (409 simulado), junto do fluxo real da API; provisionamento de contas permanece sem teste.",
+            "POC-TR91-0052: listar membros fictícios e separar papéis; provar que ADMIN apenas setorial não suspende e que alvo exclusivo de outra organização é recusado sem alteração; conferir nome acessível das ações. Provisionamento permanece pendente.",
+            "docs/INCREMENTO_20.md, docs/INCREMENTO_21.md, docs/INCREMENTO_23.md, OrganizationMemberAccessIntegrationTest e organization-members.spec.ts; cadastro e provisionamento administrativo de contas permanecem sem evidência.",
+        ),
+        "TR91-0056": (
+            "Parcial — o administrador pode suspender ou reativar o acesso somente na organização atual; conta global, memberships, perfil e histórico permanecem. A API não oferece exclusão de cadastro, mas ainda não há garantia contra operações administrativas externas ao aplicativo.",
+            "V7 organization_member_access_status e TenantMembershipFilter aplicam a suspensão em cada requisição protegida, sem alterar user_accounts.active nem memberships.",
+            "A área do servidor permite suspender após confirmação e reativar o membro; a API continua responsável pela autorização e pelo estado efetivo.",
+            "OrganizationMemberAccessIntegrationTest comprova recusa da mutação por ADMIN setorial (403) e de alvo exclusivo de outro tenant (404), suspensão após autenticação, reativação, idempotência, preservação, auditoria e proteção concorrente do último administrador; organization-members.spec.ts exercita nomes acessíveis, estado de erro isolado (409 simulado) e ações pela UI contra API/PostgreSQL reais.",
+            "POC-TR91-0056: suspender membro pela interface, verificar 403 na requisição seguinte, preservar conta, memberships e histórico e reativar; testar mutação por ADMIN apenas setorial (403) e alvo exclusivo de outro tenant (404), sem estado/auditoria alterados. Conferir nomes acessíveis e feedback específico de ação e recarga da lista.",
+            "docs/INCREMENTO_20.md, docs/INCREMENTO_21.md, docs/INCREMENTO_23.md, OrganizationMemberAccessIntegrationTest (PostgreSQL Testcontainers) e organization-members.spec.ts; não existe mecanismo global de exclusão de cadastro nem IdP real homologado.",
+        ),
+    }
+    partial_protocol_subject_requirements = {
+        "TR91-0157": (
+            "Parcial — o cidadão registra um protocolo escolhendo assunto configurado pela organização; assunto exclusivo de balcão é omitido do catálogo público e o backend rejeita ID presencial ou de outra organização antes da numeração. O nome permanece como snapshot. Campos, anexos obrigatórios e demais critérios da Central ainda não estão completos.",
+            "ProtocolService valida organização, assunto e disponibilidade online antes de alterar protocol_counters; V8 relaciona somente protocolos novos e mantém os legados sem vínculo.",
+            "Portal do cidadão seleciona assuntos disponíveis na Central; a área de ADMIN configura nomes e atendimento online ou balcão.",
+            "ProtocolVerticalIntegrationTest.protocolSubjectCatalogIsTenantScopedOnlineOnlyAndKeepsSnapshots (PostgreSQL Testcontainers), protocol-subject-catalog.spec.ts e protocol-flow.spec.ts (Playwright/API/PostgreSQL reais).",
+            "POC-ASSUNTOS-PROTOCOLO: cadastrar assunto online e assunto de balcão, demonstrar que só o primeiro aparece para o cidadão, abrir protocolo, tentar ID de balcão e de outro município e confirmar rejeição sem reservar número; verificar o snapshot. Critérios não cobertos seguem pendentes.",
+            "Evidência parcial em docs/INCREMENTO_22.md e nos testes Testcontainers/Playwright; não prova os demais campos/anexos da Central nem a POC integral.",
+        ),
+        "TR91-0522": (
+            "Parcial — assunto configurado para atendimento somente no balcão não é listado no portal público, e a API não aceita sua abertura online. A configuração completa dos assuntos e critérios adicionais do Protocolo Eletrônico seguem em desenvolvimento.",
+            "ProtocolSubjectService salva online_available por organização; ProtocolService confere estado e organização do ID antes de reservar número.",
+            "Área administrativa oferece a escolha entre Central de Atendimento e somente balcão; o portal lista exclusivamente os assuntos online.",
+            "ProtocolVerticalIntegrationTest.protocolSubjectCatalogIsTenantScopedOnlineOnlyAndKeepsSnapshots (PostgreSQL Testcontainers) e protocol-subject-catalog.spec.ts com API/PostgreSQL reais.",
+            "POC-TR91-0522: configurar assunto para somente balcão; comprovar que ele não aparece no catálogo externo, tentar submetê-lo diretamente à API e observar rejeição sem alteração do contador; repetir com assunto online e comprovar a exibição.",
+            "Evidência parcial em docs/INCREMENTO_22.md e testes de integração/E2E; regras e recursos restantes do módulo não foram validados.",
+        ),
+    }
+    partial_protocol_receipt_requirements = {
+        "TR91-0510": (
+            "Atendido para o escopo literal deste item: após a inclusão de solicitação online, o requerente recebe imediatamente o número/código e pode obter comprovante PDF que identifica o setor destinatário inicial. O snapshot mantém esse setor no recibo depois de tramitações; este estado não valida outros itens do Protocolo Eletrônico nem a POC oficial.",
+            "ProtocolService valida e persiste o setor ativo definido para o assunto e seu nome inicial; ReceiptPdfService gera o comprovante usando o snapshot imutável. A V11 deixa o campo nulo para protocolos preexistentes, sem fabricar histórico.",
+            "Após o envio, o portal exibe a confirmação, a chave de consulta e a ação para baixar o comprovante; o cenário Playwright extrai o PDF real e confere o setor destinatário.",
+            "ProtocolVerticalIntegrationTest#configuredSubjectRoutesProtocolAndReceiptWithoutCrossTenantLeakOrCounterConsumption e #receiptKeepsTheOpeningDepartmentAfterForwardingAndDispatch (PostgreSQL Testcontainers); protocol-subject-catalog.spec.ts (Playwright contra API/PostgreSQL reais) confirma a disponibilidade imediata e extrai do PDF o setor configurado.",
+            "POC-TR91-0510 (escopo restrito): registrar solicitação fictícia online e, sem navegação adicional, conferir número/código, chave e opção de baixar comprovante; abrir o PDF e conferir o setor inicial. Depois encaminhar e despachar, baixar novamente e confirmar que o recibo conserva o setor da abertura. Este roteiro automatizado não substitui avaliação da comissão nem valida o ciclo integral do protocolo.",
+            "Evidência automatizada para o critério literal: teste Testcontainers compara PDF antes/depois de encaminhamento e despacho; cenário Playwright abre o protocolo, mostra a confirmação imediata e extrai do PDF real o setor. docs/INCREMENTO_29.md registra execução e limites. Não é laudo nem aprovação oficial da POC.",
+            "VALIDADO",
+        ),
+    }
+    validated_protocol_deadline_requirements = {
+        "TR91-0517": (
+            "VALIDADO para o critério literal desta linha: ADMIN configura dias positivos por assunto; protocolo novo captura o valor vigente na abertura; o comprovante PDF exibe esse mesmo valor. Alterar ou remover a configuração afeta apenas protocolos futuros; zero é recusado. Esta linha trata da duração configurada e sua exibição; o parágrafo seguinte, sobre gestão e alertas de prazos, permanece rastreado em requisitos próprios.",
+            "V15 guarda automatic_deadline_days com restrição positiva no assunto e no protocolo. ProtocolSubjectService exige ADMIN da organização; ProtocolService lê o valor com lock do assunto e grava snapshot ao abrir; ReceiptPdfService imprime o snapshot, sem recalcular nem alterar documentos existentes.",
+            "StaffApp permite configurar, editar ou remover dias no assunto; o portal cidadão abre protocolo e baixa o comprovante. O E2E altera o valor, recarrega a área do servidor e extrai o texto do PDF emitido pela API real.",
+            "ProtocolVerticalIntegrationTest#subjectDeadlineIsConfiguredSnapshottedAndPrintedOnReceipt verifica configuração, negativa cross-tenant, snapshot antes/depois de editar, campo omitido no PUT preservado, `null` explícito removido, rejeição de zero e conteúdo dos PDFs com PostgreSQL Testcontainers. `frontend/e2e/protocol-subject-catalog.spec.ts` confirma configuração persistida pela interface e prazo no comprovante PDF real. `./dev openapi-check` analisa o YAML e confere o contrato opcional/nullável.",
+            "POC-TR91-0517 (ensaio automatizado): com dados fictícios, configure 8 dias no assunto pelo portal do servidor, altere para 14 e recarregue para confirmar persistência; abra protocolo pelo portal cidadão e confira 14 dias no comprovante. Execute `./dev protocol-deadline-test` para criar protocolo com 10 dias, mudar o catálogo para 20, comprovar que o primeiro PDF mantém 10 e o seguinte exibe 20; envie um PUT sem a propriedade e confirme que 20 permanece; envie `null` explicitamente e confirme a remoção; tente zero e confirme HTTP 400 sem mutação. A ata registra a aprovação da 1DOC em 03/10/2025; o NexoGov não participou e este roteiro é evidência interna.",
+            "`./dev verify-fast` passou Core 11/11, backend 42/42, build Vue/Quasar e matriz; inclui `subjectDeadlineIsConfiguredSnapshottedAndPrintedOnReceipt` e `OpenApiContractTest`. `./dev openapi-check` passou 1/1; `./dev protocol-deadline-test` passou 1/1; `./dev e2e --grep 'prazo automático no comprovante'` passou 1/1 contra API/PostgreSQL reais em infraestrutura descartável e extraiu texto do PDF. Evidência de software limitada ao prazo configurado exibido no recibo; não é laudo da POC oficial nem demonstra regra legal de contagem.",
+            "VALIDADO",
+        ),
+    }
+    partial_protocol_attachment_requirements = {
+        "TR91-0019": (
+            "Parcial — anexos do protocolo ficam associados ao registro e podem ser consultados por servidor autorizado do setor atualmente responsável ou ADMIN da organização; o backend aplica tenant e vínculo setorial. A evidência cobre apenas anexos do protocolo eletrônico, não todo tipo de documento do sistema nem acesso permanente a setores não envolvidos.",
+            "ProtocolAttachmentService/ProtocolController lista anexos em rota autenticada, com TenantContext e associação ao setor/admin; ProtocolAttachmentStore mantém objetos fora de URLs públicas. O escopo atual é protocolo eletrônico.",
+            "A área do servidor lista e baixa anexos do protocolo por demanda; protocol-attachments.spec.ts demonstra o download do anexo na interface pela lotação atual. O escopo continua restrito ao protocolo eletrônico.",
+            "ProtocolVerticalIntegrationTest#protocolAttachmentsAreRequiredValidatedPrivateAndTenantScoped (Testcontainers + Adobe S3Mock) confirma listagem do setor autorizado, 404 cross-tenant e 403 para outro setor; protocol-attachments.spec.ts (./dev e2e --grep 'assunto exige documento') demonstra listagem e download pelo servidor, junto ao upload/download do cidadão (1/1, 24,1 s). Não testa outros módulos documentais.",
+            "POC-TR91-0019 (parcial): executar ./dev e2e --grep 'assunto exige documento'; abrir protocolo com PDF fictício pelo cidadão, depois atualizar a caixa de Alfa, listar e baixar o mesmo arquivo como servidor. Executar ./dev attachment-test para negativas de outro setor (403) e organização (404). A cobertura não demonstra todos os tipos de documento ou toda a política de acesso exigida.",
+            "Evidência parcial em frontend/e2e/protocol-attachments.spec.ts (Playwright: cidadão envia/baixa e servidor lista/baixa, 1/1 em ambiente descartável) e ProtocolVerticalIntegrationTest#protocolAttachmentsAreRequiredValidatedPrivateAndTenantScoped (API: tenant/setor); não cobre documentos de outros módulos ou POC oficial.",
+        ),
+        "TR91-0516": (
+            "Parcial — o ADMIN configura documentos por assunto como obrigatórios/opcionais e define extensões permitidas; na abertura, o backend recusa ausência de anexo obrigatório ou extensão fora da regra antes da numeração. A interação posterior também usa as extensões configuradas, com cenário complementar de PDF. Regra opcional, formatos suportados completos e segurança operacional continuam pendentes.",
+            "ProtocolAttachmentPolicyService persiste regras no escopo da organização/assunto; ProtocolAttachmentService valida extensão/obrigatoriedade antes do contador e grava metadados tenant-scoped (V12). ProtocolInteractionService reutiliza as extensões configuradas ao validar anexos de mensagens (V13).",
+            "StaffApp administra regras por assunto e as duas áreas permitem envio de arquivos na abertura ou em mensagens. protocol-attachments.spec.ts cobre abertura com documento obrigatório PDF; protocol-interactions.spec.ts usa PDF configurado em conversa posterior. A regra opcional e outros formatos não têm cobertura suficiente para conclusão.",
+            "ProtocolVerticalIntegrationTest#protocolAttachmentsAreRequiredValidatedPrivateAndTenantScoped cobre abertura e recusa antes da numeração. `./dev interaction-test` passou quatro testes backend Testcontainers e Playwright 1/1, validando PDF configurado na conversa, ordenação histórica e regras concorrentes; os E2E cobrem somente PDF, não todos os formatos.",
+            "POC-TR91-0516 (parcial): executar ./dev e2e --grep 'assunto exige documento' para anexos na abertura e ./dev e2e --grep 'conversa de protocolo' para PDF numa interação posterior. Executar ./dev attachment-test para negativas de abertura, extensão, token, tenant e setor. Regra opcional, lista completa de formatos e operação do storage permanecem pendentes; prazo do recibo está separado em TR91-0517.",
+            "Evidência complementar: protocol-attachments.spec.ts, Playwright 1/1 para PDF de abertura; `./dev interaction-test`, quatro testes Testcontainers e Playwright 1/1 para PDF em interação. Os testes não validam todos os formatos, regra opcional, storage produtivo ou POC oficial. TR91-0517 tem evidência própria para o prazo exibido no recibo.",
+        ),
+        "TR91-0174": (
+            "Parcial — a aplicação entrega o arquivo por rotas dinâmicas controladas, sem devolver URL pública direta do objeto; token inválido, outra organização e setor sem vínculo são recusados. O storage usado nos testes é simulado; hospedagem não pública e evidência operacional/contratual do ambiente real ainda não foram comprovadas.",
+            "ProtocolAttachmentStore persiste chave opaca; ProtocolAttachmentService/ProtocolController permitem download somente após validar token de acompanhamento ou autorização de servidor, tenant e setor. A operação de hospedagem real está fora da evidência local.",
+            "Portal e área do servidor chamam a API para upload/consulta/download; protocol-attachments.spec.ts confirma downloads pelos dois perfis. Não houve homologação de storage produtivo.",
+            "ProtocolVerticalIntegrationTest#protocolAttachmentsAreRequiredValidatedPrivateAndTenantScoped (Testcontainers + Adobe S3Mock) verifica token inválido 404, download por token, tenant 404 e setor não autorizado 403; protocol-attachments.spec.ts comprova download cidadão/servidor em ambiente descartável. O double não comprova bucket/servidor produtivo seguro ou não público.",
+            "POC-TR91-0174 (parcial de software): executar ./dev e2e --grep 'assunto exige documento' e demonstrar download do cidadão e servidor por controles da aplicação; executar ./dev attachment-test para token inválido, outra organização e setor sem vínculo. Apresentar evidência do hosting/bucket reais para aceitar a obrigação operacional; S3Mock não a substitui.",
+            "Evidência parcial do caminho da aplicação em frontend/e2e/protocol-attachments.spec.ts (Playwright, 1/1) e do controle de token/tenant/setor em ProtocolVerticalIntegrationTest com S3Mock. Sem comprovação de servidor/bucket real, política de exposição ou obrigação contratual e sem laudo de POC.",
+        ),
+    }
+    partial_protocol_interaction_requirements = {
+        "TR91-0515": (
+            "VALIDADO para o critério desta linha: após conclusão, requerente e servidor não conseguem registrar interações; somente servidor ativo vinculado ao setor responsável pode reabrir, permitindo nova manifestação do requerente. Participantes adicionais são tratados separadamente em TR91-0524.",
+            "ProtocolService.complete/reopen e ProtocolInteractionService serializam estado e gravação; a autorização deriva da organização e do setor responsável validados no backend.",
+            "StaffApp conclui e reabre pelo setor responsável; App.vue exibe o estado concluído, oculta o formulário externo e o restaura depois da reabertura.",
+            "`ProtocolVerticalIntegrationTest#protocolInteractionsAreAppendOnlyPrivateAndReopenRequiresResponsibleSector` verifica 409 para mensagem do requerente e do servidor após conclusão, reabertura negada a outra lotação e permitida à responsável; `applicantInteractionSerializesWithProtocolCompletion` verifica a corrida. `./dev interaction-test` também passou Playwright 1/1.",
+            "POC-TR91-0515 (ensaio automatizado): executar `./dev interaction-test`; concluir protocolo, verificar 409 para tentativa de mensagem do requerente e servidor, tentar reabrir por setor não responsável, reabrir pelo responsável e confirmar nova mensagem. A ata registra aprovação da 1DOC na POC do certame em 03/10/2025; o NexoGov não participou. Participantes adicionais são cobertos por TR91-0524.",
+            "Critério literal validado por `./dev interaction-test`: testes PostgreSQL/Testcontainers comprovam bloqueios e reabertura por setor, e Playwright 1/1 percorre o fluxo no navegador. A ata registra aprovação da 1DOC em 03/10/2025; este resultado não é do NexoGov. TR91-0524 permanece separado e pendente.",
+            "VALIDADO",
+        ),
+        "TR91-0524": (
+            "Parcial — a organização configura campos por assunto e, ao abrir um protocolo, o requerente pode vincular pessoas com valores próprios; cada pessoa recebe chave individual para acompanhar e interagir na Central, e o requerente pode revogar uma chave sem revogar as demais. As chaves comprovam posse do convite, não identidade civil; o envio é manual e a integração oficial de identidade e a POC completa seguem pendentes. Quantidade de participantes e mecanismo de autenticação são decisões de produto, não números prescritos por esta cláusula.",
+            "ProtocolSubjectParticipantFieldService persiste a configuração com FK composto e autorização ADMIN. ProtocolParticipantService valida respostas sob bloqueio do assunto e antes da numeração, salva snapshot/valores e apenas hash SHA-256 de credenciais aleatórias; ProtocolPublicAccessService serializa acompanhamento, interação, anexo e revogação pelo bloqueio do protocolo. Cada leitura pública restringe os valores ao participante correspondente; somente o requerente lista e revoga pessoas vinculadas.",
+            "StaffApp configura os campos; App.vue renderiza a captura configurada, mostra os convites uma vez em links com token no fragmento, permite acompanhar/interagir por pessoa e apresenta revogação individual. A entrega do link é por cópia manual; nenhuma mensagem de e-mail nem identidade civil verificada é alegada.",
+            "`./dev participant-fields-test` cobre configuração, autorização e tenant; `./dev participant-access-test` cobre rejeição antes da numeração, hash, valores por pessoa, autoria neutra, interação, revogação e tentativas contra outro protocolo/organização sem mudança dos contadores de eventos/interações com PostgreSQL Testcontainers; `./dev participant-access-e2e` cobre configuração, dois contextos isolados, fragmento/storage, troca de credencial, resposta fora de ordem, interação e revogação pela API real. A integração Gov.br/ICP-Brasil e a POC oficial não estão cobertas por esses testes.",
+            "POC-TR91-0524 (ensaio parcial): em ambiente descartável, ADMIN de Alfa configura campo por assunto; requerente abre protocolo com duas pessoas fictícias, copia os convites, consulta cada um em contexto isolado, verifica os próprios valores, autoria neutra, fragmento removido e token ausente do storage, envia mensagem, revoga uma chave e confirma que a outra continua válida. Trocar credenciais enquanto uma consulta anterior está atrasada e confirmar que a resposta obsoleta não substitui a atual. Executar `./dev participant-access-test` e `./dev participant-access-e2e`. A chave prova posse, não identidade civil; credenciais oficiais do órgão, envio automatizado e POC nos 90 minutos da Errata I seguem pendentes. Duas pessoas são massa de teste, não requisito de quantidade.",
+            "Evidência parcial: `./dev participant-access-test` (PostgreSQL Testcontainers) verifica rejeição antes da numeração, hash, dados individuais, interação, escopo cross-org e ausência de mutação após 404; `./dev participant-access-e2e` (Playwright/API real) verifica contextos separados, URL/storage, troca de credencial, concorrência de consultas e revogação; `./dev participant-fields-test` e `./dev participant-fields-e2e` mantêm a evidência de configuração. Identidade civil oficial, entrega segura automatizada e POC oficial continuam pendentes.",
+            "EM_DESENVOLVIMENTO",
+        ),
+        "TR91-0525": (
+            "Parcial — requerente, pessoas vinculadas e servidores autorizados de setor envolvido conseguem registrar interações com texto; anexos respeitam extensões configuradas por assunto. A consulta pública contém apenas mensagens públicas; mensagens internas e anexos internos permanecem na área de servidor. Identidade civil, lista completa de formatos e POC integral ainda não estão comprovadas.",
+            "ProtocolInteractionService persiste eventos append-only vinculados ao tenant/protocolo, valida estado e extensões configuradas, autoriza servidor por setor envolvido e identifica requerente ou participante por token próprio; downloads respeitam visibilidade, tenant e setor.",
+            "App.vue permite ao requerente e à pessoa vinculada consultar e enviar mensagens/anexos; StaffApp.vue lista mensagens e permite ao setor envolvido responder, escolher visibilidade pública/interna e anexar arquivos.",
+            "`./dev interaction-test` passou quatro testes Testcontainers selecionados (isolamento, anexos, integridade, conclusão/reabertura, ordenação histórica e serialização) e Playwright 1/1; a suite total não é inferida deste comando focado.",
+            "POC-TR91-0525 (parcial, ambiente descartável): executar ./dev e2e --grep 'conversa de protocolo'; abrir protocolo fictício em Alfa, ADMIN configura extensão PDF permitida, servidor envia texto+PDF público, requerente e pessoa vinculada consultam e enviam mensagens, servidor envia nota interna e confirmar que não aparece ao portal; concluir e confirmar bloqueio, reabrir pelo setor responsável e confirmar novo envio externo. Executar testes backend para isolamento tenant/setor, formato inválido, anexos internos, append-only e corrida com conclusão. A identidade civil e a POC oficial permanecem pendentes.",
+            "Evidência parcial: `./dev interaction-test` executa quatro testes Testcontainers e Playwright 1/1 para mensagens/anexos; `./dev participant-access-test` e `./dev participant-access-e2e` comprovam mensagens de participantes individuais, anonimização e revogação seletiva. Nenhum desses ensaios é a POC oficial nem valida todos os formatos requeridos.",
+            "EM_DESENVOLVIMENTO",
+        ),
+    }
+    if requirement_id in partial_member_access_requirements:
+        criterion, backend, frontend, test, route, evidence = partial_member_access_requirements[requirement_id]
+        row.update({
+            "criterio_de_aceite": criterion,
+            "backend_envolvido": backend,
+            "frontend_envolvido": frontend,
+            "teste_automatizado": test,
+            "roteiro_poc": route,
+            "evidencia": evidence,
+            "status": "EM_DESENVOLVIMENTO",
+        })
+    if requirement_id in partial_protocol_subject_requirements:
+        criterion, backend, frontend, test, route, evidence = partial_protocol_subject_requirements[requirement_id]
+        row.update({
+            "criterio_de_aceite": criterion,
+            "backend_envolvido": backend,
+            "frontend_envolvido": frontend,
+            "teste_automatizado": test,
+            "roteiro_poc": route,
+            "evidencia": evidence,
+            "status": "EM_DESENVOLVIMENTO",
+        })
+    if requirement_id in partial_protocol_attachment_requirements:
+        criterion, backend, frontend, test, route, evidence = partial_protocol_attachment_requirements[requirement_id]
+        row.update({
+            "criterio_de_aceite": criterion,
+            "backend_envolvido": backend,
+            "frontend_envolvido": frontend,
+            "teste_automatizado": test,
+            "roteiro_poc": route,
+            "evidencia": evidence,
+            "status": "EM_DESENVOLVIMENTO",
+        })
+    if requirement_id in partial_protocol_interaction_requirements:
+        (criterion, backend, frontend, test, route, evidence, status) = partial_protocol_interaction_requirements[requirement_id]
+        row.update({
+            "criterio_de_aceite": criterion,
+            "backend_envolvido": backend,
+            "frontend_envolvido": frontend,
+            "teste_automatizado": test,
+            "roteiro_poc": route,
+            "evidencia": evidence,
+            "status": status,
+        })
+    if requirement_id in validated_protocol_deadline_requirements:
+        (criterion, backend, frontend, test, route, evidence, status) = validated_protocol_deadline_requirements[requirement_id]
+        row.update({
+            "criterio_de_aceite": criterion,
+            "backend_envolvido": backend,
+            "frontend_envolvido": frontend,
+            "teste_automatizado": test,
+            "roteiro_poc": route,
+            "evidencia": evidence,
+            "status": status,
+        })
+    read_status_details = partial_protocol_read_status_requirements.get(requirement_id)
+    if read_status_details:
+        (source, criterion, backend, frontend, test, route, evidence) = read_status_details
+        row.update({
+            "origem_documento_pagina_secao_item": source,
+            "modulo": "PROTOCOLO",
+            "criterio_de_aceite": criterion,
+            "backend_envolvido": backend,
+            "frontend_envolvido": frontend,
+            "teste_automatizado": test,
+            "roteiro_poc": route,
+            "evidencia": evidence,
+            "status": "EM_DESENVOLVIMENTO",
+            "validacao_fonte": "CONFERIDA_VISUALMENTE",
+        })
+    rows.append(row)
+
+for requirement_id, previous in previous_tr_rows.items():
+    if requirement_id not in generated_tr_ids:
+        archived = previous.copy()
+        archived["criterio_de_aceite"] = (
+            "BLOQUEADO: este item constava na matriz anterior, mas não foi reconhecido pela extração atual; "
+            "revisar o documento oficial antes de retirar ou substituir o requisito. Critério anterior: "
+            + previous.get("criterio_de_aceite", "")
+        )
+        archived["evidencia"] = (
+            "Preservado da matriz anterior; a extração atual não encontrou a âncora. "
+            "Revisar a fonte e a alteração do parser antes de encerrar o ID."
+        )
+        archived["status"] = "BLOQUEADO"
+        rows.append(archived)
+
+for row in rows:
+    if row["id"] == "TR91-0691":
+        (row["criterio_de_aceite"], row["backend_envolvido"], row["frontend_envolvido"],
+         row["teste_automatizado"], row["roteiro_poc"], row["evidencia"]) = (
+            'Parcial — a API e a interface autenticada permitem publicar etapas versionadas por assunto, abrir processo com snapshot da definição, pesquisar/listar processos autorizados por tenant/setor com paginação e reabrir o detalhe após recarga, acompanhar etapas/eventos e avançar somente para a etapa seguinte e setor permitido. Permanecem ausentes condições/tempos/grupos configuráveis, encerramento integrado e POC oficial integral.',
+            'AdministrativeWorkflowService/Controller, V19/V20 e tabelas tenant-scoped; escopo vem do TenantContext validado. A definição guarda versões imutáveis; processos preservam snapshot de versão e etapas; abertura bloqueia lotação e setor iniciais ativos; avanço bloqueia lotação corrente, setores da etapa e destino ativo em ordem estável, exige a etapa seguinte e setor permitido, e persiste o evento com atualização otimista. Publicação exige expectedVersion e idempotencyKey; o hash usa framing sem ambiguidade, e repetição idêntica retorna a mesma versão sem duplicar definição.',
+            'AdministrativeProcessPanel em `/servidor/`, usando o cliente de servidor autenticado e o seletor de organização existente: configura versões por assunto, inicia processo a partir da primeira etapa, pesquisa/lista apenas resumos retornados pela API autorizada, recupera detalhe persistido após nova autenticação e mostra snapshot/linha do tempo do servidor com avanço sequencial.',
+            '`./dev process-workflow-test` (PostgreSQL Testcontainers) cobre autorização ADMIN e isolamento; snapshots de nomes/versões; hashing com framing contra colisão de delimitadores; replay idempotente, expectedVersion obsoleta e publicação concorrente; abertura contra revogação/desativação; avanço sequencial, recusa sem mutação, timestamps monotônicos, cross-tenant, revogação e desativação de setor atual/destino; exige membership no setor atribuído mesmo em etapa multi-setor, rejeita setor alternativo e desativação concorrente; 403 antes de revelar estado do destino; contenção concorrente observada em pg_stat_activity; e GET de detalhe aguardando revogação de lotação e negando acesso após o commit sem mutação. `./dev process-list-test` (PostgreSQL Testcontainers) cobre tenant/setor atual, ADMIN organizacional, busca literal, paginação, ordenação estável e resumo sem eventos/etapas. `./dev openapi-check` e `OpenApiContractTest` conferem os contratos do módulo. `./dev process-workflow-e2e` (Playwright/API/PostgreSQL descartáveis; `frontend/e2e/process-workflow.spec.ts`) publica v1/v2, preserva o snapshot v1, recusa salto (409) e servidor sem lotação (403) sem mutação, avança sequencialmente, recarrega a página, autentica novamente, busca o processo persistido e abre seu detalhe pela API real.',
+            'POC-WORKFLOW-BASICO (parcial): como ADMIN, publicar duas etapas em v1 e abrir processo; publicar v2 alterando os nomes e confirmar que o processo mantém v1; tentar saltar etapa e confirmar HTTP 409 sem evento; tentar avançar sem lotação ativa no setor atual e confirmar HTTP 403 sem mutação; avançar na ordem, recarregar a interface, autenticar novamente, buscar e reabrir o processo. Os testes Testcontainers cobrem isolamento entre organizações e casos concorrentes. Encerramento integrado, condições avançadas, exportações e POC oficial permanecem pendentes.',
+            'Evidência parcial: `./dev process-workflow-test`, `./dev process-list-test`, `./dev openapi-check` e `./dev process-workflow-e2e` (cenário Playwright com API/PostgreSQL reais em infraestrutura descartável). A spec `frontend/e2e/process-workflow.spec.ts` registra subfluxos locais: `workflow-publicado-v1`, `workflow-publicado-v2`, `processo-snapshot-v1`, `processo-avancado-para-etapa-final`, `processo-listado-apos-reinicio` e `detalhe-reaberto-da-listagem`. As capturas não provam as recusas HTTP, encerramento, condições avançadas ou POC oficial; manter EM_DESENVOLVIMENTO.',
+        )
+        row["status"] = "EM_DESENVOLVIMENTO"
+    if row["id"] == "TR91-0560":
+        (row["criterio_de_aceite"], row["backend_envolvido"], row["frontend_envolvido"],
+         row["teste_automatizado"], row["roteiro_poc"], row["evidencia"]) = (
+            'Configurar, em cada etapa do workflow, quais setores podem registrar uma decisão “Deferido” ou “Indeferido” para o processo; exigir membership ativa do servidor no setor corrente configurado e manter o processo em andamento após a decisão.',
+            'AdministrativeWorkflowService/Controller e V22: a permissão por setor é versionada e copiada ao snapshot do processo; TenantContext define a organização; a decisão bloqueia processo, setor e membership ativa exata do setor corrente. Repetir o resultado é idempotente; mudar o resultado acrescenta evento DECIDED sem fechar nem avançar o processo.',
+            'AdministrativeProcessPanel em `/servidor/`: ADMIN configura os setores decisores em cada etapa; membro autorizado registra Deferido ou Indeferido; o estado permanece Em andamento e a decisão mais recente aparece no processo e no histórico após recarga.',
+            '`./dev process-decision-test` (PostgreSQL Testcontainers) cobre configuração/snapshot, setor não autorizado, ADMIN organizacional sem lotação, membro de setor sem papel ADMIN, os dois resultados, repetição idempotente, mudança append-only, processo ativo e isolamento entre organizações. `./dev process-workflow-test` cobre regressões; `./dev openapi-check` e `OpenApiContractTest` conferem o contrato; `./dev process-workflow-e2e` usa API real no cenário `administrador publica workflow versionado e acompanha o snapshot do processo` em `frontend/e2e/process-workflow.spec.ts` para configuração, decisão e persistência após nova autenticação.',
+            'Roteiro local de decisão administrativa: publicar workflow fictício com setor decisor configurado; abrir processo; autenticar com servidor de membership ativa no setor corrente; registrar Deferido ou Indeferido; confirmar decisão no detalhe/lista, histórico e estado Em andamento após recarga. Cobrir o resultado alternativo e acesso negado pelo teste focado. A sessão oficial da POC não foi executada.',
+            'Evidência local verificável em `./dev process-decision-test`, `./dev openapi-check`, `./dev process-workflow-e2e` e labels `workflow-decisores-configurados`, `processo-decisao-registrada` e `processo-decisao-persistida`; capturas fictícias mostram configuração, resultado sem encerramento e persistência após recarga. Não são aprovação nem POC oficial.',
+        )
+        row["status"] = "VALIDADO"
+    details = partial_protocol_subject_requirements.get(row["id"])
+    if details:
+        (row["criterio_de_aceite"], row["backend_envolvido"], row["frontend_envolvido"],
+         row["teste_automatizado"], row["roteiro_poc"], row["evidencia"]) = details
+        row["status"] = "EM_DESENVOLVIMENTO"
+    attachment_details = partial_protocol_attachment_requirements.get(row["id"])
+    if attachment_details:
+        (row["criterio_de_aceite"], row["backend_envolvido"], row["frontend_envolvido"],
+         row["teste_automatizado"], row["roteiro_poc"], row["evidencia"]) = attachment_details
+        row["status"] = "EM_DESENVOLVIMENTO"
+    interaction_details = partial_protocol_interaction_requirements.get(row["id"])
+    if interaction_details:
+        (row["criterio_de_aceite"], row["backend_envolvido"], row["frontend_envolvido"],
+         row["teste_automatizado"], row["roteiro_poc"], row["evidencia"], row["status"]) = interaction_details
+    deadline_details = validated_protocol_deadline_requirements.get(row["id"])
+    if deadline_details:
+        (row["criterio_de_aceite"], row["backend_envolvido"], row["frontend_envolvido"],
+         row["teste_automatizado"], row["roteiro_poc"], row["evidencia"], row["status"]) = deadline_details
+    receipt_details = partial_protocol_receipt_requirements.get(row["id"])
+    if receipt_details:
+        (row["criterio_de_aceite"], row["backend_envolvido"], row["frontend_envolvido"],
+         row["teste_automatizado"], row["roteiro_poc"], row["evidencia"], row["status"]) = receipt_details
 
 rows.sort(key=lambda row: (0 if row["id"].startswith("ED91-") else 1 if row["id"].startswith("TR91-") else 2, row["id"]))
+ID_REGISTRY.save()
 with CSV_PATH.open("w", encoding="utf-8-sig", newline="") as stream:
     writer = csv.DictWriter(stream, fieldnames=fields, delimiter=";", quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
     writer.writeheader()
     writer.writerows(rows)
 verified_count = sum(row["validacao_fonte"] == "CONFERIDA_VISUALMENTE" for row in rows if row["id"].startswith("TR91-"))
 pending_count = sum(row["validacao_fonte"] == "OCR_PENDENTE" for row in rows if row["id"].startswith("TR91-"))
-print(f"Matriz atualizada: {len(rows)} linhas; {len(candidates)} requisitos TR, {verified_count} transcrições conferidas visualmente e {pending_count} pendentes. Os requisitos TR seguem BLOQUEADO até decomposição, critérios, testes e evidências.")
+print(f"Matriz atualizada: {len(rows)} linhas; {len(candidates)} requisitos TR, {verified_count} transcrições conferidas visualmente e {pending_count} pendentes. Requisitos não implementados seguem NAO_INICIADO; BLOQUEADO é reservado para impedimento concreto ou fonte ainda não conferida.")

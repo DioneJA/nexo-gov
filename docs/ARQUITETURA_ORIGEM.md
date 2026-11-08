@@ -23,3 +23,7 @@ Pacotes, unidades, moradores, visitantes, reservas, animais, cobrança condomini
 ## Limites desta auditoria
 
 É um inventário estático amostral da árvore local, não uma certificação de segurança, revisão linha a linha de todas as 551 entradas locais, nem confirmação de que cada integração está pronta para produção. O NexoLar está dois commits divergente do remoto observado e tem trabalho local não rastreado/modificado. Não foi feito `fetch`, checkout, limpeza, migration, build, teste, commit ou alteração nessa origem.
+
+## Estado de extração no NEXO Core
+
+O Core independente inclui a porta genérica `ExternalIdentityResolver` e o valor `ExternalIdentity`, versionados em `nexo-core-tenant:0.2.0`, além do contexto de tenant. Essa porta mapeia uma identidade validada para um ator global e pressupõe que o consumidor possua identificador global sem ambiguidade. Como os nomes legados do NexoGov são escopados por organização, o Gov usa `OrganizationExternalIdentityResolver` e vínculos `(organization_id, issuer, subject)` na V9. A resolução requer também uma linha local `user_accounts` ativa; membership e suspensão da organização são verificadas em seguida. O consumidor mantém a validação JWT, o provisionamento do vínculo e a autorização dentro do tenant. O contrato do Core continua neutro e nenhuma regra de governo ou condomínio foi extraída para ele.

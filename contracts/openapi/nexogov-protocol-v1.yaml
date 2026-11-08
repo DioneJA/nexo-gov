@@ -1,11 +1,174 @@
 openapi: 3.0.3
 info:
-  title: NexoGov Protocol API
-  version: 0.1.0
-  description: First versioned protocol service contract. Staff routes require a validated organization membership.
+  title: NexoGov API
+  version: 0.3.0
+  description: >-
+    Staff routes require a server-validated organization membership. Production uses
+    Bearer JWT with configured issuer, audience, and JWKS; HTTP Basic is available
+    only in the local development profile. X-Organization-Id selects a tenant but
+    never grants access by itself.
 servers:
   - url: http://localhost:8080/api/v1
 paths:
+  /staff/administrative-workflows:
+    post:
+      operationId: publishAdministrativeWorkflow
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdministrativeWorkflowCreateRequest' }
+      responses:
+        '201':
+          description: >-
+            New immutable workflow version published by an active organization administrator. The selected
+            decision-capable departments are part of this version and are copied into each process snapshot.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeWorkflowView' }
+        '200': { description: Idempotent replay returns the original version without creating another version., content: { application/json: { schema: { $ref: '#/components/schemas/AdministrativeWorkflowView' } } } }
+        '400': { description: Workflow request is missing or violates the documented field bounds. }
+        '403': { description: Actor is not an active organization administrator. A sector administrator role does not grant definition-management access. }
+        '404': { description: One or more selected departments are unavailable in the validated organization. }
+        '409': { description: Expected version is stale, the idempotency key was reused with different content, or decision departments are duplicated or outside their step. }
+  /staff/administrative-workflows/{subjectKey}:
+    get:
+      operationId: getCurrentAdministrativeWorkflow
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: subjectKey, required: true, schema: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{0,79}$' } }
+      responses:
+        '200':
+          description: Current immutable workflow version, including each step's decision policy.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeWorkflowView' }
+        '403': { description: Actor is not an active organization administrator. }
+        '404': { description: No workflow version exists for this subject in the validated organization. }
+  /staff/administrative-processes:
+    post:
+      operationId: openAdministrativeProcess
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdministrativeProcessCreateRequest' }
+      responses:
+        '201':
+          description: Process created from the current workflow version and an active first-step department assigned to the actor.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeProcessView' }
+        '400': { description: Process title or subject key is missing or invalid. }
+        '403': { description: Actor lacks active membership in the selected initial department. }
+        '404': { description: No workflow exists for the subject in the validated organization. }
+        '409': { description: Selected initial department does not belong to the first step of the current workflow. }
+    get:
+      operationId: listAdministrativeProcesses
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: query, name: page, required: false, description: Zero-based page index (maximum 10000)., schema: { type: integer, minimum: 0, maximum: 10000, default: 0 } }
+        - { in: query, name: size, required: false, description: Page size (maximum 100)., schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { in: query, name: q, required: false, description: Literal case-insensitive substring search over process title, subject name, and stable subject key; at most 120 characters., schema: { type: string, maxLength: 120 } }
+      responses:
+        '200':
+          description: >-
+            Summary page ordered by creation time descending and UUID descending for stable ties. The organization
+            comes from the validated server tenant context. Active organization administrators may list all its
+            processes; other staff, including sector administrators, see only processes whose current department is
+            active and has their active membership. Summaries do not load workflow steps or event history. Response
+            is private and non-cacheable.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeProcessPage' }
+        '400': { description: Page, size, or query exceeds the documented bounds. }
+        '403': { description: No active membership in the validated organization. }
+  /staff/administrative-processes/{processId}:
+    get:
+      operationId: getAdministrativeProcess
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: processId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: >-
+            Detailed workflow snapshot and events. Access is allowed to an active organization administrator or to
+            a staff member with active membership in the process's currently responsible active department; sector
+            administrator role alone does not grant organization-wide access. Read does not mutate process history.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeProcessView' }
+        '403': { description: Process exists in this organization but the actor is neither an active organization administrator nor an active member of its current active department. }
+        '404': { description: Process does not exist in the validated organization; IDs from another organization receive the same indistinguishable not-found response. }
+  /staff/administrative-processes/{processId}/decision:
+    post:
+      operationId: decideAdministrativeProcess
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: processId, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdministrativeProcessDecisionRequest' }
+      responses:
+        '200':
+          description: >-
+            Stores the selected decision on the active process and appends an immutable decision event. The policy
+            must be enabled for the process snapshot's current department and the actor must have active membership
+            in that exact active department. Repeating the current outcome is idempotent; a changed outcome appends
+            a new event. Decision does not close the process.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdministrativeProcessView' }
+        '400': { description: Missing or invalid decision outcome. }
+        '403': { description: Actor lacks active membership in the current department or that department is not enabled for decisions at this process step. }
+        '404': { description: Process does not exist in the validated organization; IDs from another organization receive the same indistinguishable not-found response. }
+        '409': { description: Process is not active or another conflicting process mutation won the lock. }
+  /staff/administrative-processes/{processId}/advance:
+    post:
+      operationId: advanceAdministrativeProcess
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: processId, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdministrativeProcessAdvanceRequest' }
+      responses:
+        '200': { description: Process moved to the requested department in the immediate next snapshot step; the transition and event are committed atomically., content: { application/json: { schema: { $ref: '#/components/schemas/AdministrativeProcessView' } } } }
+        '400': { description: Target step or destination department is missing or invalid. }
+        '403': { description: Actor lacks active membership in the exact current department. }
+        '404': { description: Process is unavailable in the validated organization. }
+        '409': { description: Process is inactive, requested step is not the immediate next step, or destination is not active in that snapshot step. }
   /public/organizations:
     get:
       operationId: listDemoOrganizations
@@ -17,6 +180,19 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Organization' }
+  /public/organizations/{organizationSlug}/protocol-subjects:
+    get:
+      operationId: listPublicOnlineProtocolSubjects
+      parameters:
+        - { in: path, name: organizationSlug, required: true, schema: { type: string, maxLength: 80 } }
+      responses:
+        '200':
+          description: Online protocol subjects with an active organization-scoped destination. Subjects without a configured destination are hidden until routing is configured.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PublicProtocolSubject' }
   /public/protocols:
     post:
       operationId: openProtocol
@@ -25,20 +201,89 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/OpenProtocolRequest' }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [request]
+              properties:
+                request: { $ref: '#/components/schemas/OpenProtocolRequest' }
+                files: { type: array, items: { type: string, format: binary }, maxItems: 10 }
+                attachmentRequirementIds:
+                  type: array
+                  description: One attachment requirement ID per uploaded file, in matching order.
+                  items: { type: string, format: uuid }
+            encoding:
+              request: { contentType: application/json }
       responses:
         '200':
-          description: Protocol created. The tracking token is returned once.
+          description: Protocol created with the initial department resolved from the selected subject; applicant and person-specific invitation tokens are returned once and only their hashes are persisted.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ProtocolCreated' }
-        '400': { description: Invalid request. }
+        '400':
+          description: Invalid request, participant identity field, or attachment. File validation responses include the attachment requirement ID when the error is specific to a file.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message: { type: string }
+                  attachmentRequirementId: { type: string, format: uuid, description: Present when the error can be associated with one configured attachment field. }
+        '413': { description: The total multipart request exceeds the configured request-size limit. }
+        '404': { description: Organization or online-available subject does not exist in the selected organization. }
+        '409': { description: Subject has no active destination department configured; numbering is not allocated. }
+  /public/protocols/{id}/attachments/{attachmentId}/download:
+    get:
+      operationId: downloadPublicProtocolAttachment
+      security: [{ TrackingToken: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: attachmentId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: File streamed after validating the applicant or protocol-scoped participant token, public visibility, and stored content integrity. Response uses Cache-Control private, no-store., headers: { Cache-Control: { schema: { type: string, example: 'private, no-store' } } }, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+        '404': { description: Invalid, revoked, wrong-protocol token or attachment unavailable. }
+  /public/protocols/{id}/interactions:
+    post:
+      operationId: addExternalProtocolInteraction
+      security: [{ TrackingToken: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [request]
+              properties:
+                request: { $ref: '#/components/schemas/PublicProtocolInteractionRequest' }
+                files: { type: array, items: { type: string, format: binary }, maxItems: 10 }
+            encoding:
+              request: { contentType: application/json }
+      responses:
+        '201': { description: Applicant or named participant appends a public interaction with any allowed files; the protocol row is locked so revocation or completion cannot race past the write., content: { application/json: { schema: { $ref: '#/components/schemas/ProtocolInteraction' } } } }
+        '400': { description: Message, file count, configured extension, file signature, or file size is invalid. }
+        '413': { description: Total multipart request size exceeds the configured servlet request limit. }
+        '404': { description: Invalid, revoked, wrong-protocol token or protocol unavailable. }
+        '409': { description: External interaction is blocked while the protocol is completed. }
+  /public/protocols/{id}/participants/{participantId}/revoke:
+    post:
+      operationId: revokeProtocolParticipantAccess
+      security: [{ TrackingToken: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: participantId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Applicant revoked this participant's token; the protocol row serializes revocation with reads and writes. }
+        '404': { description: Token is not the applicant credential or participant is unavailable in this protocol. }
   /public/protocols/tracking:
     get:
       operationId: trackProtocol
       security: [{ TrackingToken: [] }]
       responses:
         '200':
-          description: Public events only; applicant contact details are excluded.
+          description: Public events and PUBLIC interactions only; the applicant sees active/revoked participant names, while each participant sees only their own identity values and other participants are anonymized. Applicant contact details are excluded. Cache-Control is private, no-store.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TrackingView' }
@@ -50,33 +295,513 @@ paths:
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: PDF receipt with QR code., content: { application/pdf: { schema: { type: string, format: binary } } } }
+        '200': { description: PDF receipt with QR code, opening department snapshot, and the configured subject deadline duration captured when the protocol was opened. The PDF shows the duration in days and does not calculate a due date; protocols predating V11/V15 have no reconstructed department/deadline snapshot., content: { application/pdf: { schema: { type: string, format: binary } } } }
         '404': { description: Invalid token or unavailable protocol. }
   /staff/departments:
     get:
       operationId: listDepartments
-      security: [{ StaffBasic: [] }]
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
       parameters:
         - $ref: '#/components/parameters/OrganizationId'
       responses:
-        '200': { description: Departments in the validated organization. }
+        '200':
+          description: Departments in the validated organization.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DepartmentView' }
         '403': { description: No active membership. }
+    post:
+      operationId: createDepartment
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DepartmentCreateRequest' }
+      responses:
+        '201':
+          description: Department created in the validated organization and audited.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepartmentView' }
+        '400': { description: Invalid department name. }
+        '403': { description: Actor is not an active organization administrator. }
+        '404': { description: Parent department does not exist, is inactive, or belongs to another organization. }
+        '409': { description: A department with the same name already exists in this organization. }
+  /staff/organization/organogram:
+    get:
+      operationId: getOrganizationOrganogram
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Active departments and active staff memberships in the validated organization, represented as a parent/child tree.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OrganogramNode' }
+        '403': { description: No active membership in the selected organization. }
+  /staff/organization/department-management:
+    get:
+      operationId: getDepartmentManagementCapabilities
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Server-computed capabilities for organization administration.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepartmentManagementCapabilities' }
+        '403': { description: No active membership. }
+  /staff/organization/staff/{username}:
+    put:
+      operationId: updateStaffProfile
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: username, required: true, schema: { type: string, maxLength: 120 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffProfileUpdateRequest' }
+      responses:
+        '200':
+          description: Profile updated for a staff member active in the validated organization.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffProfileView' }
+        '400': { description: Invalid profile fields or a future registration date. }
+        '403': { description: Actor is not an active organization administrator. }
+        '404': { description: Staff member is not active in the validated organization. }
+  /staff/organization/members:
+    get:
+      operationId: listOrganizationMembers
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Organization members and role scopes in the validated organization. Department ADMIN is reported as a department role and does not grant organization administration.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OrganizationMember' }
+        '403': { description: Actor is not an active organization administrator or has suspended organization access. }
+  /staff/organization/members/{username}/access:
+    put:
+      operationId: setOrganizationMemberAccess
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: username, required: true, schema: { type: string, maxLength: 120 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrganizationMemberAccessRequest' }
+      responses:
+        '200':
+          description: Organization access state changed or was already in the requested state; account, memberships, departments, and histories are retained.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationMemberAccess' }
+        '400': { description: Missing or invalid access state. }
+        '403': { description: Actor is not an active organization administrator. }
+        '404': { description: Member does not belong to the validated organization. }
+        '409': { description: Suspending this member would leave no active organization administrator. }
+  /staff/organization/protocol-subjects:
+    get:
+      operationId: listOrganizationProtocolSubjects
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Protocol subject catalog and destination configuration for the validated organization; organization administrators only. Public subject choices do not expose department routing.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OrganizationProtocolSubject' }
+        '403': { description: Actor is not an active organization administrator. }
+    post:
+      operationId: createOrganizationProtocolSubject
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProtocolSubjectInput' }
+      responses:
+        '201':
+          description: Subject added and recorded in the organization audit log.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationProtocolSubject' }
+        '400': { description: Invalid subject name or availability. }
+        '403': { description: Actor is not an active organization administrator. }
+        '404': { description: Destination department is inactive or belongs to another organization. }
+        '409': { description: Name already exists in this organization. }
+  /staff/organization/protocol-subjects/{id}:
+    put:
+      operationId: updateOrganizationProtocolSubject
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProtocolSubjectInput' }
+      responses:
+        '200':
+          description: >-
+            Subject name, online availability, and destination department updated. Existing protocol titles,
+            assigned departments, and configured deadline days remain persisted snapshots. When updating the
+            subject, omitting automaticDeadlineDays preserves its current value; sending null clears it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationProtocolSubject' }
+        '400': { description: Invalid subject name or availability. }
+        '403': { description: Actor is not an active organization administrator. }
+        '404': { description: Subject or active destination department does not belong to the validated organization. }
+        '409': { description: Name already exists in this organization. }
+  /staff/organization/protocol-subjects/{subjectId}/participant-fields:
+    get:
+      operationId: listProtocolSubjectParticipantIdentityFields
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: subjectId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: >-
+            Configured participant identity field definitions for this subject in the validated organization,
+            ordered by their configured order. Organization administrators only.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ParticipantIdentityField' }
+        '403': { description: Active organization administrator required. }
+        '404': { description: Subject unavailable in the validated organization. }
+    post:
+      operationId: createProtocolSubjectParticipantIdentityField
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: subjectId, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParticipantIdentityFieldInput' }
+      responses:
+        '201':
+          description: Participant field definition created and organization-audited.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParticipantIdentityField' }
+        '400': { description: Invalid field key, label, input type, required flag, or order. }
+        '403': { description: Active organization administrator required. }
+        '404': { description: Subject unavailable in the validated organization. }
+        '409': { description: A field with this key already exists for the subject. }
+  /staff/organization/protocol-subjects/{subjectId}/participant-fields/{fieldId}:
+    put:
+      operationId: updateProtocolSubjectParticipantIdentityField
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: subjectId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: fieldId, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParticipantIdentityFieldUpdate' }
+      responses:
+        '200':
+          description: Participant field definition updated and organization-audited.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParticipantIdentityField' }
+        '400': { description: Invalid label, input type, required flag, or order. }
+        '403': { description: Active organization administrator required. }
+        '404': { description: Subject or field unavailable in the validated organization. }
+    delete:
+      operationId: deleteProtocolSubjectParticipantIdentityField
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: subjectId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: fieldId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Participant field definition deleted and organization-audited. }
+        '403': { description: Active organization administrator required. }
+        '404': { description: Subject or field unavailable in the validated organization. }
+  /staff/organization/protocol-subjects/{subjectId}/attachment-requirements:
+    post:
+      operationId: createProtocolSubjectAttachmentRequirement
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: subjectId, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AttachmentRequirementInput' }
+      responses:
+        '201': { description: Attachment requirement created and organization-audited., content: { application/json: { schema: { $ref: '#/components/schemas/AttachmentRequirement' } } } }
+        '400': { description: Unsupported extensions or invalid requirement. }
+        '403': { description: Active organization administrator required. }
+        '404': { description: Subject unavailable in the validated organization. }
+        '409': { description: Active requirement with the same subject and name already exists. }
+  /staff/organization/protocol-subjects/{subjectId}/attachment-requirements/{requirementId}:
+    put:
+      operationId: updateProtocolSubjectAttachmentRequirement
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: subjectId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: requirementId, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AttachmentRequirementInput' }
+      responses:
+        '200': { description: Requirement updated and organization-audited., content: { application/json: { schema: { $ref: '#/components/schemas/AttachmentRequirement' } } } }
+        '400': { description: Unsupported extensions or invalid requirement. }
+        '403': { description: Active organization administrator required. }
+        '404': { description: Requirement unavailable in the validated organization. }
+        '409': { description: Active requirement with the same subject and name already exists. }
+    delete:
+      operationId: deactivateProtocolSubjectAttachmentRequirement
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - { in: path, name: subjectId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: requirementId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Requirement deactivated and organization-audited; existing protocol attachments remain linked to the original rule. }
+        '403': { description: Active organization administrator required. }
+        '404': { description: Requirement unavailable in the validated organization. }
+  /staff/session/heartbeat:
+    post:
+      operationId: recordStaffPresence
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Authenticated activity timestamp updated for the validated organization; activity within two minutes is shown as online.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PresenceHeartbeatView' }
+        '403': { description: No active membership in the selected organization. }
   /staff/protocols:
     get:
       operationId: listProtocols
-      security: [{ StaffBasic: [] }]
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
       parameters:
         - $ref: '#/components/parameters/OrganizationId'
         - { in: query, name: status, required: false, schema: { type: string } }
       responses:
-        '200': { description: Protocols belonging to the validated organization. }
-  /staff/protocols/{id}/{action}:
+        '200': { description: Protocols in the validated organization. Organization administrators can view all; other staff can view protocols assigned to their active departments. }
+        '403': { description: Actor has no active membership in the selected organization. }
+  /staff/protocols/{id}/read:
     post:
-      operationId: transitionProtocol
-      security: [{ StaffBasic: [] }]
+      operationId: recordProtocolRead
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
-        - { in: path, name: action, required: true, schema: { type: string, enum: [forward, receive, dispatch, complete] } }
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: >-
+            Idempotently records that the authenticated server opened protocol content while holding an active
+            membership in its currently assigned department. Returns the read state for this server. Listing the
+            inbox never records a read. Cache-Control is private, no-store.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'private, no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProtocolReadReceipt' }
+        '403': { description: Actor lacks an active membership in the protocol's currently assigned department. No receipt is written. }
+        '404': { description: Protocol is unavailable in the validated organization. }
+  /staff/protocols/{id}/attachments:
+    get:
+      operationId: listProtocolAttachmentsForStaff
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: >-
+            Opening attachments only, without attachments already included in
+            interaction threads. Cache-Control is private, no-store.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProtocolAttachment'
+        '403': { description: "Actor is not authorized for the validated organization or an involved department." }
+        '404': { description: Protocol is unavailable in the validated organization. }
+  /staff/protocols/{id}/attachments/{attachmentId}/download:
+    get:
+      operationId: downloadProtocolAttachmentForStaff
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: attachmentId, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200': { description: File streamed after authorization and integrity check. Response uses Cache-Control private, no-store., headers: { Cache-Control: { schema: { type: string, example: 'private, no-store' } } }, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+        '403': { description: "Actor is not authorized for the validated organization or an involved department." }
+        '404': { description: Protocol or attachment is unavailable in the validated organization. }
+  /staff/protocols/{id}/interactions:
+    get:
+      operationId: listProtocolInteractionsForStaff
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200': { description: Public interactions plus internal interactions authored by departments where the active staff member is involved; organization administrators can inspect all., content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ProtocolInteraction' } } } } }
+        '403': { description: Actor is not a member of an involved department or active organization administrator. }
+        '404': { description: Protocol unavailable in the validated organization. }
+    post:
+      operationId: addStaffProtocolInteraction
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffProtocolInteractionRequest' }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [request]
+              properties:
+                request: { $ref: '#/components/schemas/StaffProtocolInteractionRequest' }
+                files: { type: array, items: { type: string, format: binary }, maxItems: 10 }
+            encoding:
+              request: { contentType: application/json }
+      responses:
+        '201': { description: Interaction appended for an involved sector on a non-completed protocol; INTERNAL content is visible only to its department and organization administrators., content: { application/json: { schema: { $ref: '#/components/schemas/ProtocolInteraction' } } } }
+        '400': { description: Message, visibility, file count, configured extension, file signature, or file size is invalid. }
+        '413': { description: Total multipart request size exceeds the configured servlet request limit. }
+        '403': { description: Actor is not an active member of a department involved in the protocol or active organization administrator. }
+        '404': { description: Protocol unavailable in the validated organization. }
+        '409': { description: Protocol is completed and must be reopened before adding an interaction. }
+  /staff/protocols/{id}/reopen:
+    post:
+      operationId: reopenCompletedProtocol
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200': { description: Completed protocol reopened to RECEIVED by an active member of its currently responsible department; a public event is recorded., content: { application/json: { schema: { $ref: '#/components/schemas/ProtocolSummary' } } } }
+        '403': { description: Actor is not an active member of the protocol's currently responsible department. }
+        '404': { description: Protocol unavailable in the validated organization. }
+        '409': { description: Protocol is not completed. }
+  /staff/protocols/{id}/forward:
+    post:
+      operationId: forwardProtocol
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForwardProtocolRequest' }
+      responses:
+        '200': { description: Protocol forwarded to the required active department; transition and event are recorded atomically. }
+        '400': { description: Request body or destination department is missing or invalid. }
+        '403': { description: Actor lacks active organization or department membership. }
+        '404': { description: Protocol or target department unavailable in this organization. }
+        '409': { description: Transition is invalid for the current state. }
+  /staff/protocols/{id}/receive:
+    post:
+      operationId: receiveProtocol
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
         - $ref: '#/components/parameters/OrganizationId'
       requestBody:
         required: false
@@ -84,9 +809,47 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/TransitionRequest' }
       responses:
-        '200': { description: State transition recorded in the append-only event history. }
+        '200': { description: Protocol received by its assigned department; transition and event are recorded atomically. }
+        '403': { description: Actor lacks active organization or department membership. }
+        '404': { description: Protocol unavailable in this organization. }
+        '409': { description: Transition is invalid for the current state. }
+  /staff/protocols/{id}/dispatch:
+    post:
+      operationId: dispatchProtocol
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransitionRequest' }
+      responses:
+        '200': { description: Dispatch recorded; destination may be omitted to retain the assigned department. }
         '403': { description: Actor lacks active organization or department membership. }
         '404': { description: Protocol or target department unavailable in this organization. }
+        '409': { description: Transition is invalid for the current state. }
+  /staff/protocols/{id}/complete:
+    post:
+      operationId: completeProtocol
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransitionRequest' }
+      responses:
+        '200': { description: Protocol completed; transition and event are recorded atomically. }
+        '403': { description: Actor lacks active organization or department membership. }
+        '404': { description: Protocol unavailable in this organization. }
         '409': { description: Transition is invalid for the current state. }
 components:
   parameters:
@@ -103,8 +866,81 @@ components:
     StaffBasic:
       type: http
       scheme: basic
-      description: Development profile only. Production identity is not implemented yet.
+      description: Local development profile only; production does not accept this scheme.
+    StaffBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Production resource-server authentication; issuer, audience, validity, and configured JWKS are validated before the persistent external identity and organization membership checks.
   schemas:
+    AdministrativeWorkflowCreateRequest:
+      type: object
+      required: [subjectKey, subjectName, expectedVersion, idempotencyKey, steps]
+      properties:
+        subjectKey: { type: string, minLength: 1, maxLength: 80, pattern: '^[a-z0-9][a-z0-9._-]{0,79}$' }
+        subjectName: { type: string, minLength: 1, maxLength: 180 }
+        expectedVersion: { type: integer, minimum: 0 }
+        idempotencyKey: { type: string, format: uuid }
+        steps:
+          type: array
+          minItems: 2
+          maxItems: 30
+          items: { $ref: '#/components/schemas/AdministrativeWorkflowStepRequest' }
+    AdministrativeWorkflowStepRequest:
+      type: object
+      required: [name, departmentIds]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 180 }
+        departmentIds:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        decisionDepartmentIds:
+          type: array
+          nullable: true
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, format: uuid }
+          description: >-
+            Optional set of departments already listed in departmentIds that may mark a process decision at this step.
+            Omitted or null means no department in this step may decide. The server rejects duplicates or IDs outside
+            this step. The policy is snapshotted on processes created from this workflow version.
+    AdministrativeWorkflowView:
+      type: object
+      required: [id, subjectKey, subjectName, version, createdAt, steps]
+      properties:
+        id: { type: string, format: uuid }
+        subjectKey: { type: string, maxLength: 80 }
+        subjectName: { type: string, maxLength: 180 }
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/AdministrativeWorkflowStep' }
+    AdministrativeWorkflowStep:
+      type: object
+      required: [order, name, departments]
+      properties:
+        order: { type: integer, minimum: 1 }
+        name: { type: string, maxLength: 180 }
+        departments:
+          type: array
+          items: { $ref: '#/components/schemas/WorkflowDepartment' }
+    AdministrativeProcessCreateRequest:
+      type: object
+      required: [subjectKey, title, initialDepartmentId]
+      properties:
+        subjectKey: { type: string, minLength: 1, maxLength: 80, pattern: '^[a-z0-9][a-z0-9._-]{0,79}$' }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        initialDepartmentId: { type: string, format: uuid }
+    AdministrativeProcessAdvanceRequest:
+      type: object
+      required: [toStepOrder, destinationDepartmentId]
+      properties:
+        toStepOrder: { type: integer, minimum: 1 }
+        destinationDepartmentId: { type: string, format: uuid }
     Organization:
       type: object
       required: [id, slug, name]
@@ -112,18 +948,284 @@ components:
         id: { type: string, format: uuid }
         slug: { type: string }
         name: { type: string }
+    AdministrativeProcessSummary:
+      type: object
+      description: Compact process projection; workflow steps and events are deliberately omitted from list responses.
+      required: [id, subjectKey, subjectName, workflowId, workflowVersion, title, currentStepOrder, currentStepName, currentDepartmentId, currentDepartmentName, status, decisionOutcome, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        subjectKey: { type: string, maxLength: 80 }
+        subjectName: { type: string, maxLength: 180 }
+        workflowId: { type: string, format: uuid }
+        workflowVersion: { type: integer, minimum: 1 }
+        title: { type: string, maxLength: 240 }
+        currentStepOrder: { type: integer, minimum: 1 }
+        currentStepName: { type: string, maxLength: 180 }
+        currentDepartmentId: { type: string, format: uuid }
+        currentDepartmentName: { type: string, maxLength: 180 }
+        status: { type: string, enum: [ACTIVE] }
+        decisionOutcome: { type: string, enum: [DEFERIDO, INDEFERIDO], nullable: true }
+        createdAt: { type: string, format: date-time }
+    AdministrativeProcessPage:
+      type: object
+      required: [items, page, size, hasNext]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdministrativeProcessSummary' }
+        page: { type: integer, minimum: 0, maximum: 10000 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        hasNext: { type: boolean, description: True when another page is available; no total count query is performed. }
+    AdministrativeProcessStep:
+      type: object
+      required: [order, name, departments]
+      properties:
+        order: { type: integer, minimum: 1 }
+        name: { type: string, maxLength: 180 }
+        departments:
+          type: array
+          items: { $ref: '#/components/schemas/WorkflowDepartment' }
+    AdministrativeProcessEvent:
+      type: object
+      required: [id, actor, action, toStepOrder, toDepartmentId, decisionOutcome, occurredAt]
+      properties:
+        id: { type: integer, format: int64 }
+        actor: { type: string, maxLength: 120 }
+        action: { type: string, enum: [OPENED, ADVANCED, DECIDED] }
+        fromStepOrder: { type: integer, minimum: 1, nullable: true }
+        toStepOrder: { type: integer, minimum: 1 }
+        fromDepartmentId: { type: string, format: uuid, nullable: true }
+        toDepartmentId: { type: string, format: uuid }
+        decisionOutcome: { type: string, enum: [DEFERIDO, INDEFERIDO], nullable: true }
+        occurredAt: { type: string, format: date-time }
+    AdministrativeProcessView:
+      allOf:
+        - { $ref: '#/components/schemas/AdministrativeProcessSummary' }
+        - type: object
+          required: [steps, events, decisionActor, decisionAt]
+          properties:
+            decisionActor: { type: string, maxLength: 120, nullable: true }
+            decisionAt: { type: string, format: date-time, nullable: true }
+            steps:
+              type: array
+              items: { $ref: '#/components/schemas/AdministrativeProcessStep' }
+            events:
+              type: array
+              items: { $ref: '#/components/schemas/AdministrativeProcessEvent' }
+    WorkflowDepartment:
+      type: object
+      required: [id, name, canDecide]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 180 }
+        canDecide: { type: boolean, description: Snapshotted policy that enables this department to mark a process decision at the step. }
+    AdministrativeProcessDecisionRequest:
+      type: object
+      required: [outcome]
+      properties:
+        outcome: { type: string, enum: [DEFERIDO, INDEFERIDO] }
     OpenProtocolRequest:
       type: object
-      required: [organizationSlug, applicantName, applicantEmail, subject, initialMessage]
+      required: [organizationSlug, applicantName, applicantEmail, subjectId, initialMessage]
       properties:
         organizationSlug: { type: string, maxLength: 80 }
         applicantName: { type: string, maxLength: 180 }
         applicantEmail: { type: string, format: email, maxLength: 254 }
-        subject: { type: string, maxLength: 240 }
+        subjectId: { type: string, format: uuid, description: Must belong to organizationSlug, be available online, and have an active destination department configured before numbering is allocated. }
         initialMessage: { type: string, maxLength: 8000 }
+        participants:
+          type: array
+          maxItems: 20
+          description: Optional people linked to this protocol. Their invitation tokens are returned once; tokens prove possession, not civil identity.
+          items: { $ref: '#/components/schemas/ProtocolParticipantInput' }
+    ProtocolParticipantInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 180 }
+        identityValues:
+          type: object
+          maxProperties: 64
+          additionalProperties: { type: string, maxLength: 500 }
+          description: Keys and input validation must match the configured fields for the selected organization subject.
+    PublicParticipantField:
+      type: object
+      required: [key, label, inputType, required, order]
+      properties:
+        key: { type: string, maxLength: 64 }
+        label: { type: string, maxLength: 120 }
+        inputType: { type: string, enum: [TEXT, EMAIL, PHONE, DOCUMENT] }
+        required: { type: boolean }
+        order: { type: integer, minimum: 0, maximum: 1000 }
+    PublicProtocolSubject:
+      type: object
+      required: [id, name, onlineAvailable, maximumAttachmentSizeBytes, participantFields]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 180 }
+        onlineAvailable: { type: boolean }
+        maximumAttachmentSizeBytes: { type: integer, format: int64, minimum: 1, description: Effective per-file limit, bounded by the attachment policy and multipart parser configuration. }
+        attachmentRequirements:
+          type: array
+          items: { $ref: '#/components/schemas/AttachmentRequirement' }
+        participantFields:
+          type: array
+          items: { $ref: '#/components/schemas/PublicParticipantField' }
+    OrganizationProtocolSubject:
+      type: object
+      required: [id, name, onlineAvailable]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 180 }
+        onlineAvailable: { type: boolean }
+        destinationDepartmentId: { type: string, format: uuid, nullable: true }
+        destinationDepartmentName: { type: string, nullable: true }
+        automaticDeadlineDays: { type: integer, minimum: 1, nullable: true, description: Optional positive duration copied to new protocols and shown on their receipt; omitted from responses when unconfigured. This is not a calculated due date. }
+        attachmentRequirements:
+          type: array
+          items: { $ref: '#/components/schemas/AttachmentRequirement' }
+    AttachmentRequirementInput:
+      type: object
+      required: [name, required, allowedExtensions]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        required: { type: boolean }
+        allowedExtensions:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { type: string, enum: [.pdf, .png, .jpg, .jpeg, .txt, .mp4] }
+    AttachmentRequirement:
+      type: object
+      required: [id, name, required, allowedExtensions, active]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        required: { type: boolean }
+        allowedExtensions: { type: array, items: { type: string } }
+        active: { type: boolean }
+    ParticipantIdentityFieldInput:
+      type: object
+      description: >-
+        Product-selected generic configuration for future participant identity capture. The procurement source
+        does not prescribe a field taxonomy. This configuration alone does not register participants or grant access.
+      required: [key, label, inputType, required, order]
+      properties:
+        key: { type: string, minLength: 1, maxLength: 64, pattern: '^[a-z][a-z0-9_]{0,63}$', description: Stable lowercase key unique within this organization and subject. }
+        label: { type: string, minLength: 1, maxLength: 120, description: Human-readable label shown by a future participant flow. }
+        inputType: { type: string, enum: [TEXT, EMAIL, PHONE, DOCUMENT], description: Product-selected bounded input hint; no validation or identity behavior is implied in this configuration slice. }
+        required: { type: boolean, description: Whether a future participant flow should require an answer. }
+        order: { type: integer, minimum: 0, maximum: 1000, description: Configured display order; equal values are allowed. }
+    ParticipantIdentityField:
+      type: object
+      required: [id, subjectId, key, label, inputType, required, order]
+      properties:
+        id: { type: string, format: uuid }
+        subjectId: { type: string, format: uuid }
+        key: { type: string, maxLength: 64, pattern: '^[a-z][a-z0-9_]{0,63}$' }
+        label: { type: string, maxLength: 120 }
+        inputType: { type: string, enum: [TEXT, EMAIL, PHONE, DOCUMENT] }
+        required: { type: boolean }
+        order: { type: integer, minimum: 0, maximum: 1000 }
+    ParticipantIdentityFieldUpdate:
+      type: object
+      description: Field key is immutable after creation to keep the configured identifier stable.
+      required: [label, inputType, required, order]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 120 }
+        inputType: { type: string, enum: [TEXT, EMAIL, PHONE, DOCUMENT] }
+        required: { type: boolean }
+        order: { type: integer, minimum: 0, maximum: 1000 }
+    ProtocolAttachment:
+      type: object
+      required: [id, filename, mediaType, sizeBytes, downloadCount, uploadedAt, downloadPath]
+      properties:
+        id: { type: string, format: uuid }
+        filename: { type: string }
+        mediaType: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+        downloadCount: { type: integer, format: int64 }
+        uploadedAt: { type: string, format: date-time }
+        downloadPath: { type: string }
+    ProtocolInteractionAttachment:
+      type: object
+      required: [id, filename, mediaType, sizeBytes, downloadPath]
+      properties:
+        id: { type: string, format: uuid }
+        filename: { type: string }
+        mediaType: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+        downloadPath: { type: string }
+    PublicProtocolInteractionRequest:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 8000 }
+    StaffProtocolInteractionRequest:
+      type: object
+      required: [message, visibility]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 8000 }
+        visibility: { type: string, enum: [PUBLIC, INTERNAL] }
+    ProtocolInteraction:
+      type: object
+      required: [id, author, message, createdAt, attachments]
+      properties:
+        id: { type: string, format: uuid }
+        author: { type: string, description: Neutral label; usernames and applicant contact data are not returned. }
+        department: { type: string, nullable: true }
+        message: { type: string }
+        visibility: { type: string, enum: [PUBLIC, INTERNAL], description: Public tracking contains only PUBLIC interactions. }
+        createdAt: { type: string, format: date-time }
+        attachments: { type: array, items: { $ref: '#/components/schemas/ProtocolInteractionAttachment' } }
+    ProtocolSummary:
+      type: object
+      required: [id, protocolNumber, subject, applicantName, status, readStatus, createdAt, updatedAt, attachmentCount, interactionAllowedExtensions]
+      properties:
+        id: { type: string, format: uuid }
+        protocolNumber: { type: string }
+        subject: { type: string }
+        applicantName: { type: string }
+        status: { type: string }
+        readStatus: { $ref: '#/components/schemas/ProtocolReadStatus' }
+        assignedDepartmentId: { type: string, format: uuid, nullable: true }
+        assignedDepartmentName: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        attachmentCount: { type: integer, minimum: 0 }
+        interactionAllowedExtensions: { type: array, items: { type: string, pattern: '^\.[a-z0-9]+$' }, description: "Active extensions configured for interaction attachments on this protocol's organization-scoped subject." }
+    ProtocolReadStatus:
+      type: string
+      enum: [UNREAD_BY_DEPARTMENT, READ_BY_OTHER, READ_BY_ME]
+      description: >-
+        Calculated for the active department currently assigned to the protocol and the authenticated server. Reads
+        from prior departments do not affect this state; actor names are not exposed. Listing does not create a receipt.
+    ProtocolReadReceipt:
+      type: object
+      required: [protocolId, departmentId, readAt, readStatus]
+      properties:
+        protocolId: { type: string, format: uuid }
+        departmentId: { type: string, format: uuid }
+        readAt: { type: string, format: date-time }
+        readStatus: { $ref: '#/components/schemas/ProtocolReadStatus' }
+    ProtocolSubjectInput:
+      type: object
+      required: [name, onlineAvailable]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 180 }
+        onlineAvailable: { type: boolean, description: true exposes the subject in the citizen service; false restricts it to the internal counter. }
+        destinationDepartmentId: { type: string, format: uuid, nullable: true, description: Active department in the organization selected by the authenticated server context. On create, omission leaves the subject unconfigured; on update, omission preserves the current destination. Online protocol creation is rejected until a destination is configured. }
+        automaticDeadlineDays:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: >-
+            Optional positive duration in days shown on receipts for protocols opened after this setting. On create,
+            omitted or null means unconfigured. On update, omission preserves the current value and explicit null clears it.
+            Updating or clearing the subject setting does not alter existing protocols. This is not a calculated due date.
     ProtocolCreated:
       type: object
-      required: [id, protocolNumber, status, createdAt, trackingToken, receiptPath]
+      required: [id, protocolNumber, status, createdAt, trackingToken, receiptPath, assignedDepartmentName, participantInvitations]
       properties:
         id: { type: string, format: uuid }
         protocolNumber: { type: string }
@@ -131,15 +1233,136 @@ components:
         createdAt: { type: string, format: date-time }
         trackingToken: { type: string, description: Secret; shown once only. }
         receiptPath: { type: string }
+        assignedDepartmentName: { type: string, description: Initial sector resolved from this organization's subject-routing configuration. }
+        participantInvitations:
+          type: array
+          description: Secret participant-specific links shown once after opening the protocol; they are never persisted in plaintext.
+          items: { $ref: '#/components/schemas/ParticipantInvitation' }
+    ParticipantInvitation:
+      type: object
+      required: [id, name, token]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 180 }
+        token: { type: string, description: Secret 256-bit random bearer credential. }
+    ProtocolParticipant:
+      type: object
+      required: [id, name, active, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 180 }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ParticipantIdentityValue:
+      type: object
+      required: [key, label, value]
+      properties:
+        key: { type: string, maxLength: 64 }
+        label: { type: string, maxLength: 120 }
+        value: { type: string, maxLength: 500 }
     TransitionRequest:
       type: object
       properties:
         destinationDepartmentId: { type: string, format: uuid }
         note: { type: string, maxLength: 500 }
         visibleToApplicant: { type: boolean, default: false }
+    ForwardProtocolRequest:
+      type: object
+      required: [destinationDepartmentId]
+      properties:
+        destinationDepartmentId: { type: string, format: uuid, description: Active department in the organization selected by the validated server context. }
+        note: { type: string, maxLength: 500 }
+        visibleToApplicant: { type: boolean, default: false }
+    DepartmentCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 180 }
+        parentDepartmentId: { type: string, format: uuid, nullable: true }
+    DepartmentView:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+    StaffAssignment:
+      type: object
+      required: [username, registrationDateSource, presenceStatus, roleCode]
+      properties:
+        username: { type: string }
+        fullName: { type: string, nullable: true }
+        positionTitle: { type: string, nullable: true }
+        registrationDate: { type: string, format: date, nullable: true }
+        registrationDateSource: { type: string, enum: [IMPORTED, UNKNOWN], nullable: true }
+        lastOnlineAt: { type: string, format: date-time, nullable: true }
+        presenceStatus: { type: string, enum: [ONLINE, OFFLINE, NOT_OBSERVED] }
+        roleCode: { type: string }
+    StaffProfileUpdateRequest:
+      type: object
+      required: [fullName]
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 180 }
+        positionTitle: { type: string, maxLength: 180, nullable: true }
+        registrationDate: { type: string, format: date, nullable: true, description: Optional historical date entered by an administrator; blank remains unknown. }
+    StaffProfileView:
+      type: object
+      required: [username, fullName, registrationDateSource]
+      properties:
+        username: { type: string }
+        fullName: { type: string }
+        positionTitle: { type: string, nullable: true }
+        registrationDate: { type: string, format: date, nullable: true }
+        registrationDateSource: { type: string, enum: [IMPORTED, UNKNOWN] }
+    OrganizationMember:
+      type: object
+      required: [username, accessStatus, organizationRoles, departmentRoles]
+      properties:
+        username: { type: string, maxLength: 120 }
+        fullName: { type: string, nullable: true }
+        positionTitle: { type: string, nullable: true }
+        accessStatus: { type: string, enum: [ACTIVE, INACTIVE, SUSPENDED] }
+        organizationRoles: { type: array, items: { type: string } }
+        departmentRoles: { type: array, items: { type: string } }
+    OrganizationMemberAccessRequest:
+      type: object
+      required: [active]
+      properties:
+        active: { type: boolean, description: true reativa; false suspende somente o acesso à organização atual. }
+    OrganizationMemberAccess:
+      type: object
+      required: [username, accessStatus, changed]
+      properties:
+        username: { type: string }
+        accessStatus: { type: string, enum: [ACTIVE, INACTIVE, SUSPENDED] }
+        changed: { type: boolean, description: false quando o acesso já estava no estado solicitado. }
+    PresenceHeartbeatView:
+      type: object
+      required: [presenceStatus]
+      properties:
+        presenceStatus: { type: string, enum: [ONLINE] }
+    OrganogramNode:
+      type: object
+      required: [id, name, staff, children]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        parentId: { type: string, format: uuid, nullable: true }
+        staff:
+          type: array
+          items: { $ref: '#/components/schemas/StaffAssignment' }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/OrganogramNode' }
+    DepartmentManagementCapabilities:
+      type: object
+      required: [canManageDepartments]
+      properties:
+        canManageDepartments: { type: boolean }
     TrackingView:
       type: object
+      required: [id, protocolNumber, subject, status, createdAt, events, attachments, interactions, interactionAllowedExtensions, applicantView, participants, participantFields]
       properties:
+        id: { type: string, format: uuid }
         protocolNumber: { type: string }
         subject: { type: string }
         status: { type: string }
@@ -152,3 +1375,24 @@ components:
               action: { type: string }
               summary: { type: string }
               createdAt: { type: string, format: date-time }
+        attachments:
+          type: array
+          items: { $ref: '#/components/schemas/ProtocolAttachment' }
+        interactions:
+          type: array
+          description: Public interactions only; internal messages and their attachments are excluded.
+          items: { $ref: '#/components/schemas/ProtocolInteraction' }
+        interactionAllowedExtensions:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [.pdf, .png, .jpg, .jpeg, .txt, .mp4] }
+        applicantView: { type: boolean, description: True only for the applicant tracking token. }
+        participantName: { type: string, nullable: true, description: Name associated with this participant's individual token; absent for the applicant. }
+        participants:
+          type: array
+          description: Populated only for the applicant; never exposes other participant records to a participant token.
+          items: { $ref: '#/components/schemas/ProtocolParticipant' }
+        participantFields:
+          type: array
+          description: Configured identity values visible only to the matching participant token; empty for the applicant.
+          items: { $ref: '#/components/schemas/ParticipantIdentityValue' }

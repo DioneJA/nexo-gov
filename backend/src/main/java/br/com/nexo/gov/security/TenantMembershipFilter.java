@@ -47,14 +47,30 @@ public class TenantMembershipFilter extends OncePerRequestFilter {
         request.setAttribute(ORGANIZATION_ID_ATTRIBUTE, organizationId);
         try (TenantContext.Scope ignored = TenantContext.openVerified(organizationId, authentication.getName(), (actor, tenant) -> {
             Integer memberships = jdbc.queryForObject(
-                    "SELECT count(*) FROM staff_memberships sm JOIN organizations o ON o.id=sm.organization_id " +
-                            "WHERE sm.username=? AND sm.organization_id=? AND sm.active=true AND o.active=true",
-                    Integer.class, actor, tenant);
+                    "SELECT count(*) FROM organizations o WHERE o.id=? AND o.active=true AND (" +
+                            "NOT EXISTS (SELECT 1 FROM organization_member_access_status access_status " +
+                            "WHERE access_status.organization_id=o.id AND access_status.username=? AND access_status.access_active=false) AND (" +
+                            "EXISTS (SELECT 1 FROM staff_memberships sm WHERE sm.username=? AND sm.organization_id=o.id AND sm.active=true) OR " +
+                            "EXISTS (SELECT 1 FROM organization_memberships om WHERE om.username=? AND om.organization_id=o.id AND om.active=true AND om.role_code='ADMIN')))",
+                    Integer.class, tenant, actor, actor, actor);
             return memberships != null && memberships > 0;
         })) {
+            recordPresence(organizationId, authentication.getName());
             chain.doFilter(request, response);
         } catch (TenantAccessDeniedException denied) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN);
         }
+    }
+
+    private void recordPresence(UUID organizationId, String actor) {
+        jdbc.update("""
+                INSERT INTO staff_profiles(organization_id,username,last_online_at)
+                VALUES(?,?,now())
+                ON CONFLICT (organization_id,username) DO UPDATE SET
+                    last_online_at=now(),
+                    updated_at=now()
+                WHERE staff_profiles.last_online_at IS NULL
+                   OR staff_profiles.last_online_at < now() - interval '30 seconds'
+                """, organizationId, actor);
     }
 }
