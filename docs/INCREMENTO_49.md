@@ -25,6 +25,7 @@ A origem `ED91-0510` foi corrigida no gerador para referenciar o Termo de Refer�
 - `./dev verify`: passou integralmente após ajustar o mock OIDC para responder uma página válida; 11 testes Core, 65 backend, build frontend, matriz, 14 cenários Basic e 7 OIDC. Sem erro de renderização do painel OIDC.
 - O browser ainda registra `ResizeObserver loop completed with undelivered notifications` durante cenas Basic; não falhou nenhum teste nem houve erro de renderização associado.
 - `git diff --check` e `git diff --cached --check`: passaram após a inspeção visual final e a limpeza dos espaços residuais nos registros de incrementos anteriores.
+- A tentativa posterior de iniciar a aplicação no Postgres local persistente foi recusada pelo Flyway: V2 está registrada com checksum `619873874`, enquanto o arquivo atual resolve `1036934880`. A migração foi aplicada em 06/11/2026. O volume foi preservado; nenhum `repair` ou reset foi feito. Para a inspeção manual, a API e o portal foram iniciados em um projeto Compose isolado, com banco e armazenamento novos; as 22 migrações chegaram a V22 e os três endpoints locais responderam HTTP 200. O banco persistente continua exigindo reconciliação deliberada antes de voltar a ser usado.
 
 ## Revisão da interface
 
