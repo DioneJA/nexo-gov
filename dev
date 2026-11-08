@@ -76,7 +76,7 @@ Uso: ./dev <comando>
   process-workflow-test Testa publicação idempotente, snapshots, autorização da lotação no setor atribuído, etapas multi-setor, corridas de revogação/desativação e ausência de mutação após rejeição (requer Docker)
   process-list-test Testa listagem paginada, busca literal, ordenação estável, resumo enxuto, escopo de tenant e acesso por setor/admin organizacional (requer Docker)
   process-workflow-e2e Demonstra v1/v2, setores decisores por etapa, decisão Deferido com status ACTIVE, persistência após recarga, shell ocupada, lista e recusas 409/403 (requer Docker e Chrome)
-  matrix          Confere estrutura e cobertura da matriz sem alterá-la
+  matrix          Confere a matriz e informa quantos critérios ainda aguardam decomposição observável
   matrix-refresh  Regenera matriz, relatório e roteiro POC
 
 NEXO_CORE_DIR pode apontar para qualquer checkout independente do NEXO Core.

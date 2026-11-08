@@ -111,10 +111,23 @@ with tempfile.TemporaryDirectory(prefix="nexogov-matrix-ids-") as temporary_dire
         raise SystemExit(f"Novo ID não foi acrescentado ao fim da sequência: {third}")
 statuses = Counter(row["status"] for row in rows)
 modules = Counter(row["modulo"] for row in rows)
+pending_decomposition = [
+    row for row in rows
+    if row["criterio_de_aceite"].startswith("Pendente de decomposição:")
+]
+pending_decomposition_by_source = Counter(
+    row["id"].split("-", 1)[0] for row in pending_decomposition
+)
 print(f"Linhas rastreadas: {len(rows)}")
 print("Status: " + ", ".join(f"{k}={v}" for k, v in sorted(statuses.items())))
 print("Módulos: " + ", ".join(f"{k}={v}" for k, v in sorted(modules.items())))
 print(f"Validados: {statuses['VALIDADO']}/{len(rows)}")
+print(
+    "Critérios pendentes de decomposição observável: "
+    f"{len(pending_decomposition)} "
+    f"(ED91={pending_decomposition_by_source['ED91']}; "
+    f"TR91={pending_decomposition_by_source['TR91']})"
+)
 source_counts = Counter(row["validacao_fonte"] for row in rows)
 print("Fonte: " + ", ".join(f"{k}={v}" for k, v in sorted(source_counts.items())))
 print(f"IDs numéricos estáveis: {len(registered_ids)}; integridade do registro e reordenação verificadas")
