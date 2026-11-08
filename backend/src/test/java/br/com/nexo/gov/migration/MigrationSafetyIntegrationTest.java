@@ -40,7 +40,7 @@ class MigrationSafetyIntegrationTest {
             try (Statement departments = connection.createStatement()) {
                 departments.executeUpdate("INSERT INTO departments(id,organization_id,name) VALUES " +
                         "('20000000-0000-4000-8000-000000000001','" + ORGANIZATION_ID + "','Obras')," +
-                        "('20000000-0000-4000-8000-000000000002','" + ORGANIZATION_ID + "','  obras  ')");
+                        "('20000000-0000-4000-8000-000000000002','" + ORGANIZATION_ID + "','obras')");
             }
         }
 
@@ -50,7 +50,7 @@ class MigrationSafetyIntegrationTest {
         assertThat(causeMessages(migrationFailure)).contains("20000000-0000-4000-8000-000000000001");
         assertThat(causeMessages(migrationFailure)).contains("20000000-0000-4000-8000-000000000002");
         assertThat(causeMessages(migrationFailure)).contains("Obras");
-        assertThat(causeMessages(migrationFailure)).contains("  obras  ");
+        assertThat(causeMessages(migrationFailure)).contains("obras");
 
         try (Connection connection = connection();
              PreparedStatement query = connection.prepareStatement(
@@ -66,8 +66,90 @@ class MigrationSafetyIntegrationTest {
                 try (ResultSet result = names.executeQuery()) {
                     List<String> storedNames = new ArrayList<>();
                     while (result.next()) storedNames.add(result.getString(1));
-                    assertThat(storedNames).containsExactly("Obras", "  obras  ");
+                    assertThat(storedNames).containsExactly("Obras", "obras");
                 }
+            }
+        }
+    }
+
+    @Test
+    void refusesTrimmedDepartmentDuplicatesBeforeReplacingTheLegacyIndex() throws Exception {
+        flyway(null).clean();
+        flyway("25").migrate();
+        try (Connection connection = connection(); Statement sql = connection.createStatement()) {
+            sql.executeUpdate("DROP INDEX departments_organization_name_case_insensitive_idx");
+            sql.executeUpdate("CREATE UNIQUE INDEX departments_organization_name_case_insensitive_idx " +
+                    "ON departments (organization_id, lower(name))");
+            sql.executeUpdate("INSERT INTO organizations(id,slug,name) VALUES " +
+                    "('10000000-0000-4000-8000-000000000041','trimmed-index-safety','Trimmed Index Safety')");
+            sql.executeUpdate("INSERT INTO departments(id,organization_id,name) VALUES " +
+                    "('20000000-0000-4000-8000-000000000041','10000000-0000-4000-8000-000000000041',' Public Works')," +
+                    "('20000000-0000-4000-8000-000000000042','10000000-0000-4000-8000-000000000041','public works ')");
+        }
+
+        Throwable migrationFailure = catchThrowable(() -> flyway(null).migrate());
+        assertThat(migrationFailure).isInstanceOf(FlywayException.class);
+        assertThat(causeMessages(migrationFailure))
+                .contains("trimmed, case-insensitive department name uniqueness")
+                .contains("20000000-0000-4000-8000-000000000041")
+                .contains("20000000-0000-4000-8000-000000000042")
+                .contains("No records were changed");
+
+        try (Connection connection = connection(); Statement sql = connection.createStatement()) {
+            try (ResultSet rows = sql.executeQuery(
+                    "SELECT name FROM departments WHERE id IN " +
+                            "('20000000-0000-4000-8000-000000000041','20000000-0000-4000-8000-000000000042') " +
+                            "ORDER BY id")) {
+                List<String> names = new ArrayList<>();
+                while (rows.next()) names.add(rows.getString(1));
+                assertThat(names).containsExactly(" Public Works", "public works ");
+            }
+            try (ResultSet oldIndex = sql.executeQuery(
+                    "SELECT indexdef FROM pg_indexes WHERE schemaname='public' " +
+                            "AND indexname='departments_organization_name_case_insensitive_idx'")) {
+                assertThat(oldIndex.next()).isTrue();
+                assertThat(oldIndex.getString(1)).contains("lower((name)::text)").doesNotContain("btrim");
+            }
+            try (ResultSet migration = sql.executeQuery(
+                    "SELECT count(*) FROM flyway_schema_history WHERE version='26' AND success=true")) {
+                migration.next();
+                assertThat(migration.getInt(1)).isZero();
+            }
+        }
+    }
+
+    @Test
+    void replacesTheLegacyDepartmentIndexAndRejectsTrimmedCaseDuplicates() throws Exception {
+        flyway(null).clean();
+        flyway("25").migrate();
+        try (Connection connection = connection(); Statement sql = connection.createStatement()) {
+            sql.executeUpdate("DROP INDEX departments_organization_name_case_insensitive_idx");
+            sql.executeUpdate("CREATE UNIQUE INDEX departments_organization_name_case_insensitive_idx " +
+                    "ON departments (organization_id, lower(name))");
+            sql.executeUpdate("INSERT INTO organizations(id,slug,name) VALUES " +
+                    "('10000000-0000-4000-8000-000000000051','trimmed-index-success','Trimmed Index Success')");
+            sql.executeUpdate("INSERT INTO departments(id,organization_id,name) VALUES " +
+                    "('20000000-0000-4000-8000-000000000051','10000000-0000-4000-8000-000000000051','Finance')");
+        }
+
+        flyway(null).migrate();
+
+        try (Connection connection = connection(); Statement sql = connection.createStatement()) {
+            try (ResultSet index = sql.executeQuery(
+                    "SELECT indexdef FROM pg_indexes WHERE schemaname='public' " +
+                            "AND indexname='departments_organization_name_case_insensitive_idx'")) {
+                assertThat(index.next()).isTrue();
+                assertThat(index.getString(1)).contains("lower").contains("btrim");
+            }
+            Throwable duplicateInsert = catchThrowable(() -> sql.executeUpdate(
+                    "INSERT INTO departments(id,organization_id,name) VALUES " +
+                            "('20000000-0000-4000-8000-000000000052','10000000-0000-4000-8000-000000000051',' finance ' )"));
+            assertThat(duplicateInsert).isNotNull();
+            assertThat(causeMessages(duplicateInsert)).contains("departments_organization_name_case_insensitive_idx");
+            try (ResultSet count = sql.executeQuery(
+                    "SELECT count(*) FROM departments WHERE organization_id='10000000-0000-4000-8000-000000000051'")) {
+                count.next();
+                assertThat(count.getInt(1)).isEqualTo(1);
             }
         }
     }

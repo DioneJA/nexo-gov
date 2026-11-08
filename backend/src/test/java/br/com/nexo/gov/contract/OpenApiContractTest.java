@@ -78,6 +78,43 @@ class OpenApiContractTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void organizationBrandingContractDefinesTokenAllowlistAndNoStoreTenantRoutes() throws Exception {
+        Path contractPath = repositoryRoot().resolve(CONTRACT);
+        Map<String, Object> document;
+        try (InputStream source = Files.newInputStream(contractPath)) {
+            document = new Yaml().load(source);
+        }
+        Map<String, Object> paths = (Map<String, Object>) document.get("paths");
+        Map<String, Object> publicBranding = (Map<String, Object>) paths
+                .get("/public/organizations/{organizationSlug}/branding");
+        Map<String, Object> publicGet = (Map<String, Object>) publicBranding.get("get");
+        assertThat(publicGet.get("operationId")).isEqualTo("getPublicOrganizationBranding");
+        assertThat(publicGet.toString()).contains("no-store", "excludes internal identifiers");
+
+        Map<String, Object> staffBranding = (Map<String, Object>) paths.get("/staff/organization/branding");
+        assertThat(staffBranding).containsKeys("get", "put");
+        assertThat(staffBranding.toString()).contains("OrganizationId", "no-store", "active organization");
+        Map<String, Object> staffGetResponses = (Map<String, Object>) ((Map<String, Object>) staffBranding.get("get")).get("responses");
+        Map<String, Object> staffPutResponses = (Map<String, Object>) ((Map<String, Object>) staffBranding.get("put")).get("responses");
+        assertThat(staffGetResponses.get("403").toString()).contains("inactive organization");
+        assertThat(staffPutResponses.get("403").toString()).contains("inactive organization");
+        assertThat(staffGetResponses.get("404").toString()).contains("after tenant membership validation");
+        assertThat(staffPutResponses.get("404").toString()).contains("after tenant membership validation");
+        Map<String, Object> organizationHeader = (Map<String, Object>) ((Map<String, Object>) document.get("components"))
+                .get("parameters");
+        assertThat(organizationHeader.get("OrganizationId").toString()).contains("X-Organization-Id");
+
+        Map<String, Object> components = (Map<String, Object>) document.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        Map<String, Object> tokens = (Map<String, Object>) schemas.get("OrganizationAccentToken");
+        assertThat(tokens.get("enum")).isEqualTo(List.of("NEXO_NAVY", "NEXO_BLUE", "ACTION_BLUE", "SUCCESS_GREEN"));
+        assertThat(schemas).containsKeys("OrganizationBrandingInput", "OrganizationBranding", "PublicOrganizationBranding");
+        Map<String, Object> input = (Map<String, Object>) schemas.get("OrganizationBrandingInput");
+        assertThat((List<String>) input.get("required")).containsExactly("accentToken");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void administrativeProcessListContractDocumentsBoundsAndCompactProjection() throws Exception {
         Path contractPath = repositoryRoot().resolve(CONTRACT);
         Map<String, Object> document;

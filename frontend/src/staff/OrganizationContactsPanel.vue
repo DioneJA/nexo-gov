@@ -12,6 +12,7 @@ const loading = ref(false)
 const saving = ref(false)
 const importing = ref(false)
 const error = ref('')
+const contactsLoadError = ref('')
 const notice = ref('')
 const editId = ref('')
 const formOpen = ref(false)
@@ -21,7 +22,7 @@ let searchTimer: number | undefined
 
 const typeLabels: Record<OrganizationContactType, string> = {
   PERSON: 'Pessoa física',
-  MUNICIPAL_DEPARTMENT: 'Setor da prefeitura',
+  MUNICIPAL_DEPARTMENT: 'Setor da organização',
   LEGAL_ENTITY: 'Prefeitura / pessoa jurídica'
 }
 const pageSize = 20
@@ -40,6 +41,7 @@ function apiError(exception: any, fallback: string) {
 async function loadContacts() {
   const currentGeneration = ++generation
   const selectedOrganization = props.organizationId
+  contactsLoadError.value = ''
   if (!selectedOrganization) {
     contacts.value = []
     total.value = 0
@@ -57,7 +59,7 @@ async function loadContacts() {
     total.value = response.data.total
   } catch (exception) {
     if (currentGeneration !== generation) return
-    error.value = apiError(exception, 'Não foi possível carregar os contatos. Tente novamente.')
+    contactsLoadError.value = apiError(exception, 'Não foi possível carregar os contatos. Tente novamente.')
   } finally {
     if (currentGeneration === generation) loading.value = false
   }
@@ -74,6 +76,7 @@ watch(() => props.organizationId, () => {
   editId.value = ''
   notice.value = ''
   error.value = ''
+  contactsLoadError.value = ''
   void loadContacts()
 }, { immediate: true })
 
@@ -197,20 +200,24 @@ async function importCsv(event: Event) {
     <div class="contacts-heading">
       <div>
         <h3 id="contacts-title" class="subsection-heading">Contatos da organização</h3>
-        <p class="aside-copy">Pessoas, setores da prefeitura e entidades jurídicas. A lista é privada desta organização.</p>
+        <p class="aside-copy">Pessoas, setores da organização e entidades jurídicas. A lista é privada desta organização.</p>
       </div>
       <button class="text-action" type="button" :disabled="loading || importing" @click="startCreate">Adicionar</button>
     </div>
 
     <p v-if="notice" class="contact-feedback" role="status">{{ notice }}</p>
     <p v-if="error" class="contact-feedback contact-error" role="alert">{{ error }}</p>
+    <div v-if="contactsLoadError" class="contact-load-error">
+      <p class="contact-feedback contact-error" role="alert">{{ contactsLoadError }}</p>
+      <button class="quiet-action" type="button" :disabled="loading" @click="loadContacts">Tentar novamente</button>
+    </div>
 
     <form v-if="formOpen" class="contact-form" @submit.prevent="saveContact">
       <label class="contact-field">
         <span>Tipo de contato</span>
         <select v-model="draft.type" required>
           <option value="PERSON">Pessoa física</option>
-          <option value="MUNICIPAL_DEPARTMENT">Setor da prefeitura</option>
+          <option value="MUNICIPAL_DEPARTMENT">Setor da organização</option>
           <option value="LEGAL_ENTITY">Prefeitura / pessoa jurídica</option>
         </select>
       </label>
@@ -249,13 +256,13 @@ async function importCsv(event: Event) {
     </div>
 
     <p v-if="loading" class="contact-status" role="status" aria-live="polite">Carregando contatos…</p>
-    <p v-else-if="!contacts.length" class="contact-status" role="status">{{ query ? 'Nenhum contato corresponde à busca.' : 'Nenhum contato cadastrado.' }}</p>
-    <div v-else class="contact-list" :aria-busy="loading">
+    <p v-else-if="!contactsLoadError && !contacts.length" class="contact-status" role="status">{{ query ? 'Nenhum contato corresponde à busca.' : 'Nenhum contato cadastrado.' }}</p>
+    <div v-else-if="contacts.length" class="contact-list" :aria-busy="loading">
       <article v-for="contact in contacts" :key="contact.id" class="contact-row">
         <div class="contact-summary">
           <div class="contact-name-line">
             <h4>{{ contact.name }}</h4>
-            <span v-if="!contact.active" class="contact-archived-badge">Arquivado</span>
+            <span v-if="!contact.active" class="contact-archived-status">Arquivado</span>
           </div>
           <p class="contact-type">{{ typeLabels[contact.type] }}</p>
           <p v-if="contact.email || contact.phone" class="contact-details">
@@ -283,8 +290,8 @@ async function importCsv(event: Event) {
 .contacts { container-type: inline-size; }
 .contacts-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .contacts-heading .aside-copy { margin-top: 7px; }
-.text-action, .quiet-action, .primary-action, .file-action { min-height: 44px; border: 0; background: transparent; color: var(--nexo-color-action); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-.text-action { flex: 0 0 auto; padding: 3px 0 3px 8px; }
+.text-action, .quiet-action, .primary-action, .file-action { min-height: var(--nexo-control-height); border: 0; background: transparent; color: var(--nexo-color-action); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.text-action { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 3px 0 3px 8px; }
 .quiet-action { padding: 7px 8px; border-radius: var(--nexo-radius-sm); }
 .primary-action { padding: 8px 13px; color: white; background: var(--nexo-color-navy); border-radius: var(--nexo-radius-sm); }
 .text-action:hover, .quiet-action:hover { background: var(--nexo-color-selection); }
@@ -292,6 +299,8 @@ async function importCsv(event: Event) {
 .text-action:disabled, .quiet-action:disabled, .primary-action:disabled, .file-action-disabled { opacity: .55; cursor: not-allowed; }
 .contact-feedback { margin: 14px 0 0; color: var(--nexo-color-success); font-size: 13px; line-height: 1.5; }
 .contact-error { color: var(--nexo-color-danger); }
+.contact-load-error { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.contact-load-error .contact-feedback { flex: 1 1 240px; }
 .contact-form { display: grid; gap: 12px; margin: 17px 0; padding-bottom: 16px; border-bottom: 1px solid var(--nexo-color-separator); }
 .contact-field { display: grid; gap: 6px; color: var(--nexo-color-text-secondary); font-size: 12px; }
 .contact-field small { color: var(--nexo-color-text-tertiary); }
@@ -299,8 +308,9 @@ async function importCsv(event: Event) {
 .contact-field input:focus, .contact-field select:focus, .contact-search input:focus { outline: 3px solid var(--nexo-color-action); outline-offset: 1px; }
 .contact-form-actions, .contact-file-actions, .contact-row-actions, .contact-pagination { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .contact-tools { display: grid; gap: 9px; margin-top: 16px; }
-.contact-archived { display: flex; align-items: center; gap: 8px; color: var(--nexo-color-text-secondary); font-size: 13px; }
-.contact-archived input { accent-color: var(--nexo-color-primary); }
+.contact-archived { display: flex; align-items: center; gap: 8px; min-height: var(--nexo-control-height); padding: 0 8px; border-radius: var(--nexo-radius-sm); color: var(--nexo-color-text-secondary); font-size: 13px; }
+.contact-archived:focus-within { outline: 3px solid var(--nexo-color-action); outline-offset: 2px; }
+.contact-archived input { flex: 0 0 18px; width: 18px; height: 18px; margin: 0; accent-color: var(--nexo-color-primary); }
 .contact-file-actions { margin-top: 8px; gap: 12px; }
 .file-action { position: relative; display: inline-flex; align-items: center; padding: 7px 8px; border-radius: var(--nexo-radius-sm); }
 .file-action:hover { background: var(--nexo-color-selection); }
@@ -313,9 +323,15 @@ async function importCsv(event: Event) {
 .contact-name-line { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 .contact-name-line h4 { margin: 0; color: var(--nexo-color-text); font-size: 14px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
 .contact-type, .contact-details { margin: 3px 0 0; color: var(--nexo-color-text-secondary); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.contact-archived-badge { padding: 2px 6px; color: var(--nexo-color-text-secondary); background: var(--nexo-color-selection); border-radius: 999px; font-size: 10px; }
+.contact-archived-status { color: var(--nexo-color-text-secondary); font-size: 12px; font-weight: 600; }
 .contact-row-actions { flex: 0 0 auto; gap: 0; }
 .contact-pagination { justify-content: space-between; margin-top: 13px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (pointer: coarse) {
+  .text-action, .quiet-action, .primary-action, .file-action,
+  .contact-field input, .contact-field select, .contact-search input,
+  .contact-archived { min-height: var(--nexo-space-12); }
+  .contact-archived input { flex-basis: 20px; width: 20px; height: 20px; }
+}
 @container (max-width: 480px) { .contact-row { flex-direction: column; gap: 5px; } .contact-row-actions { align-self: flex-end; } .contact-file-note { flex-basis: 100%; } }
 </style>

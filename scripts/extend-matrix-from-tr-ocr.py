@@ -1248,6 +1248,18 @@ for index, candidate in enumerate(candidates, start=1):
             "Evidência local verificável em `docs/INCREMENTO_54.md`, `./dev process-numbering-test`, `./dev process-numbering-e2e`, `./dev openapi-check` e labels `workflow-numeracao-configurada`, `processo-numero-gerado`, `workflow-numeracao-geral-configurada` e `processo-numero-geral-gerado` da spec `frontend/e2e/process-workflow.spec.ts`. Capturas mostram estados fictícios, não provam por si só autorização, concorrência ou persistência e não equivalem à POC oficial.",
         ),
     }
+    organization_branding_requirements = {
+        "TR91-0669": (
+            "Parcial — ADMIN da organização configura e publica um nome público alternativo e uma cor escolhida entre quatro tokens semânticos da UI Core; a marca aparece no portal do cidadão e na área do servidor e tem prévia local antes da publicação. Símbolo oficial, fundo de tela e aplicativo móvel nativo permanecem pendentes, portanto o requisito integral não está validado.",
+            "V27 organization_branding; OrganizationBrandingController/Service deriva o tenant de TenantContext, exige ADMIN organizacional ativo para publicar, limita cores a tokens Core e grava auditoria somente quando há mudança. Projeção pública exclui capacidade administrativa e é no-store.",
+            "App.vue e StaffApp.vue exibem o nome publicado e aplicam token permitido; StaffApp fornece prévia local, restauração do padrão e publicação explícita. O portal do cidadão mantém identidade municipal só na nova solicitação e usa cabeçalho NexoGov neutro no acompanhamento, cuja resposta não identifica a organização. Esta fatia cobre somente web; não inclui símbolo oficial, fundo ou app nativo.",
+            "OrganizationBrandingIntegrationTest (PostgreSQL Testcontainers) cobre escopo, ADMIN/setor, token inválido, projeção pública, no-store, auditoria e reset; OpenApiContractTest verifica o contrato. organization-branding.spec.ts percorre publicação, recarga, apresentação cidadã/servidor, troca de organização, descarte de resposta antiga e nome de 160 caracteres em 390/320 px. organization-branding-tracking.spec.ts cria protocolo em outro tenant e verifica o cabeçalho neutro no acompanhamento. Executar ./dev organization-branding-test e ./dev organization-branding-e2e.",
+            "POC-TR91-0669 (parcial web): autenticar como ADMIN fictício, escolher nome e token de cor permitido, conferir a prévia e publicar; recarregar e verificar nome/cor no portal do servidor e do cidadão. Trocar a organização e confirmar que a identidade anterior não permanece. Demonstrar separadamente como pendentes o símbolo, fundo e aplicativo nativo; este roteiro não é POC oficial.",
+            "V27, OrganizationBrandingIntegrationTest, OpenApiContractTest, organization-branding.spec.ts e docs/INCREMENTO_55.md. Após ./dev evidence, associação visual parcial apenas se disponíveis os três labels `identidade-visual-previa`, `identidade-publicada-servidor` e `identidade-publicada-cidadao` da spec `frontend/e2e/organization-branding.spec.ts`, cenário `administrador publica identidade visual e a troca de organização descarta respostas antigas`. As capturas usam dados fictícios e não demonstram símbolo oficial, imagem de fundo, app móvel, documentos/PDF nem validação da comissão. Status EM_DESENVOLVIMENTO.",
+        ),
+    }
+    if requirement_id in organization_branding_requirements:
+        acceptance, backend, frontend, test, poc, evidence = organization_branding_requirements[requirement_id]
     if requirement_id in partial_organization_requirements:
         acceptance = "Parcial — " + partial_organization_requirements[requirement_id]
         test = "ProtocolVerticalIntegrationTest.departmentAdministrationIsTenantScopedAdminOnlyAndAudited e teste E2E do cadastro de setor; a parte hierárquica/dinâmica do requisito permanece sem teste."
@@ -1290,18 +1302,18 @@ for index, candidate in enumerate(candidates, start=1):
         "requisito_resumo_fiel": summary,
         "origem_documento_pagina_secao_item": origin,
         "prioridade": priority_for(candidate["section"], candidate["body"]),
-        "modulo": "ADMINISTRACAO" if requirement_id in contact_requirements else "PROCESSOS_ADMINISTRATIVOS" if requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else module_for(candidate["section"], candidate["body"]),
-        "natureza": "SOFTWARE" if requirement_id in contact_requirements or requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else nature_for(candidate["section"], candidate["body"]),
+        "modulo": "ADMINISTRACAO" if requirement_id in contact_requirements or requirement_id in organization_branding_requirements else "PROCESSOS_ADMINISTRATIVOS" if requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else module_for(candidate["section"], candidate["body"]),
+        "natureza": "SOFTWARE" if requirement_id in contact_requirements or requirement_id in organization_branding_requirements or requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else nature_for(candidate["section"], candidate["body"]),
         "criterio_de_aceite": acceptance,
-        "backend_envolvido": backend if requirement_id in contact_requirements or requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else "OrganizationAdminService, OrganizationAdminController e tabela departments com escopo validado por TenantContext." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
-        "frontend_envolvido": frontend if requirement_id in contact_requirements or requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else "Área do servidor: cadastro e seleção de setores retornados pela organização atual." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
+        "backend_envolvido": backend if requirement_id in contact_requirements or requirement_id in organization_branding_requirements or requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else "OrganizationAdminService, OrganizationAdminController e tabela departments com escopo validado por TenantContext." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
+        "frontend_envolvido": frontend if requirement_id in contact_requirements or requirement_id in organization_branding_requirements or requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else "Área do servidor: cadastro e seleção de setores retornados pela organização atual." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
         "teste_automatizado": test,
         "roteiro_poc": poc,
         "evidencia": evidence,
         # Matrix generation describes implementation progress; it cannot observe test
         # execution or inspect exported evidence. Promotion to VALIDADO is a deliberate
         # traceability update after those proofs have been reviewed.
-        "status": "EM_DESENVOLVIMENTO" if requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements or requirement_id in partial_organization_requirements else "NAO_INICIADO" if visually_reviewed else "BLOQUEADO",
+        "status": "EM_DESENVOLVIMENTO" if requirement_id in organization_branding_requirements or requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements or requirement_id in partial_organization_requirements else "NAO_INICIADO" if visually_reviewed else "BLOQUEADO",
         "validacao_fonte": "CONFERIDA_VISUALMENTE" if visually_reviewed else "OCR_PENDENTE",
     }
     if requirement_id in contact_requirements:
@@ -1430,7 +1442,7 @@ for index, candidate in enumerate(candidates, start=1):
         generated_blocker = previous["criterio_de_aceite"].startswith(
             "BLOQUEADO: transcrição conferida; decompor obrigações, definir aceite observável"
         )
-        preserve_previous = not generated_blocker and requirement_id not in process_numbering_requirements and requirement_id not in partial_federated_identity_requirements and requirement_id not in contact_requirements and not (
+        preserve_previous = not generated_blocker and requirement_id not in organization_branding_requirements and requirement_id not in process_numbering_requirements and requirement_id not in partial_federated_identity_requirements and requirement_id not in contact_requirements and not (
             requirement_id in poc_requirement_details and previous["status"] == "NAO_INICIADO"
         )
         if preserve_previous:

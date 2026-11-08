@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { publicApi, type Organization } from '../api/public'
+import { organizationAccentClass, organizationAccentOptions, type OrganizationAccentToken, type StaffOrganizationBranding } from '../api/organization-branding'
 import { organizationHeaders, staffApi, type AttachmentRequirement, type Department, type DepartmentMember, type OrganizationMember, type OrganizationMemberAccessResult, type OrganogramNode, type ParticipantIdentityField, type ParticipantIdentityFieldInput, type ParticipantIdentityFieldType, type Protocol, type ProtocolAttachment, type ProtocolInteraction, type ProtocolInteractionAttachment, type ProtocolInteractionVisibility, type ProtocolReadReceipt, type ProtocolReadStatus, type StaffProtocolSubject } from '../api/staff'
 import { beginOidcSignIn, clearStaffAuthorization, completeOidcCallback, hasStaffAuthorization, setLocalBasicCredentials, signOutStaff, staffAuthMode } from '../auth/staff-session'
 import AdministrativeProcessPanel from './AdministrativeProcessPanel.vue'
@@ -30,6 +31,14 @@ const organizations = ref<Organization[]>([])
 const organizationsLoading = ref(true)
 const organizationsLoadFailed = ref(false)
 const organizationId = ref('')
+const organizationBranding = ref<StaffOrganizationBranding | null>(null)
+const brandingDraftDisplayName = ref('')
+const brandingDraftAccentToken = ref<OrganizationAccentToken>('ACTION_BLUE')
+const brandingLoading = ref(false)
+const brandingSaving = ref(false)
+const brandingLoadError = ref('')
+const brandingError = ref('')
+const brandingNotice = ref('')
 const username = ref('')
 const password = ref('')
 const departments = ref<Department[]>([])
@@ -101,9 +110,16 @@ const protocolSubjectActionId = ref('')
 const protocolSubjectsError = ref('')
 const protocolSubjectsNotice = ref('')
 const staffOptions = computed(() => flattenStaff(organogram.value))
+const brandingClass = computed(() => organizationAccentClass(organizationBranding.value?.accentToken))
+const brandingPreviewClass = computed(() => organizationAccentClass(brandingDraftAccentToken.value))
+const brandingPreviewName = computed(() => brandingDraftDisplayName.value.trim()
+  || organizationBranding.value?.displayName
+  || organizations.value.find(organization => organization.id === organizationId.value)?.name
+  || 'Nome da organização')
 let presenceTimer: number | undefined
 let membersRequestVersion = 0
 let staffContextGeneration = 0
+let brandingRequestVersion = 0
 const isLocalEnvironment = import.meta.env.DEV
 const authMode = ref(staffAuthMode())
 const authReady = ref(false)
@@ -121,6 +137,15 @@ const protocolReadStatusLabels: Record<ProtocolReadStatus, string> = {
 watch(organizationId, () => {
   staffContextGeneration++
   membersRequestVersion++
+  brandingRequestVersion++
+  organizationBranding.value = null
+  brandingDraftDisplayName.value = ''
+  brandingDraftAccentToken.value = 'ACTION_BLUE'
+  brandingLoading.value = false
+  brandingSaving.value = false
+  brandingLoadError.value = ''
+  brandingError.value = ''
+  brandingNotice.value = ''
   canManageDepartments.value = false
   departments.value = []
   organogram.value = []
@@ -538,7 +563,12 @@ async function loadStaff() {
   if (!organizationId.value) { error.value = 'Selecione uma organização.'; return }
   const selectedOrganizationId = organizationId.value
   const generation = staffContextGeneration
+  const currentBrandingRequest = ++brandingRequestVersion
   loading.value = true; error.value = ''; notice.value = ''
+  brandingLoading.value = true
+  brandingLoadError.value = ''
+  brandingError.value = ''
+  brandingNotice.value = ''
   protocolRoutingDepartmentsLoading.value = true
   protocolRoutingDepartmentsError.value = ''
   canManageDepartments.value = false
@@ -553,11 +583,15 @@ async function loadStaff() {
     const departmentRequest = staffApi.get<Department[]>('/staff/departments', { headers })
       .then(response => ({ departments: response.data, failed: false }))
       .catch(() => ({ departments: [] as Department[], failed: true }))
-    const [departmentResult, protocolResponse, capabilityResponse, organogramResponse] = await Promise.all([
+    const brandingRequest = staffApi.get<StaffOrganizationBranding>('/staff/organization/branding', { headers })
+      .then(response => ({ branding: response.data, failed: false }))
+      .catch(() => ({ branding: null, failed: true }))
+    const [departmentResult, protocolResponse, capabilityResponse, organogramResponse, brandingResult] = await Promise.all([
       departmentRequest,
       staffApi.get<Protocol[]>('/staff/protocols', { headers }),
       staffApi.get<{ canManageDepartments: boolean }>('/staff/organization/department-management', { headers }),
-      staffApi.get<OrganogramNode[]>('/staff/organization/organogram', { headers })
+      staffApi.get<OrganogramNode[]>('/staff/organization/organogram', { headers }),
+      brandingRequest
     ])
     if (!isCurrentStaffContext(generation, selectedOrganizationId)) return
     departments.value = departmentResult.departments
@@ -567,6 +601,15 @@ async function loadStaff() {
     protocols.value = protocolResponse.data
     organogram.value = organogramResponse.data
     canManageDepartments.value = capabilityResponse.data.canManageDepartments
+    if (currentBrandingRequest === brandingRequestVersion) {
+      organizationBranding.value = brandingResult.branding
+      brandingLoadError.value = brandingResult.failed ? 'Não foi possível carregar a identidade visual desta organização.' : ''
+      if (brandingResult.branding) {
+        brandingDraftDisplayName.value = brandingResult.branding.displayNameOverride || ''
+        brandingDraftAccentToken.value = brandingResult.branding.accentToken
+      }
+      brandingLoading.value = false
+    }
     staffLoaded.value = true
     if (departments.value.length) destinationDepartmentId.value = departments.value[0].id
     if (canManageDepartments.value) await Promise.all([loadOrganizationMembers(), loadProtocolSubjects()])
@@ -577,11 +620,74 @@ async function loadStaff() {
     error.value = e.response?.status === 401 || e.response?.status === 403
       ? 'Acesso recusado. Confira suas credenciais e a organização selecionada.'
       : 'Não foi possível carregar a caixa de entrada.'
+    if (currentBrandingRequest === brandingRequestVersion) brandingLoading.value = false
   }
   finally {
     if (isCurrentStaffContext(generation, selectedOrganizationId)) {
       loading.value = false
       protocolRoutingDepartmentsLoading.value = false
+    }
+  }
+}
+
+async function reloadOrganizationBranding() {
+  if (!staffLoaded.value || !organizationId.value) return
+  const selectedOrganizationId = organizationId.value
+  const generation = staffContextGeneration
+  const requestVersion = ++brandingRequestVersion
+  brandingLoading.value = true
+  brandingLoadError.value = ''
+  brandingError.value = ''
+  try {
+    const response = await staffApi.get<StaffOrganizationBranding>('/staff/organization/branding', {
+      headers: organizationHeaders(selectedOrganizationId)
+    })
+    if (!isCurrentStaffContext(generation, selectedOrganizationId) || requestVersion !== brandingRequestVersion) return
+    organizationBranding.value = response.data
+    brandingDraftDisplayName.value = response.data.displayNameOverride || ''
+    brandingDraftAccentToken.value = response.data.accentToken
+  } catch {
+    if (isCurrentStaffContext(generation, selectedOrganizationId) && requestVersion === brandingRequestVersion) {
+      brandingLoadError.value = 'Não foi possível carregar a identidade visual desta organização.'
+    }
+  } finally {
+    if (requestVersion === brandingRequestVersion) brandingLoading.value = false
+  }
+}
+
+function restoreBrandingDraftDefaults() {
+  brandingDraftDisplayName.value = ''
+  brandingDraftAccentToken.value = 'ACTION_BLUE'
+  brandingError.value = ''
+  brandingNotice.value = ''
+}
+
+async function publishOrganizationBranding() {
+  if (!staffLoaded.value || !organizationId.value || !organizationBranding.value?.canManageBranding || brandingSaving.value) return
+  const selectedOrganizationId = organizationId.value
+  const generation = staffContextGeneration
+  const requestVersion = brandingRequestVersion
+  brandingSaving.value = true
+  brandingError.value = ''
+  brandingNotice.value = ''
+  try {
+    const response = await staffApi.put<StaffOrganizationBranding>('/staff/organization/branding', {
+      displayNameOverride: brandingDraftDisplayName.value.trim() || null,
+      accentToken: brandingDraftAccentToken.value
+    }, { headers: organizationHeaders(selectedOrganizationId) })
+    if (!isCurrentStaffContext(generation, selectedOrganizationId) || requestVersion !== brandingRequestVersion) return
+    organizationBranding.value = response.data
+    brandingDraftDisplayName.value = response.data.displayNameOverride || ''
+    brandingDraftAccentToken.value = response.data.accentToken
+    brandingNotice.value = 'Identidade visual publicada para esta organização.'
+  } catch (e: any) {
+    if (!isCurrentStaffContext(generation, selectedOrganizationId) || requestVersion !== brandingRequestVersion) return
+    brandingError.value = e.response?.status === 403
+      ? 'Seu vínculo não permite publicar a identidade visual desta organização.'
+      : 'Não foi possível publicar as alterações. Revise os campos e tente novamente.'
+  } finally {
+    if (isCurrentStaffContext(generation, selectedOrganizationId) && requestVersion === brandingRequestVersion) {
+      brandingSaving.value = false
     }
   }
 }
@@ -1347,16 +1453,16 @@ function flattenStaff(nodes: OrganogramNode[]) {
 </script>
 
 <template>
-  <q-layout view="lHh Lpr lFf" class="app-shell staff-app">
+  <q-layout view="lHh Lpr lFf" class="app-shell staff-app" :class="brandingClass">
     <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
     <q-header class="topbar"><div class="topbar-inner">
       <span v-if="administrativeProcessBusy" class="brand-lockup nav-link-static">
         <span class="brand-name">NEXO<span class="brand-gov">GOV</span></span>
-        <span class="brand-caption">Gestão pública digital</span>
+        <span class="brand-caption">{{ brandingLoading ? 'Carregando identidade visual…' : organizationBranding?.displayName || 'Gestão pública digital' }}</span>
       </span>
       <a v-else class="brand-lockup" href="/" aria-label="NexoGov — portal do cidadão">
         <span class="brand-name">NEXO<span class="brand-gov">GOV</span></span>
-        <span class="brand-caption">Gestão pública digital</span>
+        <span class="brand-caption">{{ brandingLoading ? 'Carregando identidade visual…' : organizationBranding?.displayName || 'Gestão pública digital' }}</span>
       </a>
       <q-space />
       <span v-if="isLocalEnvironment" class="environment-label">Ambiente local</span>
@@ -1568,6 +1674,51 @@ function flattenStaff(nodes: OrganogramNode[]) {
         </section>
 
         <aside class="organization-panel" aria-labelledby="organization-title">
+          <section v-if="organizationBranding?.canManageBranding || (canManageDepartments && brandingLoadError)" class="organization-branding-section" aria-labelledby="organization-branding-title">
+            <div class="branding-section-heading">
+              <div>
+                <h2 id="organization-branding-title" class="section-heading">Identidade da organização</h2>
+                <p class="section-subheading">Defina como o nome e a cor institucional aparecem nos portais público e do servidor.</p>
+              </div>
+              <q-btn v-if="brandingLoadError" flat color="primary" no-caps label="Tentar carregar novamente" :loading="brandingLoading" @click="reloadOrganizationBranding" />
+            </div>
+            <p v-if="brandingLoading" class="member-loading" role="status">Carregando identidade visual…</p>
+            <p v-if="brandingLoadError" class="member-feedback member-feedback-error" role="alert">{{ brandingLoadError }}</p>
+            <template v-if="!brandingLoading && !brandingLoadError">
+              <p v-if="brandingNotice" class="member-feedback member-feedback-success" role="status">{{ brandingNotice }}</p>
+              <p v-if="brandingError" class="member-feedback member-feedback-error" role="alert">{{ brandingError }}</p>
+              <q-form class="branding-editor" @submit.prevent="publishOrganizationBranding">
+                <q-input
+                  v-model="brandingDraftDisplayName"
+                  outlined dense maxlength="160"
+                  label="Nome público alternativo"
+                  hint="Deixe vazio para usar o nome oficial cadastrado para a organização."
+                  :disable="brandingSaving"
+                />
+                <q-select
+                  v-model="brandingDraftAccentToken"
+                  :options="organizationAccentOptions"
+                  emit-value map-options outlined dense
+                  label="Cor de destaque"
+                  :disable="brandingSaving"
+                />
+                <div class="branding-preview-wrap">
+                  <p class="branding-preview-label">Prévia local</p>
+                  <div class="branding-preview" :class="brandingPreviewClass" aria-label="Prévia local da identidade visual">
+                    <div class="branding-preview-heading">
+                      <span class="brand-name">NEXO<span class="brand-gov">GOV</span></span>
+                      <span class="branding-preview-name">{{ brandingPreviewName }}</span>
+                    </div>
+                    <button type="button" class="branding-preview-action" disabled>Solicitar atendimento</button>
+                  </div>
+                </div>
+                <div class="branding-actions">
+                  <q-btn type="button" flat color="primary" no-caps label="Restaurar padrão" :disable="brandingSaving" @click="restoreBrandingDraftDefaults" />
+                  <q-btn color="primary" unelevated type="submit" no-caps label="Publicar identidade visual" :loading="brandingSaving" :disable="brandingSaving || brandingLoading" />
+                </div>
+              </q-form>
+            </template>
+          </section>
           <div class="organogram-heading">
             <div><h2 id="organization-title" class="aside-heading">Organograma</h2><p class="aside-copy">Setores ativos e suas lotações nesta organização.</p></div>
           </div>

@@ -212,6 +212,22 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Organization' }
+  /public/organizations/{organizationSlug}/branding:
+    get:
+      operationId: getPublicOrganizationBranding
+      parameters:
+        - { in: path, name: organizationSlug, required: true, schema: { type: string, maxLength: 80 } }
+      responses:
+        '200':
+          description: >-
+            Public display name and one allowlisted Core UI accent token for the active organization. The projection
+            excludes internal identifiers and management capabilities; response is no-store.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicOrganizationBranding' }
+        '404': { description: Organization slug is unknown or inactive. }
   /public/organizations/{organizationSlug}/protocol-subjects:
     get:
       operationId: listPublicOnlineProtocolSubjects
@@ -438,6 +454,50 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ContactManagementCapabilities' }
         '403': { description: No active membership in the selected organization. }
+  /staff/organization/branding:
+    get:
+      operationId: getOrganizationBranding
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Effective name, saved overrides, allowlisted accent, and server-computed publish capability for the validated organization. Response is no-store.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationBranding' }
+        '403': { description: No active membership in the selected organization; an inactive organization is rejected by tenant validation. }
+        '404': { description: Organization became unavailable after tenant membership validation. }
+    put:
+      operationId: publishOrganizationBranding
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrganizationBrandingInput' }
+      responses:
+        '200':
+          description: >-
+            Saves the public name override and accent for the validated organization. Only an active organization
+            administrator may publish. A null or blank displayNameOverride restores the registered organization name;
+            saving identical values does not add another audit event. Response is no-store.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationBranding' }
+        '400': { description: Missing/invalid accent token or display name exceeds the documented bounds. }
+        '403': { description: Actor is not an active organization administrator, or tenant validation rejected an inactive organization. }
+        '404': { description: Organization became unavailable after tenant membership validation. }
   /staff/organization/contacts:
     get:
       operationId: listOrganizationContacts
@@ -1562,6 +1622,31 @@ components:
       type: string
       enum: [PERSON, MUNICIPAL_DEPARTMENT, LEGAL_ENTITY]
       description: Individual, municipal department (such as Financeiro or Suporte), or Municipality/legal entity.
+    OrganizationAccentToken:
+      type: string
+      enum: [NEXO_NAVY, NEXO_BLUE, ACTION_BLUE, SUCCESS_GREEN]
+      description: Versioned Core UI semantic token; arbitrary colors and CSS values are not accepted.
+    OrganizationBrandingInput:
+      type: object
+      required: [accentToken]
+      properties:
+        displayNameOverride: { type: string, maxLength: 160, nullable: true, description: Null or blank restores the registered organization name. }
+        accentToken: { $ref: '#/components/schemas/OrganizationAccentToken' }
+    PublicOrganizationBranding:
+      type: object
+      required: [organizationSlug, displayName, accentToken]
+      properties:
+        organizationSlug: { type: string }
+        displayName: { type: string }
+        accentToken: { $ref: '#/components/schemas/OrganizationAccentToken' }
+    OrganizationBranding:
+      type: object
+      required: [displayName, displayNameOverride, accentToken, canManageBranding]
+      properties:
+        displayName: { type: string }
+        displayNameOverride: { type: string, nullable: true }
+        accentToken: { $ref: '#/components/schemas/OrganizationAccentToken' }
+        canManageBranding: { type: boolean, description: Server-computed active organization-administrator capability. }
     OrganizationContactInput:
       type: object
       required: [type, name]

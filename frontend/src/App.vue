@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { publicApi, type Organization, type PublicParticipantField, type PublicParticipantInvitation, type PublicProtocolAttachment, type PublicProtocolInteraction, type PublicProtocolInteractionAttachment, type PublicProtocolSubject, type PublicProtocolTracking } from './api/public'
+import { organizationAccentClass, type PublicOrganizationBranding } from './api/organization-branding'
 
 const tab = ref('new')
 const organizations = ref<Organization[]>([])
+const organizationBranding = ref<PublicOrganizationBranding | null>(null)
+const brandingLoading = ref(false)
+const brandingLoadError = ref('')
 const protocolSubjects = ref<PublicProtocolSubject[]>([])
 const loading = ref(false)
 const trackingLookupLoading = ref(false)
@@ -54,6 +58,14 @@ const citizenInteractionAllowedExtensions = computed(() => (tracking.value?.inte
 const isLocalEnvironment = import.meta.env.DEV
 let subjectRequestVersion = 0
 let trackingLookupGeneration = 0
+let brandingRequestVersion = 0
+const visibleOrganizationBranding = computed(() => tab.value === 'new' ? organizationBranding.value : null)
+const brandingClass = computed(() => organizationAccentClass(visibleOrganizationBranding.value?.accentToken))
+const brandCaption = computed(() => {
+  if (tab.value !== 'new') return 'Gestão pública digital'
+  if (brandingLoading.value) return 'Carregando identidade visual…'
+  return organizationBranding.value?.displayName || 'Gestão pública digital'
+})
 
 const statusLabels: Record<string, string> = {
   OPEN: 'Aberto', FORWARDED: 'Encaminhado', RECEIVED: 'Recebido', DISPATCHED: 'Despachado', COMPLETED: 'Concluído'
@@ -83,10 +95,28 @@ onMounted(async () => {
 
 watch(() => form.value.organizationSlug, slug => {
   const requestVersion = ++subjectRequestVersion
+  const brandingVersion = ++brandingRequestVersion
+  organizationBranding.value = null
+  brandingLoadError.value = ''
+  brandingLoading.value = !!slug
   protocolSubjects.value = []
   form.value.subjectId = ''
   subjectLoadError.value = ''
   if (!slug) return
+  void publicApi.get<PublicOrganizationBranding>(`/public/organizations/${encodeURIComponent(slug)}/branding`)
+    .then(response => {
+      if (brandingVersion === brandingRequestVersion && slug === form.value.organizationSlug) {
+        organizationBranding.value = response.data
+      }
+    })
+    .catch(() => {
+      if (brandingVersion === brandingRequestVersion && slug === form.value.organizationSlug) {
+        brandingLoadError.value = 'Não foi possível carregar a identidade visual desta organização.'
+      }
+    })
+    .finally(() => {
+      if (brandingVersion === brandingRequestVersion) brandingLoading.value = false
+    })
   subjectsLoading.value = true
   void publicApi.get<PublicProtocolSubject[]>(`/public/organizations/${encodeURIComponent(slug)}/protocol-subjects`)
     .then(response => {
@@ -431,12 +461,12 @@ function formatDate(value: unknown) {
 </script>
 
 <template>
-  <q-layout view="lHh Lpr lFf" class="app-shell">
+  <q-layout view="lHh Lpr lFf" class="app-shell" :class="brandingClass">
     <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
     <q-header class="topbar"><div class="topbar-inner">
       <a class="brand-lockup" href="#main-content" aria-label="NexoGov — início">
         <span class="brand-name">NEXO<span class="brand-gov">GOV</span></span>
-        <span class="brand-caption">Gestão pública digital</span>
+        <span class="brand-caption" :title="visibleOrganizationBranding?.displayName || undefined">{{ brandCaption }}</span>
       </a>
       <q-space />
       <span v-if="isLocalEnvironment" class="environment-label">Ambiente local</span>
@@ -444,6 +474,7 @@ function formatDate(value: unknown) {
     </div></q-header>
 
     <q-page-container><q-page id="main-content" class="content" tabindex="-1">
+      <p v-if="brandingLoadError" class="branding-load-message" role="status">{{ brandingLoadError }}</p>
       <div class="page-heading">
         <h1 class="page-title">Protocolo digital</h1>
         <p class="page-lead">Registre uma solicitação para a organização pública ou acompanhe um protocolo existente.</p>
@@ -465,7 +496,7 @@ function formatDate(value: unknown) {
               <h2 id="new-request-title" class="section-heading">Nova solicitação</h2>
               <p class="section-subheading">Informe os dados do pedido. Os campos com * são obrigatórios.</p>
               <q-form class="form-grid" @submit.prevent="createProtocol">
-                <q-select v-model="form.organizationSlug" :options="organizations.map(o => ({ label: o.name, value: o.slug }))" :disable="loading || organizations.length === 0" :rules="[value => !!value || 'Selecione uma organização.']" emit-value map-options outlined dense label="Organização destinatária *" />
+                <q-select v-model="form.organizationSlug" :options="organizations.map(o => ({ label: o.slug === form.organizationSlug ? organizationBranding?.displayName || o.name : o.name, value: o.slug }))" :disable="loading || organizations.length === 0" :rules="[value => !!value || 'Selecione uma organização.']" emit-value map-options outlined dense label="Organização destinatária *" />
                 <q-input v-model="form.applicantName" :rules="[value => !!value?.trim() || 'Informe seu nome.']" outlined dense label="Nome completo *" maxlength="180" autocomplete="name" />
                 <q-input v-model="form.applicantEmail" :rules="[value => !!value?.trim() || 'Informe seu e-mail.']" outlined dense type="email" label="E-mail *" maxlength="254" autocomplete="email" />
                 <q-select v-model="form.subjectId" :options="protocolSubjects.map(subject => ({ label: subject.name, value: subject.id }))" :disable="loading || subjectsLoading || protocolSubjects.length === 0" :rules="[value => !!value || 'Selecione um assunto.']" emit-value map-options outlined dense label="Assunto *" />

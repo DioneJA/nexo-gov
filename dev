@@ -22,6 +22,8 @@ case "$command" in
   oidc-test) export NEXOGOV_E2E_AUTH_MODE=oidc; exec "$repo_root/scripts/run-e2e.sh" --grep @oidc ;;
   frontend-auth-bundle-test) exec "$repo_root/scripts/frontend-auth-bundle-test.sh" ;;
   identity-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=FederatedIdentityIntegrationTest,MigrationSafetyIntegrationTest' test ;;
+  department-name-index-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=MigrationSafetyIntegrationTest#refusesCaseInsensitiveLegacyDepartmentDuplicatesWithoutChangingRows+refusesTrimmedDepartmentDuplicatesBeforeReplacingTheLegacyIndex+replacesTheLegacyDepartmentIndexAndRejectsTrimmedCaseDuplicates' test ;;
+  organization-branding-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=OrganizationBrandingIntegrationTest,OpenApiContractTest' test ;;
   admin-access-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=OrganizationMemberAccessIntegrationTest test ;;
   contacts-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=OrganizationContactIntegrationTest test ;;
   contacts-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'administrador mantém contatos por tipo e importa/exporta CSV' ;;
@@ -46,6 +48,7 @@ case "$command" in
   process-numbering-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'administrador publica workflow versionado e acompanha o snapshot do processo' ;;
   staff-workspace-layout-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'caixa do servidor ocupa a largura disponível sem overflow após login' ;;
   process-deadline-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'servidor registra e consulta múltiplos prazos no processo' ;;
+  organization-branding-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'administrador publica identidade visual e a troca de organização descarta respostas antigas|cidadão consulta protocolo de outra organização sem atribuir a identidade selecionada' ;;
   matrix) exec python3 "$repo_root/scripts/check-matrix.py" ;;
   matrix-refresh)
     python3 "$repo_root/scripts/build-edital-matrix.py"
@@ -76,6 +79,9 @@ Uso: ./dev <comando>
   oidc-test       Testa callback OIDC, PKCE, state/nonce, bearer e configuração fail-closed em E2E isolado
   frontend-auth-bundle-test  Compila em pasta temporária e verifica isolamento do bundle público
   identity-test   Testa JWT, vínculo externo por organização e segurança da migração V9 (requer Docker)
+  department-name-index-test Testa checksum histórico V2, guarda V26, preservação de colisões e índice final (requer Docker)
+  organization-branding-test Testa autorização, tokens, auditoria, isolamento, projeção pública, contrato e status no-store (requer Docker)
+  organization-branding-e2e Demonstra prévia, publicação, persistência, exibição nos portais, troca de organização, proteção da consulta cross-tenant e nome longo em mobile (requer Docker e Chrome)
   admin-access-test Testa autorização de mutação por papel setorial/organizacional, alvo de outro tenant, suspensão/reativação, auditoria e último administrador (requer Docker)
   contacts-test   Testa CRUD, tipos, CSV UTF-8, limites, importação atômica, transição concorrente, auditoria, autorização e isolamento de contatos (requer Docker)
   contacts-e2e    Testa contatos pela interface real: tipos, edição, arquivamento, importação e exportação CSV, com largura desktop (requer Docker e Chrome)

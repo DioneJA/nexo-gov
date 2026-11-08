@@ -56,6 +56,42 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
         ),
     },
     (
+        "organization-branding.spec.ts",
+        "administrador publica identidade visual e a troca de organização descarta respostas antigas",
+    ): {
+        "labels": {
+            "identidade-visual-previa",
+            "identidade-publicada-servidor",
+            "identidade-publicada-cidadao",
+        },
+        "ids": {"TR91-0669"},
+        "id_labels": {
+            "TR91-0669": {
+                "identidade-visual-previa",
+                "identidade-publicada-servidor",
+                "identidade-publicada-cidadao",
+            },
+        },
+        "nota": (
+            "Capturas de preview local e identidade web publicada no portal do servidor e no portal do cidadão, com dados fictícios. "
+            "São evidência visual parcial: não demonstram símbolo oficial, fundo de tela, aplicativo móvel nativo, imagem em documentos/PDF "
+            "nem aprovação da comissão. O status do requisito permanece EM_DESENVOLVIMENTO."
+        ),
+    },
+    (
+        "organization-branding-tracking.spec.ts",
+        "cidadão consulta protocolo de outra organização sem atribuir a identidade selecionada",
+    ): {
+        "labels": set(),
+        "ids": set(),
+        "id_labels": {},
+        "nota": (
+            "Regressão cross-tenant com organização e chave geradas no ambiente descartável. Não há screenshot: "
+            "a tela de acompanhamento contém uma credencial bearer fictícia e não deve ser exportada como evidência visual. "
+            "Nenhum ID de edital é associado a este cenário."
+        ),
+    },
+    (
         "protocol-participant-fields.spec.ts",
         "administrador configura e mantém campos de identificação por assunto",
     ): {

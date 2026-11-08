@@ -101,6 +101,28 @@ class ExportEvidencePolicyTests(unittest.TestCase):
             "regra-anexo-persistida", "anexo-cidadao-enviado-listado"
         }))
 
+    def test_branding_requirement_requires_preview_and_both_published_portal_labels(self):
+        policy = policy_for("organization-branding.spec.ts")
+        required = {
+            "identidade-visual-previa",
+            "identidade-publicada-servidor",
+            "identidade-publicada-cidadao",
+        }
+        self.assertEqual(required, policy["id_labels"]["TR91-0669"])
+        self.assertEqual({"TR91-0669"}, EXPORTER.supported_ids(policy, required))
+        for missing_label in required:
+            with self.subTest(missing=missing_label):
+                self.assertEqual(set(), EXPORTER.supported_ids(policy, required - {missing_label}))
+
+    def test_cross_organization_tracking_regression_has_no_visual_capture_or_requirement_mapping(self):
+        policy = EXPORTER.SAFE_SCENARIOS[(
+            "organization-branding-tracking.spec.ts",
+            "cidadão consulta protocolo de outra organização sem atribuir a identidade selecionada",
+        )]
+        self.assertEqual(set(), policy["labels"])
+        self.assertEqual(set(), policy["ids"])
+        self.assertEqual({}, policy["id_labels"])
+
     def test_composite_process_requirement_needs_both_complete_screenshot_groups(self):
         groups = EXPORTER.COMPOSITE_EVIDENCE_REQUIREMENTS["ED91-0511"]
         workflow_scenario = next(key for key in groups if key[0] == "process-workflow.spec.ts")
