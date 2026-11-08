@@ -20,8 +20,12 @@ interface WorkflowView {
   subjectName: string
   version: number
   createdAt: string
+  numberingMode: ProcessNumberingMode
+  numberPattern: string
   steps: WorkflowStep[]
 }
+
+type ProcessNumberingMode = 'BY_SUBJECT' | 'GENERAL_SEQUENCE'
 
 interface WorkflowStepDraft {
   key: string
@@ -56,6 +60,7 @@ interface ProcessView {
   subjectName: string
   workflowId: string
   workflowVersion: number
+  processNumber: string | null
   title: string
   currentStepOrder: number
   currentStepName: string
@@ -77,6 +82,7 @@ interface ProcessSummary {
   subjectName: string
   workflowId: string
   workflowVersion: number
+  processNumber: string | null
   title: string
   currentStepOrder: number
   currentStepName: string
@@ -106,6 +112,8 @@ const emit = defineEmits<{
 const subjectKey = ref('')
 const subjectName = ref('')
 const workflow = ref<WorkflowView | null>(null)
+const numberingMode = ref<ProcessNumberingMode>('BY_SUBJECT')
+const numberPattern = ref('{assunto}-{numero}')
 const steps = ref<WorkflowStepDraft[]>([makeStep(1), makeStep(2)])
 const loadedSubjectKey = ref('')
 const loadingWorkflow = ref(false)
@@ -133,6 +141,10 @@ const processListNotice = ref('')
 let processListGeneration = 0
 let contextGeneration = 0
 const processPageSize = 25
+const numberingModeOptions = [
+  { label: 'Uma sequência por assunto', value: 'BY_SUBJECT' },
+  { label: 'Sequência geral da organização', value: 'GENERAL_SEQUENCE' }
+]
 
 function makeStep(order: number): WorkflowStepDraft {
   return { key: crypto.randomUUID(), name: `Etapa ${order}`, departmentIds: [], decisionDepartmentIds: [] }
@@ -144,12 +156,31 @@ const departmentOptions = computed(() => props.departments.map(department => ({
 })))
 const activeDepartmentIds = computed(() => new Set(props.departments.map(department => department.id)))
 const workflowVersion = computed(() => workflow.value?.version ?? 0)
+const numberPatternError = computed(() => {
+  const value = numberPattern.value
+  if (!value.trim() || value.length > 120 || [...value].some(character => /[\u0000-\u001f\u007f]/.test(character)))
+    return 'Informe um modelo visível com até 120 caracteres.'
+  const tokens = [...value.matchAll(/\{([^{}]+)\}/g)].map(match => match[1])
+  const literal = value.replace(/\{[^{}]+\}/g, '')
+  if (/[{}]/.test(literal) || tokens.some(token => !['assunto', 'ano', 'numero'].includes(token)))
+    return 'Use somente os campos {assunto}, {ano} e {numero}, com as chaves completas.'
+  if (tokens.filter(token => token === 'numero').length !== 1)
+    return 'Inclua {numero} exatamente uma vez.'
+  if (tokens.filter(token => token === 'ano').length > 1)
+    return 'Use {ano} no máximo uma vez.'
+  if (numberingMode.value === 'BY_SUBJECT' && tokens.filter(token => token === 'assunto').length !== 1)
+    return 'A sequência por assunto precisa incluir {assunto} exatamente uma vez.'
+  if (numberingMode.value === 'GENERAL_SEQUENCE' && tokens.includes('assunto'))
+    return 'A sequência geral não pode incluir {assunto}.'
+  return ''
+})
 const processBusy = computed(() => processAction.value || loadingProcess.value)
 watch(processBusy, busy => emit('process-busy-change', busy), { immediate: true, flush: 'sync' })
 const workflowDraftIsValid = computed(() => {
   const key = subjectKey.value.trim()
   return /^[a-z0-9][a-z0-9._-]{0,79}$/.test(key)
     && !!subjectName.value.trim()
+    && !numberPatternError.value
     && steps.value.length >= 2
     && steps.value.every(step => !!step.name.trim() && step.departmentIds.length > 0
       && step.decisionDepartmentIds.every(departmentId => step.departmentIds.includes(departmentId)))
@@ -178,6 +209,8 @@ watch(() => props.organizationId, () => {
   loadedSubjectKey.value = ''
   subjectKey.value = ''
   subjectName.value = ''
+  numberingMode.value = 'BY_SUBJECT'
+  numberPattern.value = '{assunto}-{numero}'
   workflowNotice.value = ''
   workflowError.value = ''
   processTitle.value = ''
@@ -214,6 +247,8 @@ watch(subjectKey, value => {
   processAction.value = false
   loadedSubjectKey.value = ''
   workflow.value = null
+  numberingMode.value = 'BY_SUBJECT'
+  numberPattern.value = '{assunto}-{numero}'
   steps.value = [makeStep(1), makeStep(2)]
   processTitle.value = ''
   initialDepartmentId.value = ''
@@ -312,6 +347,8 @@ function applyWorkflow(value: WorkflowView) {
   loadedSubjectKey.value = value.subjectKey
   subjectKey.value = value.subjectKey
   subjectName.value = value.subjectName
+  numberingMode.value = value.numberingMode
+  numberPattern.value = value.numberPattern
   steps.value = value.steps.map(step => ({
     key: crypto.randomUUID(),
     name: step.name,
@@ -351,6 +388,8 @@ async function loadWorkflow() {
       workflow.value = null
       loadedSubjectKey.value = key
       subjectName.value = ''
+      numberingMode.value = 'BY_SUBJECT'
+      numberPattern.value = '{assunto}-{numero}'
       steps.value = [makeStep(1), makeStep(2)]
       initialDepartmentId.value = ''
       workflowNotice.value = 'Ainda não há fluxo publicado para este identificador. Configure as etapas e publique a primeira versão.'
@@ -378,9 +417,20 @@ function setStepDepartments(step: WorkflowStepDraft, departmentIds: string[]) {
   step.decisionDepartmentIds = step.decisionDepartmentIds.filter(departmentId => departmentIds.includes(departmentId))
 }
 
+function defaultPatternFor(mode: ProcessNumberingMode) {
+  return mode === 'GENERAL_SEQUENCE' ? '{numero}' : '{assunto}-{numero}'
+}
+
+function changeNumberingMode(mode: ProcessNumberingMode) {
+  const previousDefault = defaultPatternFor(numberingMode.value)
+  numberingMode.value = mode
+  if (numberPattern.value === previousDefault) numberPattern.value = defaultPatternFor(mode)
+}
+
 async function publishWorkflow() {
   if (!workflowDraftIsValid.value) {
-    workflowError.value = 'Preencha o assunto, dê nome às etapas e escolha ao menos um setor em cada etapa.'
+    workflowError.value = numberPatternError.value
+      || 'Preencha o assunto, dê nome às etapas e escolha ao menos um setor em cada etapa.'
     return
   }
   const generation = contextGeneration
@@ -394,6 +444,8 @@ async function publishWorkflow() {
       subjectName: subjectName.value.trim(),
       expectedVersion: workflowVersion.value,
       idempotencyKey: crypto.randomUUID(),
+      numberingMode: numberingMode.value,
+      numberPattern: numberPattern.value.trim(),
       steps: steps.value.map(step => ({
         name: step.name.trim(),
         departmentIds: [...step.departmentIds],
@@ -638,6 +690,31 @@ function formatDate(value: string) {
             outlined dense maxlength="180"
             :disable="publishingWorkflow || processBusy"
           />
+          <fieldset class="workflow-numbering-settings" aria-labelledby="workflow-numbering-title">
+            <legend id="workflow-numbering-title" class="workflow-numbering-title">Numeração dos processos</legend>
+            <p class="member-access-note">A sequência por assunto mantém um contador para cada assunto. A sequência geral é compartilhada por toda a organização, inclusive entre assuntos diferentes.</p>
+            <q-select
+              :model-value="numberingMode"
+              :options="numberingModeOptions"
+              label="Forma de numeração"
+              emit-value map-options outlined dense
+              :disable="publishingWorkflow || processBusy"
+              @update:model-value="changeNumberingMode"
+            />
+            <q-input
+              v-model="numberPattern"
+              label="Padrão do número"
+              hint="Campos disponíveis: {assunto}, {ano} e {numero}. O ano segue o fuso configurado para este ambiente."
+              outlined dense maxlength="120"
+              :error="!!numberPatternError"
+              :error-message="numberPatternError"
+              :disable="publishingWorkflow || processBusy"
+            />
+            <p class="workflow-numbering-example" role="note">
+              <strong>Prévia do padrão:</strong> {{ numberPattern || '—' }}
+              <span>{{ numberingMode === 'BY_SUBJECT' ? 'Número sequencial dentro deste assunto.' : 'Número sequencial único da organização.' }}</span>
+            </p>
+          </fieldset>
           <ol class="workflow-draft-list" aria-label="Etapas da definição do fluxo">
             <li v-for="(step, index) in steps" :key="step.key" class="workflow-draft-step">
               <span class="workflow-sequence-number" aria-hidden="true">{{ index + 1 }}</span>
@@ -681,11 +758,11 @@ function formatDate(value: string) {
               :disable="steps.length >= 30 || publishingWorkflow || processBusy"
               @click="addStep"
             />
-            <q-btn
-              color="primary" unelevated no-caps
-              :label="`Publicar versão ${workflowVersion + 1}`"
-              :loading="publishingWorkflow"
-              :disable="!workflowDraftIsValid || publishingWorkflow || loadingWorkflow || processBusy"
+          <q-btn
+            color="primary" unelevated no-caps
+            :label="`Publicar versão ${workflowVersion + 1}`"
+            :loading="publishingWorkflow"
+            :disable="!workflowDraftIsValid || publishingWorkflow || loadingWorkflow || processBusy"
               @click="publishWorkflow"
             />
           </div>
@@ -750,8 +827,8 @@ function formatDate(value: string) {
       <div class="workflow-process-search">
         <q-input
           v-model="processListQuery"
-          label="Buscar por título ou assunto"
-          hint="A busca considera título, assunto e identificador."
+          label="Buscar por título, assunto ou número"
+          hint="A busca considera o título, o assunto, o identificador e o número registrado."
           outlined dense maxlength="120"
           :disable="processListLoading"
           @keyup.enter="loadProcessList()"
@@ -775,6 +852,7 @@ function formatDate(value: string) {
           <div class="workflow-process-list-summary">
             <strong>{{ item.title }}</strong>
             <span>Assunto: {{ item.subjectName }}</span>
+            <span>Número: {{ item.processNumber || 'Não registrado no histórico' }}</span>
             <span>Versão do fluxo: {{ item.workflowVersion }}</span>
             <span>Etapa {{ item.currentStepOrder }}: {{ item.currentStepName }}</span>
             <span>Setor responsável: {{ item.currentDepartmentName }}</span>
@@ -815,6 +893,7 @@ function formatDate(value: string) {
       </header>
 
       <div class="workflow-snapshot-summary">
+        <span><strong>Número do processo</strong> {{ process.processNumber || 'Não registrado no histórico' }}</span>
         <span><strong>Versão preservada</strong> {{ process.workflowVersion }}</span>
         <span><strong>Etapa atual</strong> {{ process.currentStepOrder }} de {{ process.steps.length }} — {{ process.currentStepName }}</span>
         <span><strong>Setor responsável</strong> {{ process.currentDepartmentName }}</span>
@@ -987,6 +1066,11 @@ function formatDate(value: string) {
 }
 .workflow-lookup-row .q-input { flex: 1; min-width: 0; }
 .workflow-lookup-row .q-btn { flex: 0 0 auto; }
+.workflow-numbering-settings { display: grid; gap: var(--nexo-space-3); min-width: 0; margin: var(--nexo-space-5) 0 0; padding: var(--nexo-space-4); border: 1px solid var(--nexo-color-separator); border-radius: var(--nexo-radius-md); }
+.workflow-numbering-title { padding: 0 var(--nexo-space-1); color: var(--nexo-color-text); font-size: 14px; font-weight: 600; }
+.workflow-numbering-settings > .member-access-note { margin: 0; }
+.workflow-numbering-example { display: grid; gap: var(--nexo-space-1); margin: 0; color: var(--nexo-color-text-secondary); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.workflow-numbering-example strong { color: var(--nexo-color-text); font-weight: 600; }
 .workflow-draft-list,
 .workflow-process-steps,
 .workflow-event-list {

@@ -30,6 +30,7 @@ import static br.com.nexo.gov.process.AdministrativeWorkflowService.WorkflowConf
 import static br.com.nexo.gov.process.AdministrativeWorkflowService.WorkflowForbidden;
 import static br.com.nexo.gov.process.AdministrativeWorkflowService.WorkflowNotFound;
 import static br.com.nexo.gov.process.AdministrativeWorkflowService.InvalidProcessListQuery;
+import static br.com.nexo.gov.process.AdministrativeWorkflowService.InvalidWorkflowNumbering;
 
 @RestController
 @RequestMapping("/api/v1/staff")
@@ -110,6 +111,11 @@ public class AdministrativeWorkflowController {
 
     @ExceptionHandler(InvalidProcessListQuery.class)
     public ResponseEntity<Map<String, String>> invalidProcessListQuery(InvalidProcessListQuery exception) {
+        return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidWorkflowNumbering.class)
+    public ResponseEntity<Map<String, String>> invalidWorkflowNumbering(InvalidWorkflowNumbering exception) {
         return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
     }
 }

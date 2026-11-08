@@ -1238,6 +1238,16 @@ for index, candidate in enumerate(candidates, start=1):
             "Evidência local em `./dev process-deadline-test`, `./dev process-deadline-e2e` e screenshot `processos-prazos-multiplos` em Documentos, associado ao título exato `process-multiple-deadlines — servidor registra e consulta múltiplos prazos no processo` de `frontend/e2e/process-multiple-deadlines.spec.ts`. A imagem demonstra apenas a UI fictícia; autorização, validação e isolamento são provados pelo Testcontainers. Não é POC oficial nem aprovação da comissão.",
         ),
     }
+    process_numbering_requirements = {
+        "TR91-0561": (
+            "Aceite observável para a cláusula literal: ao publicar um workflow, ADMIN escolhe sequência independente por assunto ou sequência geral compartilhada por todos os assuntos da mesma organização e informa um padrão com campos suportados; ao abrir um processo autorizado, o servidor persiste e apresenta o número gerado no processo e na busca/lista. A configuração fica congelada para a versão e o número emitido é imutável. Processos anteriores permanecem sem número inventado. Não inclui conclusão, regras legais de calendário nem POC oficial.",
+            "AdministrativeWorkflowService/Controller e V25: a organização deriva do TenantContext; modo/modelo são versionados; contadores por assunto ou por organização são protegidos por lock transacional; o número é armazenado uma única vez, único por organização e imutável. `{ano}` usa Clock na zona configurável `NEXOGOV_PROCESS_NUMBERING_ZONE_ID` (ambiente, padrão America/Sao_Paulo).",
+            "AdministrativeProcessPanel integra a configuração no editor de workflow, valida/exibe prévia do padrão e apresenta número ou indicação de legado não registrado na lista/detalhe; busca também aceita número.",
+            "`./dev process-numbering-test` (PostgreSQL Testcontainers) cobre ambos os modos, dois assuntos na sequência geral, mistura de modos, isolamento entre organizações, validação e padrão geral padrão, carry-forward por campo omitido, replay idempotente, mudança de modo incompatível, `{ano}` no limite de ano/fuso fixo, concorrência, `Long.MAX_VALUE` e imutabilidade. `./dev process-numbering-e2e` cobre `frontend/e2e/process-workflow.spec.ts`, cenário `administrador publica workflow versionado e acompanha o snapshot do processo`, com configuração e abertura pela UI para as duas opções, padrão customizado, apresentação do número e recuperação após nova autenticação; `./dev openapi-check` verifica o contrato.",
+            "POC-TR91-0561 (roteiro interno, não sessão oficial): com organização e dados fictícios, publicar dois assuntos em BY_SUBJECT, emitir números independentes e publicar dois assuntos em GENERAL_SEQUENCE, observar a sequência compartilhada; variar padrão com `{assunto}`, `{ano}` e `{numero}`, abrir processo autorizado, recarregar e conferir persistência do número. Testes separados cobrem overflow, isolamento, concorrência, legacy null e imutabilidade.",
+            "Evidência local verificável em `docs/INCREMENTO_54.md`, `./dev process-numbering-test`, `./dev process-numbering-e2e`, `./dev openapi-check` e labels `workflow-numeracao-configurada`, `processo-numero-gerado`, `workflow-numeracao-geral-configurada` e `processo-numero-geral-gerado` da spec `frontend/e2e/process-workflow.spec.ts`. Capturas mostram estados fictícios, não provam por si só autorização, concorrência ou persistência e não equivalem à POC oficial.",
+        ),
+    }
     if requirement_id in partial_organization_requirements:
         acceptance = "Parcial — " + partial_organization_requirements[requirement_id]
         test = "ProtocolVerticalIntegrationTest.departmentAdministrationIsTenantScopedAdminOnlyAndAudited e teste E2E do cadastro de setor; a parte hierárquica/dinâmica do requisito permanece sem teste."
@@ -1245,6 +1255,8 @@ for index, candidate in enumerate(candidates, start=1):
         poc = "POC-ADMIN-ORGANIZACAO: autenticar como ADMIN, cadastrar setor, atualizar lista e demonstrar que outra organização não vê o novo setor; registrar lacunas hierárquicas/dinâmicas."
     if requirement_id in process_deadline_requirements:
         acceptance, backend, frontend, test, poc, evidence = process_deadline_requirements[requirement_id]
+    if requirement_id in process_numbering_requirements:
+        acceptance, backend, frontend, test, poc, evidence = process_numbering_requirements[requirement_id]
     contact_requirements = {
         "TR91-0135": (
             "Demonstrar que ADMIN organizacional consegue criar, consultar, pesquisar, editar, arquivar e reativar contatos internos persistidos; autorização e isolamento são aplicados no servidor.",
@@ -1278,18 +1290,18 @@ for index, candidate in enumerate(candidates, start=1):
         "requisito_resumo_fiel": summary,
         "origem_documento_pagina_secao_item": origin,
         "prioridade": priority_for(candidate["section"], candidate["body"]),
-        "modulo": "ADMINISTRACAO" if requirement_id in contact_requirements else "PROCESSOS_ADMINISTRATIVOS" if requirement_id in process_deadline_requirements else module_for(candidate["section"], candidate["body"]),
-        "natureza": "SOFTWARE" if requirement_id in contact_requirements or requirement_id in process_deadline_requirements else nature_for(candidate["section"], candidate["body"]),
+        "modulo": "ADMINISTRACAO" if requirement_id in contact_requirements else "PROCESSOS_ADMINISTRATIVOS" if requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else module_for(candidate["section"], candidate["body"]),
+        "natureza": "SOFTWARE" if requirement_id in contact_requirements or requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else nature_for(candidate["section"], candidate["body"]),
         "criterio_de_aceite": acceptance,
-        "backend_envolvido": backend if requirement_id in contact_requirements or requirement_id in process_deadline_requirements else "OrganizationAdminService, OrganizationAdminController e tabela departments com escopo validado por TenantContext." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
-        "frontend_envolvido": frontend if requirement_id in contact_requirements or requirement_id in process_deadline_requirements else "Área do servidor: cadastro e seleção de setores retornados pela organização atual." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
+        "backend_envolvido": backend if requirement_id in contact_requirements or requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else "OrganizationAdminService, OrganizationAdminController e tabela departments com escopo validado por TenantContext." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
+        "frontend_envolvido": frontend if requirement_id in contact_requirements or requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements else "Área do servidor: cadastro e seleção de setores retornados pela organização atual." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
         "teste_automatizado": test,
         "roteiro_poc": poc,
         "evidencia": evidence,
         # Matrix generation describes implementation progress; it cannot observe test
         # execution or inspect exported evidence. Promotion to VALIDADO is a deliberate
         # traceability update after those proofs have been reviewed.
-        "status": "EM_DESENVOLVIMENTO" if requirement_id in process_deadline_requirements or requirement_id in partial_organization_requirements else "NAO_INICIADO" if visually_reviewed else "BLOQUEADO",
+        "status": "EM_DESENVOLVIMENTO" if requirement_id in process_deadline_requirements or requirement_id in process_numbering_requirements or requirement_id in partial_organization_requirements else "NAO_INICIADO" if visually_reviewed else "BLOQUEADO",
         "validacao_fonte": "CONFERIDA_VISUALMENTE" if visually_reviewed else "OCR_PENDENTE",
     }
     if requirement_id in contact_requirements:
@@ -1418,7 +1430,7 @@ for index, candidate in enumerate(candidates, start=1):
         generated_blocker = previous["criterio_de_aceite"].startswith(
             "BLOQUEADO: transcrição conferida; decompor obrigações, definir aceite observável"
         )
-        preserve_previous = not generated_blocker and requirement_id not in partial_federated_identity_requirements and requirement_id not in contact_requirements and not (
+        preserve_previous = not generated_blocker and requirement_id not in process_numbering_requirements and requirement_id not in partial_federated_identity_requirements and requirement_id not in contact_requirements and not (
             requirement_id in poc_requirement_details and previous["status"] == "NAO_INICIADO"
         )
         if preserve_previous:

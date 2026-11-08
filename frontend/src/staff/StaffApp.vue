@@ -1564,7 +1564,7 @@ function flattenStaff(nodes: OrganogramNode[]) {
               </section>
             </article>
           </div>
-          <div v-else class="empty-state">Não há protocolos atribuídos para exibir.</div>
+          <div v-else class="empty-state inbox-empty-state" role="status">Não há protocolos atribuídos para exibir.</div>
         </section>
 
         <aside class="organization-panel" aria-labelledby="organization-title">

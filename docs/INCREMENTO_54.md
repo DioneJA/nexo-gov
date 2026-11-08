@@ -1,0 +1,33 @@
+# Incremento 54 — numeração de processos e layout da caixa do servidor
+
+## Fonte e escopo
+
+`TR91-0561` corresponde à cláusula de numeração automática por assunto ou em sequência geral, com padrão customizável (Termo de Referência, §7 “PROCESSO ADMINISTRATIVO”, PDF p.53, rodapé `-53-`). A página escaneada foi conferida visualmente; o hash da fonte e o registro de revisão estão em [`REVISAO_FONTES.md`](licitacoes/mata-de-sao-joao-91-2025/REVISAO_FONTES.md). `ED91-0511` é composto: exige os dois modos de numeração e o registro de múltiplos prazos. A parte de prazos já está implementada e registrada no incremento 53.
+
+Este incremento também corrige o espaço vazio à direita da caixa curta ou vazia de protocolos em desktop. A caixa ocupa uma coluna de largura total; o organograma vem abaixo de um separador discreto; a mensagem vazia existente fica centralizada. Não foram adicionados protocolos de exemplo, métricas nem cartões.
+
+## Decisões e arquivos
+
+- V25 adiciona modo e padrão versionados ao workflow, número opcional aos processos existentes, unicidade do número na organização, contadores por organização/escopo e trava transacional por organização. O trigger impede alterar um número já emitido. Registros anteriores continuam sem número.
+- O padrão aceita `{assunto}`, `{ano}` e `{numero}`; `{numero}` é obrigatório uma vez. `{assunto}` é obrigatório no modo por assunto e proibido na sequência geral. O modo por assunto conta por chave estável do assunto; a sequência geral é compartilhada entre os assuntos da organização. A sequência não reinicia por ano; `{ano}` é apenas um campo opcional produzido pelo `Clock` configurado (`NEXOGOV_PROCESS_NUMBERING_ZONE_ID`, padrão `America/Sao_Paulo`).
+- Modo e padrão ficam no snapshot imutável de cada versão publicada. Quando uma publicação posterior omite cada campo separadamente, herda o valor anterior. A versão padrão usa `{assunto}-{numero}`; a sequência geral usa `{numero}`. A interface mostra a prévia como prévia, o número persistido no processo/lista e aceita busca por número.
+- Migração e operações derivam organização do `TenantContext`; autorização para configurar numeração exige ADMIN organizacional ativo. A abertura exige membership no setor inicial da primeira etapa. A trava/counter e a restrição única protegem colisões concorrentes; erros de padrão e overflow não emitem número.
+- O caso E2E `process-workflow.spec.ts` agora salva diagnóstico nos anexos do Playwright logo após preencher a segunda etapa e depois de selecionar o setor: chave do assunto, valores de cada etapa, setores e corpo candidato do POST. O listener guarda o body real se o POST chegar a acontecer. As duas verificações de valor ocorrem imediatamente depois de cada operação.
+- A revisão de layout espera respostas HTTP bem-sucedidas de setores, caixa, permissões e organograma e confirma que os spinners de acesso e caixa sumiram antes de capturar. `./dev evidence-layout` roda apenas esse par aprovado e exporta um manifesto sem IDs de edital; filtros livres continuam recusados.
+- `DESIGN.md`, o harness, `README.md`, `AGENTS.md` e a skill `nexogov-design-system` registram a disposição em uma coluna, a validação de carregamento real e a captura privada. A matriz e o roteiro POC preservam a referência, o limite composto e o status atual; sem promoção de status por presença de screenshots.
+
+## Verificações
+
+- `./dev process-numbering-test`: 3 testes PostgreSQL/Testcontainers passaram, cobrindo sequência por assunto e geral, compartilhamento entre assuntos, mistura de modos, isolamento tenant, autorização sem consumo, defaults, snapshot/carry-forward, replay idempotente, padrão incompatível, ano/fuso, overflow, imutabilidade e concorrência.
+- `./dev process-numbering-e2e`: passou, 1 cenário real de UI/API. Publicou os dois modos, abriu processos fictícios, conferiu o número retornado e recuperou estado após autenticação/recarga. A captura completa de evidências também passou no cenário de workflow, mas não elimina a lacuna diagnóstica descrita em “Status e limites”.
+- `./dev verify`: passou após a correção da espera visual: Core 14/14; backend/Testcontainers 76/76; build frontend com 92 módulos; matriz; E2E básico 17 passados e 4 condicionais OIDC ignorados; suíte OIDC 7/7.
+- `./dev evidence`: 11/11 cenários passaram e 31 PNGs foram exportados em `/home/exati/Documents/NexoGov-Evidencias/PE-91-2025/20261108T222507Z-2840583`. As capturas são demonstrações locais com dados fictícios; não são POC oficial.
+- `./dev evidence-layout`: 1/1 cenário passou; manifesto em `/home/exati/Documents/NexoGov-Evidencias/PE-91-2025/20261108T223105Z-2866894/manifesto.json`, com `ids_matriz_relacionados: []`. PNG inspecionado: `/home/exati/Documents/NexoGov-Evidencias/PE-91-2025/20261108T223105Z-2866894/midia/inbox-workspace-layout--caixa-do-servidor-ocupa-a-largura-disponivel-sem-overflow-apos-login--servidor-workspace-full-width.png`, SHA-256 `5ec536dc73d998658f761ea65089e34686d851e04efd668fdc8256fc0d5d1e9c`. A tela mostra a caixa vazia centralizada e o organograma abaixo, sem indicador de carregamento; o campo de senha permanece mascarado.
+- `./dev evidence-export-test`: 17 testes passaram, incluindo a política sem IDs do layout e o despacho restrito do comando `evidence-layout`. `./dev openapi-check`: 6/6 passaram. `./dev matrix`: 1.388 linhas íntegras, IDs estáveis e contagens abaixo. `git diff --check`: passou sem erros de whitespace.
+- O sandbox manual ficou ativo em `http://127.0.0.1:39215/`; nenhum dado ou volume desse sandbox foi usado para gerar as capturas.
+
+## Status e limites
+
+Os IDs `TR91-0561` e `ED91-0511` permanecem `EM_DESENVOLVIMENTO` nesta revisão. Uma execução anterior de `./dev evidence` falhou no workflow após a seleção de “Secretaria de Obras”: o valor do campo “Nome da etapa 2” retornou a `Etapa 2` em vez de `Análise técnica`. O cenário passou depois em `verify`, no teste focado e na exportação integral final, mas a execução que falhou já tinha removido o diretório temporário com o detalhe; assim, a causa não foi confirmada nem o estado capturado. O teste agora preserva diagnóstico detalhado em futuras falhas. A nova captura de layout é independente e não tem IDs de edital. Não promover os requisitos de numeração até uma execução diagnosticar ou descartar essa perda de valor.
+
+`TR91-0561` não cobre regras de prazo legal/calendário nem a sessão oficial de POC. `ED91-0511` continua composto e só recebe associação de mídia quando os grupos completos de numeração e de prazos estão presentes; screenshots não substituem autorização/isolamento Testcontainers nem a POC. A matriz permanece em 1.388 requisitos: 47 `EM_DESENVOLVIMENTO`, 1.324 `NAO_INICIADO` e 17 `VALIDADO`.

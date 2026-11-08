@@ -186,7 +186,7 @@ The palette keeps most of the interface neutral, with navy for primary actions a
 
 ## Layout
 
-The desktop shell centers content in a maximum 1360 px frame. Its top bar is 68 px tall, with 44 px horizontal padding; page content starts with 54 px top padding and 44 px side padding. The public request view places the form beside a 264 px guidance column. The staff view places the inbox beside organization structure. At 820 px these columns stack; at 600 px forms become single-column, the top bar shortens to 60 px, and page side padding becomes 18 px. Coarse-pointer controls grow to at least 48 px.
+The desktop shell centers content in a maximum 1360 px frame. Its top bar is 68 px tall, with 44 px horizontal padding; page content starts with 54 px top padding and 44 px side padding. The public request view places the form beside a 264 px guidance column. In the staff view, the protocol inbox leads as a full-width region and organization administration follows below a quiet separator at every viewport width. The organization panel can be much taller than an empty inbox; placing it beside the inbox left most of the desktop workspace unused. Center the existing empty-inbox message across the available inbox width; do not fill the empty state with invented records, metrics, or decorative cards. At 820 px public-service columns stack; at 600 px forms become single-column, the top bar shortens to 60 px, and page side padding becomes 18 px. Coarse-pointer controls grow to at least 48 px.
 
 Use the shared 4 px spacing scale for new elements, while matching established local component spacing where it differs. Keep related fields grouped, headings aligned to their content, and long text within a comfortable reading width.
 
@@ -208,7 +208,7 @@ Inputs and buttons use restrained 7 px corners. The page has no enclosing form c
 
 ### Service Layout
 - **Citizen portal:** the form and its supporting information sit directly on the page canvas, separated by alignment and a quiet rule.
-- **Staff area:** the inbox leads; organization structure stays secondary and does not repeat cards around each row.
+- **Staff area:** the inbox leads at full width; its existing empty-state message is centered across the available width. Organization structure follows below as a secondary section and does not repeat cards around each row.
 
 ### Inputs / Fields
 - **Style:** outlined white fields with a neutral border and restrained corners (7 px).

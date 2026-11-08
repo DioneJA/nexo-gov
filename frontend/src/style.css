@@ -123,6 +123,7 @@ input, textarea { caret-color: var(--nexo-color-action); }
 .history-event:not(:last-child)::before { position: absolute; top: 9px; bottom: -1px; left: 4px; width: 1px; background: var(--nexo-color-outline); content: ''; }
 .history-marker { z-index: 1; width: 9px; height: 9px; margin-top: 5px; border: 2px solid var(--nexo-color-action); border-radius: 50%; background: var(--nexo-color-canvas); }
 .empty-state { padding: 15px 0; color: var(--nexo-color-text-secondary); font-size: 13px; line-height: 1.55; }
+.inbox-empty-state { width: 100%; padding: 36px 16px; text-align: center; }
 .subject-list-status { grid-column: 1 / -1; margin: calc(-1 * var(--nexo-space-2)) 0 0; color: var(--nexo-color-text-secondary); font-size: 13px; line-height: 1.5; }
 .subject-list-error { color: var(--nexo-color-danger); }
 .staff-access { margin: 0 0 26px; }
@@ -167,13 +168,13 @@ input, textarea { caret-color: var(--nexo-color-action); }
 .staff-auth-note { color: var(--nexo-color-text-secondary); }
 .staff-auth-unavailable { color: var(--nexo-color-danger); }
 .staff-auth-status { margin: 0; color: var(--nexo-color-text-secondary); font-size: 13px; line-height: 1.5; }
-.staff-workspace { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, .8fr); gap: clamp(36px, 5.5vw, 76px); margin-top: 35px; align-items: start; }
+.staff-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; margin-top: 35px; align-items: start; }
 .contacts-workspace { margin-top: 42px; padding-top: 28px; border-top: 1px solid var(--nexo-color-separator); }
 .inbox-panel { min-width: 0; }
 .inbox-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
 .inbox-heading .section-subheading { margin: 6px 0 0; }
 .destination-control { max-width: 420px; margin: 0 0 16px; }
-.organization-panel { min-width: 0; padding: 6px 0 0 27px; border-left: 1px solid var(--nexo-color-outline); }
+.organization-panel { min-width: 0; padding: 22px 0 0; border-top: 1px solid var(--nexo-color-outline); }
 .organization-panel .aside-heading { margin-top: 8px; }
 .organogram-tree { padding: 4px 0; }
 .department-editor { margin-top: 22px; padding-top: 21px; border-top: 1px solid var(--nexo-color-separator); }
@@ -214,7 +215,7 @@ input, textarea { caret-color: var(--nexo-color-action); }
 .subject-participant-fields { display: grid; gap: var(--nexo-space-3); padding-top: var(--nexo-space-4); border-top: 1px solid var(--nexo-color-separator); }
 .participant-fields-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--nexo-space-2) var(--nexo-space-4); }
 .participant-fields-heading > div { display: grid; gap: var(--nexo-space-1); }
-.participant-fields-panel { display: grid; gap: var(--nexo-space-3); container: participant-fields / inline-size; }
+.participant-fields-panel { display: grid; max-width: 520px; gap: var(--nexo-space-3); container: participant-fields / inline-size; }
 .participant-fields-limit { margin: 0; padding: var(--nexo-space-3); border-left: 2px solid var(--nexo-color-action); background: var(--nexo-color-selection); color: var(--nexo-color-text-secondary); font-size: 13px; line-height: 1.5; }
 .participant-field-list { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--nexo-color-separator); }
 .participant-field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr) 120px auto; align-items: start; gap: var(--nexo-space-3); padding: var(--nexo-space-4) 0; border-bottom: 1px solid var(--nexo-color-separator); }
@@ -354,8 +355,6 @@ input, textarea { caret-color: var(--nexo-color-action); }
   .service-layout { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .service-aside { max-width: 640px; padding: 21px 0 0; border-top: 1px solid var(--nexo-color-outline); border-left: 0; }
   .aside-heading { margin-top: 8px; }
-  .staff-workspace { grid-template-columns: minmax(0, 1fr); gap: 28px; }
-  .organization-panel { padding: 22px 0 0; border-top: 1px solid var(--nexo-color-outline); border-left: 0; }
 }
 
 @media (max-width: 600px) {

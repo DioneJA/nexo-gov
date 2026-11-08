@@ -168,6 +168,10 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
             "workflow-publicado-v1",
             "workflow-decisores-configurados",
             "workflow-publicado-v2",
+            "workflow-numeracao-configurada",
+            "processo-numero-gerado",
+            "workflow-numeracao-geral-configurada",
+            "processo-numero-geral-gerado",
             "processo-snapshot-v1",
             "processo-decisao-registrada",
             "processo-decisao-persistida",
@@ -175,7 +179,7 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
             "processo-listado-apos-reinicio",
             "detalhe-reaberto-da-listagem",
         },
-        "ids": {"ED91-0510", "ED91-0596", "TR91-0560", "TR91-0691"},
+        "ids": {"ED91-0510", "ED91-0596", "TR91-0560", "TR91-0561", "TR91-0691"},
         "id_labels": {
             "ED91-0510": {
                 "workflow-decisores-configurados",
@@ -195,6 +199,12 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
                 "processo-decisao-registrada",
                 "processo-decisao-persistida",
             },
+            "TR91-0561": {
+                "workflow-numeracao-configurada",
+                "processo-numero-gerado",
+                "workflow-numeracao-geral-configurada",
+                "processo-numero-geral-gerado",
+            },
             "TR91-0691": {
                 "workflow-publicado-v1",
                 "workflow-publicado-v2",
@@ -207,10 +217,11 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
         "nota": (
             "Subfluxo visual local com organização e processo fictícios: publicação v1/v2, configuração do setor decisor, "
             "registro de Deferido sem encerrar o processo, persistência da decisão após recarga, snapshot v1 preservado, "
+            "numeração customizada por assunto e numeração geral configurada pela interface com o número exibido no processo, "
             "avanço à última etapa, listagem autorizada e reabertura do detalhe após nova autenticação. "
             "O Playwright também verifica HTTP 409 sem mutação ao tentar pular etapa e HTTP 403 sem mutação para servidor sem lotação no setor atual. "
             "As capturas mostram somente os três estados requeridos para a decisão; não provam sozinhas as recusas, "
-            "outro resultado ou idempotência, encerramento do processo, condições avançadas, exportação, notificações, POC oficial ou critérios integrais."
+            "outro resultado ou idempotência, encerramento do processo, condições avançadas, exportação, notificações, sequência geral compartilhada entre assuntos, POC oficial ou critérios integrais."
         ),
     },
     (
@@ -219,12 +230,44 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
     ): {
         "labels": {"processos-prazos-multiplos"},
         "ids": {"TR91-0562"},
-        "id_labels": {"TR91-0562": {"processos-prazos-multiplos"}},
+        "id_labels": {
+            "TR91-0562": {"processos-prazos-multiplos"},
+        },
         "nota": (
             "Screenshot de viewport da área autenticada do servidor com dois prazos fictícios, ordenados pelo vencimento, "
             "após recarga e nova autenticação. A imagem mostra somente a tela; persistência, autoria, validação, autorização "
             "e isolamento dependem também do teste PostgreSQL/Testcontainers. Não é demonstração oficial da comissão."
         ),
+    },
+    (
+        "inbox-workspace-layout.spec.ts",
+        "caixa do servidor ocupa a largura disponível sem overflow após login",
+    ): {
+        "labels": {"servidor-workspace-full-width"},
+        "ids": set(),
+        "id_labels": {},
+        "nota": (
+            "Captura de revisão visual pós-login: a caixa de protocolos e a hierarquia organizacional ocupam uma coluna larga. "
+            "Este PNG é evidência de layout interno e não está associado a requisito do edital."
+        ),
+    },
+}
+
+COMPOSITE_EVIDENCE_REQUIREMENTS: dict[str, dict[tuple[str, str], set[str]]] = {
+    "ED91-0511": {
+        (
+            "process-workflow.spec.ts",
+            "administrador publica workflow versionado e acompanha o snapshot do processo",
+        ): {
+            "workflow-numeracao-configurada",
+            "processo-numero-gerado",
+            "workflow-numeracao-geral-configurada",
+            "processo-numero-geral-gerado",
+        },
+        (
+            "process-multiple-deadlines.spec.ts",
+            "process-multiple-deadlines — servidor registra e consulta múltiplos prazos no processo",
+        ): {"processos-prazos-multiplos"},
     },
 }
 
@@ -253,6 +296,15 @@ def supported_ids(policy: dict, found_labels: set[str]) -> set[str]:
         for requirement_id in policy["ids"]
         if required_labels_for_id(policy, requirement_id).issubset(found_labels)
     }
+
+
+def composite_evidence_complete(requirement_id: str,
+                                captures_by_scenario: dict[tuple[str, str], set[str]]) -> bool:
+    required_groups = COMPOSITE_EVIDENCE_REQUIREMENTS.get(requirement_id)
+    return required_groups is not None and all(
+        labels.issubset(captures_by_scenario.get(scenario, set()))
+        for scenario, labels in required_groups.items()
+    )
 
 
 def sha256(path: Path) -> str:
@@ -527,6 +579,13 @@ def main() -> int:
     ids_by_scenario: dict[tuple[str, str], list[str]] = {}
     for row in rows:
         requirement_id = row.get("id", "")
+        if requirement_id in COMPOSITE_EVIDENCE_REQUIREMENTS:
+            required_groups = COMPOSITE_EVIDENCE_REQUIREMENTS[requirement_id]
+            if composite_evidence_complete(requirement_id, captured_labels_by_scenario):
+                for scenario_key in required_groups:
+                    if explicit_row_maps_to_scenario(row, scenario_key[0], scenario_key[1], repo_root):
+                        ids_by_scenario.setdefault(scenario_key, []).append(requirement_id)
+            continue
         for scenario_key, policy in SAFE_SCENARIOS.items():
             captured_labels = captured_labels_by_scenario.get(scenario_key, set())
             if requirement_id in supported_ids(policy, captured_labels):

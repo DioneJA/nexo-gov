@@ -101,6 +101,29 @@ class ExportEvidencePolicyTests(unittest.TestCase):
             "regra-anexo-persistida", "anexo-cidadao-enviado-listado"
         }))
 
+    def test_composite_process_requirement_needs_both_complete_screenshot_groups(self):
+        groups = EXPORTER.COMPOSITE_EVIDENCE_REQUIREMENTS["ED91-0511"]
+        workflow_scenario = next(key for key in groups if key[0] == "process-workflow.spec.ts")
+        deadline_scenario = next(key for key in groups if key[0] == "process-multiple-deadlines.spec.ts")
+        workflow_labels = groups[workflow_scenario]
+        deadline_labels = groups[deadline_scenario]
+
+        self.assertFalse(EXPORTER.composite_evidence_complete("ED91-0511", {
+            workflow_scenario: workflow_labels,
+        }))
+        self.assertFalse(EXPORTER.composite_evidence_complete("ED91-0511", {
+            workflow_scenario: workflow_labels - {"processo-numero-geral-gerado"},
+            deadline_scenario: deadline_labels,
+        }))
+        self.assertFalse(EXPORTER.composite_evidence_complete("ED91-0511", {
+            workflow_scenario: workflow_labels,
+            deadline_scenario: set(),
+        }))
+        self.assertTrue(EXPORTER.composite_evidence_complete("ED91-0511", {
+            workflow_scenario: workflow_labels,
+            deadline_scenario: deadline_labels,
+        }))
+
     def test_composite_attachment_and_deadline_requirement_gets_no_media_from_attachment_only_scenario(self):
         repo_root = EXPORTER_PATH.parents[1]
         spec_name, title = next(
@@ -236,6 +259,10 @@ class ExportEvidencePolicyTests(unittest.TestCase):
         self.assertEqual({"ED91-0596", "TR91-0691"}, EXPORTER.supported_ids(policy, partial))
         complete = partial | {
             "workflow-publicado-v2",
+            "workflow-numeracao-configurada",
+            "processo-numero-gerado",
+            "workflow-numeracao-geral-configurada",
+            "processo-numero-geral-gerado",
             "processo-decisao-registrada",
             "processo-decisao-persistida",
             "processo-avancado-para-etapa-final",
@@ -243,8 +270,9 @@ class ExportEvidencePolicyTests(unittest.TestCase):
             "detalhe-reaberto-da-listagem",
         }
         self.assertTrue(EXPORTER.capture_is_complete(policy, complete))
-        self.assertEqual({"ED91-0510", "ED91-0596", "TR91-0560", "TR91-0691"},
+        self.assertEqual({"ED91-0510", "ED91-0596", "TR91-0560", "TR91-0561", "TR91-0691"},
                          EXPORTER.supported_ids(policy, complete))
+        self.assertNotIn("ED91-0511", EXPORTER.supported_ids(policy, complete))
 
     def test_process_deadline_capture_maps_only_the_multiple_deadlines_clause(self):
         policy = policy_for("process-multiple-deadlines.spec.ts")
@@ -252,6 +280,20 @@ class ExportEvidencePolicyTests(unittest.TestCase):
         self.assertEqual({"TR91-0562": {"processos-prazos-multiplos"}}, policy["id_labels"])
         self.assertEqual({"TR91-0562"}, EXPORTER.supported_ids(policy, {"processos-prazos-multiplos"}))
         self.assertEqual(set(), EXPORTER.supported_ids(policy, set()))
+
+    def test_staff_workspace_layout_capture_is_not_mapped_to_tender_ids(self):
+        policy = policy_for("inbox-workspace-layout.spec.ts")
+        self.assertEqual({"servidor-workspace-full-width"}, policy["labels"])
+        self.assertEqual(set(), policy["ids"])
+        self.assertEqual({}, policy["id_labels"])
+
+        repo_root = EXPORTER_PATH.parents[1]
+        dev_text = (repo_root / "dev").read_text(encoding="utf-8")
+        capture_script = (repo_root / "scripts/capture-e2e-evidence.sh").read_text(encoding="utf-8")
+        self.assertIn('evidence-layout) exec "$repo_root/scripts/capture-e2e-evidence.sh" --layout-only ;;', dev_text)
+        self.assertIn('--layout-only) capture_scope="layout" ;;', capture_script)
+        self.assertIn("--grep 'caixa do servidor ocupa a largura disponível sem overflow após login'", capture_script)
+        self.assertIn('filtros livres são recusados', capture_script)
 
     def test_unexpected_label_does_not_complete_an_allowlisted_scenario(self):
         policy = policy_for("protocol-interactions.spec.ts")

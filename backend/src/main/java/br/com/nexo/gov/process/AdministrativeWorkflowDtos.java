@@ -26,12 +26,17 @@ public final class AdministrativeWorkflowDtos {
             @NotBlank @Size(max = 180) String subjectName,
             @NotNull @PositiveOrZero Integer expectedVersion,
             @NotNull UUID idempotencyKey,
+            ProcessNumberingMode numberingMode,
+            @Size(max = 120) String numberPattern,
             @NotEmpty @Size(min = 2, max = 30) List<@NotNull @Valid WorkflowStepRequest> steps) {}
+
+    public enum ProcessNumberingMode { BY_SUBJECT, GENERAL_SEQUENCE }
 
     public record WorkflowDepartmentView(UUID id, String name, boolean canDecide) {}
     public record WorkflowStepView(int order, String name, List<WorkflowDepartmentView> departments) {}
     public record WorkflowView(UUID id, String subjectKey, String subjectName, int version,
-                               OffsetDateTime createdAt, List<WorkflowStepView> steps) {}
+                               OffsetDateTime createdAt, ProcessNumberingMode numberingMode,
+                               String numberPattern, List<WorkflowStepView> steps) {}
     public record WorkflowPublicationResult(WorkflowView workflow, boolean replayed) {}
 
     public record ProcessCreateRequest(
@@ -52,13 +57,13 @@ public final class AdministrativeWorkflowDtos {
                                    int toStepOrder, UUID fromDepartmentId, UUID toDepartmentId,
                                    String decisionOutcome, OffsetDateTime occurredAt) {}
     public record ProcessSummaryView(UUID id, String subjectKey, String subjectName, UUID workflowId,
-                                     int workflowVersion, String title, int currentStepOrder,
+                                     int workflowVersion, String processNumber, String title, int currentStepOrder,
                                      String currentStepName, UUID currentDepartmentId,
                                      String currentDepartmentName, String status, String decisionOutcome,
                                      OffsetDateTime createdAt) {}
     public record ProcessPageView(List<ProcessSummaryView> items, int page, int size, boolean hasNext) {}
     public record ProcessView(UUID id, String subjectKey, String subjectName, UUID workflowId,
-                              int workflowVersion, String title, int currentStepOrder,
+                              int workflowVersion, String processNumber, String title, int currentStepOrder,
                               String currentStepName, UUID currentDepartmentId,
                               String currentDepartmentName, String status, String decisionOutcome,
                               String decisionActor, OffsetDateTime decisionAt,

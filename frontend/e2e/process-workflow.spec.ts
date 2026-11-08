@@ -1,4 +1,4 @@
-import { expect, request as playwrightRequest, test, type Page, type Route } from '@playwright/test'
+import { expect, request as playwrightRequest, test, type Page, type Route, type TestInfo } from '@playwright/test'
 import { attachEvidenceScreenshot } from './evidence-fixtures'
 
 async function delayNextStaffRequest(page: Page, method: string, pathSuffix: string) {
@@ -29,6 +29,54 @@ async function selectVisibleOption(page: Page, field: ReturnType<Page['getByRole
   await menu.getByRole('option', { name: optionName, exact: true }).click()
   await page.keyboard.press('Escape')
   await expect(menu).toBeHidden()
+}
+
+async function attachWorkflowDraftDiagnostic(
+  panel: ReturnType<Page['getByRole']>,
+  testInfo: TestInfo,
+  phase: string,
+  requestedPostBody: unknown
+) {
+  const draft = await panel.evaluate(element => {
+    const fieldValue = (label: string) =>
+      (element.querySelector(`input[aria-label="${label}"]`) as HTMLInputElement | null)?.value ?? ''
+    const stages = Array.from(element.querySelectorAll('.workflow-draft-step')).map(stage => {
+      const inputs = Array.from(stage.querySelectorAll('input'))
+      const selectors = Array.from(stage.querySelectorAll('.q-select'))
+      const selectedLabels = (selector: Element | undefined) =>
+        selector ? Array.from(selector.querySelectorAll('.q-chip__content')).map(chip => chip.textContent?.trim() ?? '') : []
+      return {
+        name: inputs.find(input => input.getAttribute('aria-label')?.startsWith('Nome da etapa'))?.value ?? '',
+        selectedDepartments: selectedLabels(selectors[0]),
+        selectedDecisionDepartments: selectedLabels(selectors[1])
+      }
+    })
+    return {
+      subjectKey: fieldValue('Identificador do assunto'),
+      subjectName: fieldValue('Nome do assunto'),
+      numberPattern: fieldValue('Padrão do número'),
+      stages
+    }
+  })
+  await testInfo.attach(`workflow-draft-${phase}.json`, {
+    body: JSON.stringify({
+      phase,
+      ...draft,
+      selectedDepartment: draft.stages[1]?.selectedDepartments ?? [],
+      postBody: requestedPostBody,
+      postBodyCandidate: {
+        subjectKey: draft.subjectKey,
+        subjectName: draft.subjectName,
+        numberPattern: draft.numberPattern,
+        steps: draft.stages.map(stage => ({
+          name: stage.name,
+          departments: stage.selectedDepartments,
+          decisionDepartments: stage.selectedDecisionDepartments
+        }))
+      }
+    }, null, 2),
+    contentType: 'application/json'
+  })
 }
 
 async function expectPortalNavigationBlocked(page: Page) {
@@ -127,13 +175,29 @@ test('administrador publica workflow versionado e acompanha o snapshot do proces
     await expect(panel.locator('.workflow-editor').getByRole('status')).toContainText('Ainda não há fluxo publicado')
 
     await panel.getByLabel('Nome do assunto').fill(`Licença fictícia ${suffix}`)
+    await panel.getByLabel('Padrão do número').fill('EXP-{assunto}/{numero}')
+    await expect(panel.locator('.workflow-numbering-settings')).toContainText('Uma sequência por assunto')
+    await expect(panel.locator('.workflow-numbering-example')).toContainText('EXP-{assunto}/{numero}')
     await panel.getByLabel('Nome da etapa 1').fill('Recebimento inicial')
     await selectVisibleOption(page, panel.getByLabel('Setores da etapa 1'), 'Protocolo Geral')
     await selectVisibleOption(page, panel.getByLabel('Setores decisores 1'), 'Protocolo Geral')
-    const secondStageName = panel.getByLabel('Nome da etapa 2')
-    await secondStageName.fill('Análise técnica')
-    await selectVisibleOption(page, panel.getByLabel('Setores da etapa 2'), 'Secretaria de Obras')
-    await expect(secondStageName).toHaveValue('Análise técnica')
+  const secondStageName = panel.getByLabel('Nome da etapa 2')
+  await secondStageName.fill('Análise técnica')
+  let workflowPostBody: unknown = null
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/staff/administrative-workflows')) {
+      try {
+        workflowPostBody = request.postDataJSON()
+      } catch {
+        workflowPostBody = request.postData()
+      }
+    }
+  })
+  await attachWorkflowDraftDiagnostic(panel, testInfo, 'imediatamente-apos-fill', workflowPostBody)
+  await expect(secondStageName).toHaveValue('Análise técnica')
+  await selectVisibleOption(page, panel.getByLabel('Setores da etapa 2'), 'Secretaria de Obras')
+  await attachWorkflowDraftDiagnostic(panel, testInfo, 'apos-selecao-do-setor', workflowPostBody)
+  await expect(secondStageName).toHaveValue('Análise técnica')
 
     const versionOnePromise = page.waitForResponse(response =>
       response.request().method() === 'POST'
@@ -143,8 +207,14 @@ test('administrador publica workflow versionado e acompanha o snapshot do proces
     const versionOneResponse = await versionOnePromise
     expect(versionOneResponse.status()).toBe(201)
     const versionOne = await versionOneResponse.json() as {
+      numberingMode: string
+      numberPattern: string
       steps: Array<{ name: string; departments: Array<{ id: string; name: string; canDecide: boolean }> }>
     }
+    expect(versionOne).toMatchObject({
+      numberingMode: 'BY_SUBJECT',
+      numberPattern: 'EXP-{assunto}/{numero}'
+    })
     expect(versionOne.steps[1].name).toBe('Análise técnica')
     expect(versionOne.steps[0].departments).toContainEqual(expect.objectContaining({
       id: intake!.id,
@@ -153,6 +223,7 @@ test('administrador publica workflow versionado e acompanha o snapshot do proces
     await expect(panel.locator('.workflow-editor').getByRole('status')).toContainText('Versão 1 publicada')
     await attachEvidenceScreenshot(page, testInfo, 'workflow-publicado-v1', panel.locator('.workflow-editor'))
     await attachEvidenceScreenshot(page, testInfo, 'workflow-decisores-configurados', panel.locator('.workflow-editor'))
+    await attachEvidenceScreenshot(page, testInfo, 'workflow-numeracao-configurada', panel.locator('.workflow-numbering-settings'))
 
     await panel.getByLabel('Título do processo').fill(`Processo fictício ${suffix}`)
     const subjectKeyInput = panel.getByLabel('Identificador do assunto')
@@ -180,9 +251,15 @@ test('administrador publica workflow versionado e acompanha o snapshot do proces
     await expect(staffAccessButton).toBeEnabled()
     await expect(refreshStaffButton).toBeEnabled()
     await expectPortalNavigationAvailable(page)
-    const createdProcess = await openProcessResponse.json() as { id: string; workflowVersion: number }
-    expect(createdProcess.workflowVersion).toBe(1)
-    await expect(panel.getByRole('region', { name: 'Etapas e histórico do processo' })).toContainText('versão 1')
+    const createdProcess = await openProcessResponse.json() as { id: string; workflowVersion: number; processNumber: string }
+    expect(createdProcess).toMatchObject({
+      workflowVersion: 1,
+      processNumber: `EXP-${subjectKey}/1`
+    })
+    const record = panel.getByRole('region', { name: 'Etapas e histórico do processo' })
+    await expect(record).toContainText('versão 1')
+    await expect(record).toContainText(`Número do processo ${createdProcess.processNumber}`)
+    await attachEvidenceScreenshot(page, testInfo, 'processo-numero-gerado', record.locator('.workflow-snapshot-summary span').first())
 
     await panel.getByLabel('Nome da etapa 1').fill('Recebimento revisado v2')
     await panel.getByLabel('Nome da etapa 2').fill('Análise técnica revisada v2')
@@ -193,10 +270,11 @@ test('administrador publica workflow versionado e acompanha o snapshot do proces
     await panel.getByRole('button', { name: 'Publicar versão 2' }).click()
     const versionTwoResponse = await versionTwoPromise
     expect(versionTwoResponse.status()).toBe(201)
+    const versionTwo = await versionTwoResponse.json() as { numberingMode: string; numberPattern: string }
+    expect(versionTwo).toMatchObject({ numberingMode: 'BY_SUBJECT', numberPattern: 'EXP-{assunto}/{numero}' })
     await expect(panel.locator('.workflow-editor').getByRole('status')).toContainText('Versão 2 publicada')
     await attachEvidenceScreenshot(page, testInfo, 'workflow-publicado-v2', panel.locator('.workflow-editor'))
 
-    const record = panel.getByRole('region', { name: 'Etapas e histórico do processo' })
     const delayedRefresh = await delayNextStaffRequest(page, 'GET', `/staff/administrative-processes/${createdProcess.id}`)
     const refreshResponsePromise = page.waitForResponse(response =>
       response.request().method() === 'GET'
@@ -213,6 +291,11 @@ test('administrador publica workflow versionado e acompanha o snapshot do proces
     delayedRefresh.release()
     const refreshResponse = await refreshResponsePromise
     expect(refreshResponse.status()).toBe(200)
+    const refreshedProcess = await refreshResponse.json() as { processNumber: string; workflowVersion: number }
+    expect(refreshedProcess).toMatchObject({
+      processNumber: createdProcess.processNumber,
+      workflowVersion: 1
+    })
     await expect(subjectKeyInput).toBeEnabled()
     await expect(organizationSelector).toBeEnabled()
     await expect(signOutButton).toBeEnabled()
@@ -347,12 +430,12 @@ test('administrador publica workflow versionado e acompanha o snapshot do proces
     await expect(page.getByRole('heading', { name: 'Processos administrativos' })).toBeVisible()
 
     const persistedList = panel.getByRole('list', { name: 'Lista de processos autorizados' })
-    await expect(panel.getByLabel('Buscar por título ou assunto')).toBeEnabled()
-    await panel.getByLabel('Buscar por título ou assunto').fill(`Processo fictício ${suffix}`)
+    await expect(panel.getByLabel('Buscar por título, assunto ou número')).toBeEnabled()
+    await panel.getByLabel('Buscar por título, assunto ou número').fill(createdProcess.processNumber)
     const listResponsePromise = page.waitForResponse(response =>
       response.request().method() === 'GET'
       && new URL(response.url()).pathname.endsWith('/staff/administrative-processes')
-      && new URL(response.url()).searchParams.get('q') === `Processo fictício ${suffix}`
+      && new URL(response.url()).searchParams.get('q') === createdProcess.processNumber
     )
     await panel.getByRole('button', { name: 'Buscar', exact: true }).click()
     const listResponse = await listResponsePromise
@@ -360,17 +443,19 @@ test('administrador publica workflow versionado e acompanha o snapshot do proces
     const listedPage = await listResponse.json() as {
       page: number
       size: number
-      items: Array<{ id: string; title: string; currentStepOrder: number; workflowVersion: number; decisionOutcome: string | null }>
+      items: Array<{ id: string; title: string; processNumber: string | null; currentStepOrder: number; workflowVersion: number; decisionOutcome: string | null }>
     }
     expect(listedPage).toMatchObject({ page: 0, size: 25 })
     expect(listedPage.items).toContainEqual(expect.objectContaining({
       id: createdProcess.id,
       title: `Processo fictício ${suffix}`,
+      processNumber: createdProcess.processNumber,
       currentStepOrder: 2,
       workflowVersion: 1,
       decisionOutcome: 'DEFERIDO'
     }))
     await expect(persistedList).toContainText(`Processo fictício ${suffix}`)
+    await expect(persistedList).toContainText(`Número: ${createdProcess.processNumber}`)
     await attachEvidenceScreenshot(page, testInfo, 'processo-listado-apos-reinicio', persistedList)
 
     const reopenedDetailPromise = page.waitForResponse(response =>
@@ -395,6 +480,42 @@ test('administrador publica workflow versionado e acompanha o snapshot do proces
     await expect(record).toContainText('Histórico registrado')
     await attachEvidenceScreenshot(page, testInfo, 'detalhe-reaberto-da-listagem', record)
     await attachEvidenceScreenshot(page, testInfo, 'processo-decisao-persistida', record)
+
+    const generalSubjectKey = `workflow-general-${suffix}`
+    await panel.getByLabel('Identificador do assunto').fill(generalSubjectKey)
+    await panel.getByRole('button', { name: 'Carregar fluxo' }).click()
+    await expect(panel.locator('.workflow-editor').getByRole('status')).toContainText('Ainda não há fluxo publicado')
+    await panel.getByLabel('Nome do assunto').fill(`Assunto geral fictício ${suffix}`)
+    await panel.getByLabel('Padrão do número').fill('{numero}')
+    await selectVisibleOption(page, panel.getByRole('combobox', { name: 'Forma de numeração' }), 'Sequência geral da organização')
+    await panel.getByLabel('Nome da etapa 1').fill('Recebimento geral')
+    await selectVisibleOption(page, panel.getByLabel('Setores da etapa 1'), 'Protocolo Geral')
+    await panel.getByLabel('Nome da etapa 2').fill('Análise geral')
+    await selectVisibleOption(page, panel.getByLabel('Setores da etapa 2'), 'Secretaria de Obras')
+    const generalWorkflowPromise = page.waitForResponse(response =>
+      response.request().method() === 'POST'
+      && new URL(response.url()).pathname.endsWith('/staff/administrative-workflows')
+    )
+    await panel.getByRole('button', { name: 'Publicar versão 1' }).click()
+    const generalWorkflowResponse = await generalWorkflowPromise
+    expect(generalWorkflowResponse.status()).toBe(201)
+    const generalWorkflow = await generalWorkflowResponse.json() as { numberingMode: string; numberPattern: string }
+    expect(generalWorkflow).toMatchObject({ numberingMode: 'GENERAL_SEQUENCE', numberPattern: '{numero}' })
+    await attachEvidenceScreenshot(page, testInfo, 'workflow-numeracao-geral-configurada', panel.locator('.workflow-numbering-settings'))
+
+    await panel.getByLabel('Título do processo').fill(`Processo geral fictício ${suffix}`)
+    const generalOpenPromise = page.waitForResponse(response =>
+      response.request().method() === 'POST'
+      && new URL(response.url()).pathname.endsWith('/staff/administrative-processes')
+    )
+    await panel.getByRole('button', { name: 'Abrir processo', exact: true }).click()
+    const generalOpenResponse = await generalOpenPromise
+    expect(generalOpenResponse.status()).toBe(201)
+    const generalProcess = await generalOpenResponse.json() as { processNumber: string; workflowVersion: number }
+    expect(generalProcess).toMatchObject({ workflowVersion: 1, processNumber: '1' })
+    const generalRecord = panel.getByRole('region', { name: 'Etapas e histórico do processo' })
+    await expect(generalRecord).toContainText('Número do processo 1')
+    await attachEvidenceScreenshot(page, testInfo, 'processo-numero-geral-gerado', generalRecord.locator('.workflow-snapshot-summary span').first())
 
     await page.locator('.portal-link').click()
     await expect(page).toHaveURL(/\/$/)

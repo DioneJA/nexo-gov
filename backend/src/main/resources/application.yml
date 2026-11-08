@@ -27,6 +27,8 @@ management:
         include: health,info
 nexogov:
   public-base-url: ${NEXOGOV_PUBLIC_BASE_URL:http://localhost:9000}
+  process:
+    numbering-zone-id: ${NEXOGOV_PROCESS_NUMBERING_ZONE_ID:America/Sao_Paulo}
   identity:
     issuer-uri: ${NEXOGOV_IDENTITY_ISSUER_URI:}
     jwk-set-uri: ${NEXOGOV_IDENTITY_JWK_SET_URI:}

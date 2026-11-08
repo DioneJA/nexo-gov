@@ -69,7 +69,7 @@ test('process-multiple-deadlines — servidor registra e consulta múltiplos pra
     await expect(page.getByRole('heading', { name: 'Processos administrativos' })).toBeVisible()
 
     const panel = page.getByRole('region', { name: 'Processos administrativos' })
-    await panel.getByLabel('Buscar por título ou assunto').fill(processTitle)
+    await panel.getByLabel('Buscar por título, assunto ou número').fill(processTitle)
     await panel.getByRole('button', { name: 'Buscar', exact: true }).click()
     const processRow = panel.getByRole('list', { name: 'Lista de processos autorizados' })
     await expect(processRow).toContainText(processTitle)
@@ -130,7 +130,7 @@ test('process-multiple-deadlines — servidor registra e consulta múltiplos pra
     await page.getByRole('button', { name: 'Entrar e carregar caixa' }).click()
     await expect(page.getByRole('heading', { name: 'Processos administrativos' })).toBeVisible()
     const reloadedPanel = page.getByRole('region', { name: 'Processos administrativos' })
-    await reloadedPanel.getByLabel('Buscar por título ou assunto').fill(processTitle)
+    await reloadedPanel.getByLabel('Buscar por título, assunto ou número').fill(processTitle)
     await reloadedPanel.getByRole('button', { name: 'Buscar', exact: true }).click()
     await reloadedPanel.getByRole('button', { name: `Abrir processo ${processTitle}` }).click()
 

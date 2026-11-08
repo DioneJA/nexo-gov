@@ -151,6 +151,9 @@ for page,section,body in items:
     if rid == 'ED91-0486':
         # Verified claimant login by ICP-Brasil/Gov.br is in the same protocol section on page 50.
         secondary='Termo de Referência §4, PDF p.50'
+    if rid == 'ED91-0511':
+        # The composite numbering/deadline paragraph is on scanned PDF page 53 (printed footer 53), not p.52.
+        secondary='Termo de Referência §7 “PROCESSO ADMINISTRATIVO”, PDF p.53'
     if rid == 'ED91-0120':
         secondary='Termo de Referência §10, PDF p.12'
     if rid == 'ED91-0140':
@@ -465,12 +468,27 @@ process_decision_requirements = {
         'Evidência local verificável em `./dev process-decision-test`, `./dev openapi-check`, `./dev process-workflow-e2e` e labels `workflow-decisores-configurados`, `processo-decisao-registrada` e `processo-decisao-persistida`; capturas fictícias mostram configuração, resultado sem encerramento e persistência após recarga. Não são aprovação nem POC oficial.',
     ),
 }
+process_numbering_composite_requirements = {
+    'ED91-0511': (
+        'Critério composto, limitado às duas obrigações transcritas: (1) abrir processos com numeração automática por assunto ou em sequência geral e padrão customizável, com o número preservado; (2) registrar mais de um prazo identificado por processo, persistido e recuperável. O primeiro processo legado permanece sem numeração inventada. Este critério funcional não inclui prazo legal, alertas, encerramento ou POC oficial.',
+        'Numeração: AdministrativeWorkflowService/Controller, V25, TenantContext, contadores tenant-scoped e versão imutável do workflow. Prazos: AdministrativeWorkflowService e V24 com autoria, vínculo tenant/processo e gravação append-only. Cada caminho tem autorização e isolamento verificados no backend.',
+        'AdministrativeProcessPanel configura a numeração por assunto ou geral e modelo customizado, mostra o número persistido e mantém o formulário/lista de prazos múltiplos no detalhe do processo.',
+        '`./dev process-numbering-test`, `./dev process-numbering-e2e`, `./dev process-deadline-test`, `./dev process-deadline-e2e`, `./dev openapi-check` e `./dev evidence`. `frontend/e2e/process-workflow.spec.ts`, cenário `administrador publica workflow versionado e acompanha o snapshot do processo`, e `frontend/e2e/process-multiple-deadlines.spec.ts`, cenário `process-multiple-deadlines — servidor registra e consulta múltiplos prazos no processo`, são referenciados explicitamente. A evidência só associa este ID quando o exportador recebe os quatro labels de numeração e o screenshot de múltiplos prazos; teste negativo cobre cada grupo ausente.',
+        'POC-ED91-0511 (ensaio interno, não a sessão oficial): demonstrar numeração customizada em ambos os modos, criar processos fictícios e confirmar os números após recarga; registrar mais de um prazo em outro processo e recuperar os registros ordenados após nova autenticação. Cobrir isolamento, autorização, concorrência e validação nos testes focados. A sessão oficial do PE 91/2025 não foi realizada pelo NexoGov.',
+        'Evidência de cada subcritério em docs/INCREMENTO_54.md: `process-workflow.spec.ts` labels `workflow-numeracao-configurada`, `processo-numero-gerado`, `workflow-numeracao-geral-configurada`, `processo-numero-geral-gerado`; `process-multiple-deadlines.spec.ts` label `processos-prazos-multiplos`. O exportador exige os dois grupos completos antes de associar ED91-0511. Capturas locais usam dados fictícios e não são POC oficial.',
+    ),
+}
 for row in rows:
     details = process_decision_requirements.get(row[0])
     if details:
         row[2] = 'Edital PE 91/2025, §14.1.13, fl. impressa 34/80, subtítulo “PROCESSO ADMINISTRATIVO”; Termo de Referência §7, PDF p.53; transcrição conferida visualmente nos PDFs oficiais.'
         row[6:12] = list(details)
         row[12] = 'VALIDADO'
+
+    details = process_numbering_composite_requirements.get(row[0])
+    if details:
+        row[6:12] = list(details)
+        row[12] = 'EM_DESENVOLVIMENTO'
         row[13] = 'CONFERIDA_NO_DOCUMENTO_OFICIAL'
 
 for row in rows:
@@ -539,8 +557,8 @@ progress_columns = {
 for row in rows:
     previous = previous_progress.get(row[0])
     if previous and previous['requisito_resumo_fiel'] == row[1]:
-        regenerated_details = set(partial_protocol_access_requirements) | set(partial_protocol_read_status_requirements) | set(partial_member_access_requirements) | set(partial_protocol_subject_requirements) | set(partial_protocol_attachment_requirements) | set(partial_protocol_completion_requirements) | set(partial_protocol_storage_requirements) | set(partial_protocol_receipt_requirements) | set(partial_workflow_requirements) | set(process_decision_requirements) | set(partial_federated_identity_requirements) | set(contact_requirements) | {'ED91-X001', 'ED91-X002', 'ED91-X003', 'ED91-X004', 'ED91-X005', 'ED91-X006'}
-        force_source_mapped_refresh = row[0] in partial_protocol_read_status_requirements or row[0] in partial_member_access_requirements or row[0] in partial_protocol_subject_requirements or row[0] in partial_protocol_attachment_requirements or row[0] in partial_protocol_completion_requirements or row[0] in partial_protocol_storage_requirements or row[0] in partial_protocol_receipt_requirements or row[0] in partial_workflow_requirements or row[0] in process_decision_requirements or row[0] in partial_federated_identity_requirements or row[0] in contact_requirements
+        regenerated_details = set(partial_protocol_access_requirements) | set(partial_protocol_read_status_requirements) | set(partial_member_access_requirements) | set(partial_protocol_subject_requirements) | set(partial_protocol_attachment_requirements) | set(partial_protocol_completion_requirements) | set(partial_protocol_storage_requirements) | set(partial_protocol_receipt_requirements) | set(partial_workflow_requirements) | set(process_decision_requirements) | set(process_numbering_composite_requirements) | set(partial_federated_identity_requirements) | set(contact_requirements) | {'ED91-X001', 'ED91-X002', 'ED91-X003', 'ED91-X004', 'ED91-X005', 'ED91-X006'}
+        force_source_mapped_refresh = row[0] in partial_protocol_read_status_requirements or row[0] in partial_member_access_requirements or row[0] in partial_protocol_subject_requirements or row[0] in partial_protocol_attachment_requirements or row[0] in partial_protocol_completion_requirements or row[0] in partial_protocol_storage_requirements or row[0] in partial_protocol_receipt_requirements or row[0] in partial_workflow_requirements or row[0] in process_decision_requirements or row[0] in process_numbering_composite_requirements or row[0] in partial_federated_identity_requirements or row[0] in contact_requirements
         preserve_existing = not force_source_mapped_refresh and (
             row[0] not in regenerated_details or previous['status'] != 'NAO_INICIADO'
         )

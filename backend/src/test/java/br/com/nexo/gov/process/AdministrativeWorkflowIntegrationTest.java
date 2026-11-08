@@ -4,7 +4,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -25,11 +29,15 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.time.OffsetDateTime;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,6 +50,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("local")
 @Testcontainers
+@Import(AdministrativeWorkflowIntegrationTest.FixedNumberingClockConfiguration.class)
 class AdministrativeWorkflowIntegrationTest {
     private static final String ADMIN = "workflow-admin";
     private static final String OTHER_STAGE_MEMBER = "workflow-other";
@@ -72,6 +81,15 @@ class AdministrativeWorkflowIntegrationTest {
     private UUID legalDepartmentId;
     private UUID decisionDepartmentId;
     private UUID otherOrganizationDepartmentId;
+
+    @TestConfiguration
+    static class FixedNumberingClockConfiguration {
+        @Bean
+        @Primary
+        Clock fixedNumberingClock() {
+            return Clock.fixed(Instant.parse("2027-01-01T02:30:00Z"), ZoneId.of("America/Sao_Paulo"));
+        }
+    }
 
     @BeforeEach
     void prepareOrganizationsAndMemberships() {
@@ -236,6 +254,222 @@ class AdministrativeWorkflowIntegrationTest {
         assertThat((List<?>) betaPage.get("items")).hasSize(1);
         assertThat(((Map<?, ?>) ((List<?>) betaPage.get("items")).getFirst()).get("id"))
                 .isEqualTo(betaProcessId.toString());
+    }
+
+    @Test
+    void processNumbersUseCustomPerSubjectAndGeneralSequencesAndKeepWorkflowSnapshots() {
+        List<Map<String, Object>> steps = List.of(
+                step("Recebimento", intakeDepartmentId), step("Análise", analysisDepartmentId));
+        String subjectKey = "numbering-permit";
+        Map<String, Object> invalidPattern = workflowBody(subjectKey, "Licença", steps,
+                "BY_SUBJECT", "{ano}-{numero}", 0);
+        assertThat(createWorkflow(organizationId, ADMIN, invalidPattern, String.class).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM administrative_workflow_heads WHERE organization_id=? AND subject_key=?
+                """, Integer.class, organizationId, subjectKey)).isZero();
+
+        ResponseEntity<Map> versionOne = createWorkflow(organizationId, ADMIN,
+                workflowBody(subjectKey, "Licença", steps, "BY_SUBJECT", "{assunto}/{ano}/{numero}", 0));
+        assertThat(versionOne.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(versionOne.getBody()).containsEntry("numberingMode", "BY_SUBJECT")
+                .containsEntry("numberPattern", "{assunto}/{ano}/{numero}");
+
+        Map<?, ?> first = Objects.requireNonNull(postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", subjectKey, "title", "Primeiro pedido", "initialDepartmentId", intakeDepartmentId))
+                .getBody());
+        Map<?, ?> second = Objects.requireNonNull(postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", subjectKey, "title", "Segundo pedido", "initialDepartmentId", intakeDepartmentId))
+                .getBody());
+        String firstNumber = first.get("processNumber").toString();
+        assertThat(firstNumber).isEqualTo(subjectKey + "/2026/1");
+        assertThat(second.get("processNumber").toString()).isEqualTo(subjectKey + "/2026/2");
+
+        String otherSubjectKey = "numbering-archive";
+        assertThat(createWorkflow(organizationId, ADMIN,
+                workflowBody(otherSubjectKey, "Arquivo", steps, "BY_SUBJECT", "{assunto}/{ano}/{numero}", 0))
+                .getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        Map<?, ?> otherSubjectProcess = Objects.requireNonNull(postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", otherSubjectKey, "title", "Pedido de arquivo", "initialDepartmentId", intakeDepartmentId))
+                .getBody());
+        assertThat(otherSubjectProcess.get("processNumber").toString()).isEqualTo(otherSubjectKey + "/2026/1");
+
+        Map<String, Object> versionTwoBody = workflowBody(subjectKey, "Licença", steps,
+                "GENERAL_SEQUENCE", "GERAL-{ano}-{numero}", 1);
+        assertThat(createWorkflow(organizationId, ADMIN, versionTwoBody).getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        Map<?, ?> priorSnapshot = Objects.requireNonNull(getProcess(organizationId, ADMIN,
+                UUID.fromString(first.get("id").toString())).getBody());
+        assertThat(priorSnapshot.get("processNumber")).isEqualTo(firstNumber);
+        assertThat(priorSnapshot.get("workflowVersion")).isEqualTo(1);
+
+        Map<?, ?> generalOne = Objects.requireNonNull(postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", subjectKey, "title", "Pedido em sequência geral", "initialDepartmentId", intakeDepartmentId))
+                .getBody());
+        assertThat(generalOne.get("processNumber").toString()).isEqualTo("GERAL-2026-1");
+        String otherGeneralSubject = "numbering-general-other";
+        assertThat(createWorkflow(organizationId, ADMIN,
+                workflowBody(otherGeneralSubject, "Outro assunto", steps,
+                        "GENERAL_SEQUENCE", "GERAL-{ano}-{numero}", 0)).getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        Map<?, ?> generalTwo = Objects.requireNonNull(postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", otherGeneralSubject, "title", "Outro processo", "initialDepartmentId", intakeDepartmentId))
+                .getBody());
+        assertThat(generalTwo.get("processNumber").toString()).isEqualTo("GERAL-2026-2");
+
+        String defaultGeneralSubject = "numbering-general-default";
+        Map<String, Object> defaultGeneralWorkflow = new HashMap<>(workflowBody(defaultGeneralSubject,
+                "Assunto geral padrão", steps));
+        defaultGeneralWorkflow.put("numberingMode", "GENERAL_SEQUENCE");
+        assertThat(createWorkflow(organizationId, ADMIN, defaultGeneralWorkflow).getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        Map<?, ?> defaultGeneralView = Objects.requireNonNull(currentWorkflow(
+                organizationId, ADMIN, defaultGeneralSubject, Map.class).getBody());
+        assertThat(defaultGeneralView.get("numberPattern")).isEqualTo("{numero}");
+        Map<?, ?> defaultGeneralProcess = Objects.requireNonNull(postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", defaultGeneralSubject, "title", "Número geral padrão",
+                "initialDepartmentId", intakeDepartmentId)).getBody());
+        assertThat(defaultGeneralProcess.get("processNumber")).isEqualTo("3");
+
+        Map<?, ?> mixedModeBySubject = Objects.requireNonNull(postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", otherSubjectKey, "title", "Novo processo do assunto",
+                "initialDepartmentId", intakeDepartmentId)).getBody());
+        assertThat(mixedModeBySubject.get("processNumber")).isEqualTo(otherSubjectKey + "/2026/2");
+
+        assertThat(createWorkflow(otherOrganizationId, ADMIN,
+                workflowBody(subjectKey, "Licença Beta", List.of(
+                                step("Recebimento", otherOrganizationDepartmentId),
+                                step("Análise", otherOrganizationDepartmentId)),
+                        "BY_SUBJECT", "{assunto}/{ano}/{numero}", 0)).getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        Map<?, ?> betaProcess = Objects.requireNonNull(postProcess(otherOrganizationId, ADMIN, Map.of(
+                "subjectKey", subjectKey, "title", "Pedido de Beta", "initialDepartmentId", otherOrganizationDepartmentId))
+                .getBody());
+        assertThat(betaProcess.get("processNumber")).isEqualTo(firstNumber);
+
+        String authorizationSubject = "numbering-authorization";
+        assertThat(createWorkflow(organizationId, ADMIN,
+                workflowBody(authorizationSubject, "Autorização", steps,
+                        "BY_SUBJECT", "{assunto}-{numero}", 0)).getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        ResponseEntity<Map> denied = postProcess(organizationId, OTHER_STAGE_MEMBER, Map.of(
+                "subjectKey", authorizationSubject, "title", "Negado", "initialDepartmentId", intakeDepartmentId));
+        assertThat(denied.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        Map<?, ?> authorized = Objects.requireNonNull(postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", authorizationSubject, "title", "Autorizado", "initialDepartmentId", intakeDepartmentId))
+                .getBody());
+        assertThat(authorized.get("processNumber")).isEqualTo(authorizationSubject + "-1");
+
+        Map<?, ?> searched = Objects.requireNonNull(listProcesses(
+                organizationId, ADMIN, 0, 25, firstNumber, Map.class).getBody());
+        assertThat((List<?>) searched.get("items")).anySatisfy(item ->
+                assertThat(((Map<?, ?>) item).get("processNumber")).isEqualTo(firstNumber));
+
+        String carryForwardSubject = "numbering-carry-forward";
+        assertThat(createWorkflow(organizationId, ADMIN, workflowBody(carryForwardSubject, "Configuração", steps,
+                "BY_SUBJECT", "REG-{assunto}/{numero}", 0)).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        Map<String, Object> incompatibleModeChange = new HashMap<>(
+                workflowBody(carryForwardSubject, "Configuração", steps, 1));
+        incompatibleModeChange.put("numberingMode", "GENERAL_SEQUENCE");
+        assertThat(createWorkflow(organizationId, ADMIN, incompatibleModeChange).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(jdbc.queryForObject("""
+                SELECT current_version FROM administrative_workflow_heads
+                 WHERE organization_id=? AND subject_key=?
+                """, Integer.class, organizationId, carryForwardSubject)).isEqualTo(1);
+        Map<String, Object> carryForwardV2 = workflowBody(carryForwardSubject, "Configuração", steps, 1);
+        ResponseEntity<Map> carried = createWorkflow(organizationId, ADMIN, carryForwardV2);
+        assertThat(carried.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(carried.getBody()).containsEntry("version", 2).containsEntry("numberingMode", "BY_SUBJECT")
+                .containsEntry("numberPattern", "REG-{assunto}/{numero}");
+        ResponseEntity<Map> replay = createWorkflow(organizationId, ADMIN, carryForwardV2);
+        assertThat(replay.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(replay.getBody()).containsEntry("version", 2).containsEntry("numberPattern", "REG-{assunto}/{numero}");
+        Map<?, ?> carryForwardProcess = Objects.requireNonNull(postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", carryForwardSubject, "title", "Após republicação",
+                "initialDepartmentId", intakeDepartmentId)).getBody());
+        assertThat(carryForwardProcess.get("processNumber")).isEqualTo("REG-" + carryForwardSubject + "/1");
+    }
+
+    @Test
+    void processNumberSequenceRejectsLongMaxValueAndNumbersCannotBeChanged() {
+        String subjectKey = "numbering-overflow";
+        assertThat(createWorkflow(organizationId, ADMIN, workflowBody(subjectKey, "Limite", List.of(
+                step("Recebimento", intakeDepartmentId), step("Análise", analysisDepartmentId)),
+                "GENERAL_SEQUENCE", "LIM-{numero}", 0)).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        jdbc.update("""
+                INSERT INTO administrative_process_number_counters(organization_id, counter_scope, next_value)
+                VALUES(?, 'GENERAL', ?)
+                """, organizationId, Long.MAX_VALUE);
+
+        ResponseEntity<Map> overflow = postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", subjectKey, "title", "Não deve consumir o último valor",
+                "initialDepartmentId", intakeDepartmentId));
+        assertThat(overflow.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM administrative_processes
+                 WHERE organization_id=? AND workflow_subject_key=?
+                """, Integer.class, organizationId, subjectKey)).isZero();
+        assertThat(jdbc.queryForObject("""
+                SELECT next_value FROM administrative_process_number_counters
+                 WHERE organization_id=? AND counter_scope='GENERAL'
+                """, Long.class, organizationId)).isEqualTo(Long.MAX_VALUE);
+
+        jdbc.update("DELETE FROM administrative_process_number_counters WHERE organization_id=?", organizationId);
+        Map<?, ?> process = Objects.requireNonNull(postProcess(organizationId, ADMIN, Map.of(
+                "subjectKey", subjectKey, "title", "Número imutável",
+                "initialDepartmentId", intakeDepartmentId)).getBody());
+        UUID processId = UUID.fromString(process.get("id").toString());
+        assertThat(process.get("processNumber")).isEqualTo("LIM-1");
+        assertThatThrownBy(() -> jdbc.update("""
+                UPDATE administrative_processes SET process_number='EDITADO'
+                 WHERE organization_id=? AND id=?
+                """, organizationId, processId)).isInstanceOf(DataAccessException.class);
+        assertThat(jdbc.queryForObject("""
+                SELECT process_number FROM administrative_processes WHERE organization_id=? AND id=?
+                """, String.class, organizationId, processId)).isEqualTo("LIM-1");
+    }
+
+    @Test
+    void concurrentProcessOpeningsReceiveUniqueGeneralNumbers() throws Exception {
+        String subjectKey = "numbering-concurrent";
+        assertThat(createWorkflow(organizationId, ADMIN,
+                workflowBody(subjectKey, "Fila concorrente", List.of(
+                        step("Recebimento", intakeDepartmentId), step("Análise", analysisDepartmentId)),
+                        "GENERAL_SEQUENCE", "FILA-{numero}", 0)).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        int count = 8;
+        CountDownLatch ready = new CountDownLatch(count);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(count);
+        try {
+            List<Future<ResponseEntity<Map>>> requests = new ArrayList<>();
+            for (int index = 0; index < count; index++) {
+                int requestIndex = index;
+                requests.add(executor.submit(() -> {
+                    ready.countDown();
+                    if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Start latch timed out");
+                    return postProcess(organizationId, ADMIN, Map.of(
+                            "subjectKey", subjectKey, "title", "Concorrente " + requestIndex,
+                            "initialDepartmentId", intakeDepartmentId));
+                }));
+            }
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            List<String> numbers = new ArrayList<>();
+            for (Future<ResponseEntity<Map>> request : requests) {
+                ResponseEntity<Map> response = request.get(15, TimeUnit.SECONDS);
+                assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+                numbers.add(Objects.requireNonNull(response.getBody()).get("processNumber").toString());
+            }
+            assertThat(numbers).doesNotHaveDuplicates()
+                    .containsExactlyInAnyOrder("FILA-1", "FILA-2", "FILA-3", "FILA-4",
+                            "FILA-5", "FILA-6", "FILA-7", "FILA-8");
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -1144,6 +1378,15 @@ class AdministrativeWorkflowIntegrationTest {
                                              List<Map<String, Object>> steps, int expectedVersion) {
         return Map.of("subjectKey", subjectKey, "subjectName", subjectName, "steps", steps,
                 "expectedVersion", expectedVersion, "idempotencyKey", UUID.randomUUID());
+    }
+
+    private Map<String, Object> workflowBody(String subjectKey, String subjectName,
+                                             List<Map<String, Object>> steps, String numberingMode,
+                                             String numberPattern, int expectedVersion) {
+        Map<String, Object> body = new HashMap<>(workflowBody(subjectKey, subjectName, steps, expectedVersion));
+        body.put("numberingMode", numberingMode);
+        body.put("numberPattern", numberPattern);
+        return body;
     }
 
     private Map<String, Object> step(String name, UUID departmentId) {

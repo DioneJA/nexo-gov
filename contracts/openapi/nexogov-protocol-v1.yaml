@@ -27,12 +27,13 @@ paths:
         '201':
           description: >-
             New immutable workflow version published by an active organization administrator. The selected
-            decision-capable departments are part of this version and are copied into each process snapshot.
+            decision-capable departments and process numbering policy are part of this version. Processes keep
+            the number generated from the workflow version used at opening.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AdministrativeWorkflowView' }
         '200': { description: Idempotent replay returns the original version without creating another version., content: { application/json: { schema: { $ref: '#/components/schemas/AdministrativeWorkflowView' } } } }
-        '400': { description: Workflow request is missing or violates the documented field bounds. }
+        '400': { description: Workflow request is missing, violates field bounds, or has an invalid numbering pattern. }
         '403': { description: Actor is not an active organization administrator. A sector administrator role does not grant definition-management access. }
         '404': { description: One or more selected departments are unavailable in the validated organization. }
         '409': { description: Expected version is stale, the idempotency key was reused with different content, or decision departments are duplicated or outside their step. }
@@ -47,7 +48,7 @@ paths:
         - { in: path, name: subjectKey, required: true, schema: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{0,79}$' } }
       responses:
         '200':
-          description: Current immutable workflow version, including each step's decision policy.
+          description: Current immutable workflow version, including each step's decision policy and process numbering policy.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AdministrativeWorkflowView' }
@@ -68,7 +69,9 @@ paths:
             schema: { $ref: '#/components/schemas/AdministrativeProcessCreateRequest' }
       responses:
         '201':
-          description: Process created from the current workflow version and an active first-step department assigned to the actor.
+          description: >-
+            Process created from the current workflow version and an active first-step department assigned to the actor.
+            The server allocates and stores its number using that version's tenant-scoped numbering policy.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AdministrativeProcessView' }
@@ -85,7 +88,7 @@ paths:
         - $ref: '#/components/parameters/OrganizationId'
         - { in: query, name: page, required: false, description: Zero-based page index (maximum 10000)., schema: { type: integer, minimum: 0, maximum: 10000, default: 0 } }
         - { in: query, name: size, required: false, description: Page size (maximum 100)., schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
-        - { in: query, name: q, required: false, description: Literal case-insensitive substring search over process title, subject name, and stable subject key; at most 120 characters., schema: { type: string, maxLength: 120 } }
+        - { in: query, name: q, required: false, description: Literal case-insensitive substring search over process number, title, subject name, and stable subject key; at most 120 characters., schema: { type: string, maxLength: 120 } }
       responses:
         '200':
           description: >-
@@ -1051,6 +1054,25 @@ components:
         subjectName: { type: string, minLength: 1, maxLength: 180 }
         expectedVersion: { type: integer, minimum: 0 }
         idempotencyKey: { type: string, format: uuid }
+        numberingMode:
+          type: string
+          enum: [BY_SUBJECT, GENERAL_SEQUENCE]
+          description: >-
+            BY_SUBJECT keeps a separate sequence per subject. GENERAL_SEQUENCE shares one sequence across all
+            subjects in the organization. When publishing the first version, an omitted mode means BY_SUBJECT;
+            later versions inherit the current mode when this field is omitted. A mode change with no compatible
+            explicit pattern is rejected instead of silently replacing the prior pattern.
+        numberPattern:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: >-
+            Custom number template with {numero} exactly once (required), optional {ano}, and {assunto} exactly
+            once only for BY_SUBJECT. {assunto} is replaced with the stable subject key. GENERAL_SEQUENCE cannot
+            use {assunto}; its first-version default is {numero}, while the BY_SUBJECT default is {assunto}-{numero}.
+            Unknown or incomplete placeholders are rejected. The {ano} token uses the deployment's configured
+            NEXOGOV_PROCESS_NUMBERING_ZONE_ID (default America/Sao_Paulo). On later versions, an omitted pattern
+            inherits the current pattern.
         steps:
           type: array
           minItems: 2
@@ -1079,13 +1101,24 @@ components:
             this step. The policy is snapshotted on processes created from this workflow version.
     AdministrativeWorkflowView:
       type: object
-      required: [id, subjectKey, subjectName, version, createdAt, steps]
+      required: [id, subjectKey, subjectName, version, createdAt, numberingMode, numberPattern, steps]
       properties:
         id: { type: string, format: uuid }
         subjectKey: { type: string, maxLength: 80 }
         subjectName: { type: string, maxLength: 180 }
         version: { type: integer, minimum: 1 }
         createdAt: { type: string, format: date-time }
+        numberingMode:
+          type: string
+          enum: [BY_SUBJECT, GENERAL_SEQUENCE]
+          description: >-
+            BY_SUBJECT counts per subject; GENERAL_SEQUENCE shares a tenant-wide counter.
+        numberPattern:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: >-
+            The policy frozen by this workflow version; {ano} follows the configured deployment timezone.
         steps:
           type: array
           items: { $ref: '#/components/schemas/AdministrativeWorkflowStep' }
@@ -1121,13 +1154,14 @@ components:
     AdministrativeProcessSummary:
       type: object
       description: Compact process projection; workflow steps and events are deliberately omitted from list responses.
-      required: [id, subjectKey, subjectName, workflowId, workflowVersion, title, currentStepOrder, currentStepName, currentDepartmentId, currentDepartmentName, status, decisionOutcome, createdAt]
+      required: [id, subjectKey, subjectName, workflowId, workflowVersion, processNumber, title, currentStepOrder, currentStepName, currentDepartmentId, currentDepartmentName, status, decisionOutcome, createdAt]
       properties:
         id: { type: string, format: uuid }
         subjectKey: { type: string, maxLength: 80 }
         subjectName: { type: string, maxLength: 180 }
         workflowId: { type: string, format: uuid }
         workflowVersion: { type: integer, minimum: 1 }
+        processNumber: { type: string, maxLength: 240, nullable: true, description: Null only for legacy processes opened before numbering was introduced; new processes always receive a server-generated number. }
         title: { type: string, maxLength: 240 }
         currentStepOrder: { type: integer, minimum: 1 }
         currentStepName: { type: string, maxLength: 180 }

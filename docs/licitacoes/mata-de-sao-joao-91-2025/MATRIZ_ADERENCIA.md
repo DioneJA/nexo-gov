@@ -6,7 +6,7 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 
 - Total de linhas/requisitos rastreados: **1388**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Itens de fonte do Termo de Referência: **742**; transcrições conferidas visualmente: **742**; ainda pendentes de cotejo visual: **0**. Status TR: `EM_DESENVOLVIMENTO`=18, `IMPLEMENTADO_NAO_TESTADO`=0, `VALIDADO`=10, `NAO_INICIADO`=714, `BLOQUEADO`=0, `NAO_APLICAVEL_JUSTIFICADO`=0; **709/742** ainda aguardam decomposição em critérios observáveis. Os requisitos `VALIDADO` cobrem apenas seus critérios delimitados; a POC integral e a conformidade global não estão comprovadas.
+- Itens de fonte do Termo de Referência: **742**; transcrições conferidas visualmente: **742**; ainda pendentes de cotejo visual: **0**. Status TR: `EM_DESENVOLVIMENTO`=19, `IMPLEMENTADO_NAO_TESTADO`=0, `VALIDADO`=10, `NAO_INICIADO`=713, `BLOQUEADO`=0, `NAO_APLICAVEL_JUSTIFICADO`=0; **708/742** ainda aguardam decomposição em critérios observáveis. Os requisitos `VALIDADO` cobrem apenas seus critérios delimitados; a POC integral e a conformidade global não estão comprovadas.
 - Obrigações sem implementação exclusiva em software: **221** (mesmo escopo para total e parcelas; inclui POC e proposta comercial; natureza `PREFERENCIAL` (**1**) é reportada separadamente). Operação contratual **106**, integração externa **78**, habilitação **8**, obrigações externas/contratuais **23**, POC **5**, proposta comercial **1**.
 - Status `VALIDADO`: **17**. Não há alegação de 100% de aderência.
 
@@ -14,10 +14,10 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Status | Linhas |
 |---|---:|
-| `EM_DESENVOLVIMENTO` | 45 |
+| `EM_DESENVOLVIMENTO` | 47 |
 | `IMPLEMENTADO_NAO_TESTADO` | 0 |
 | `VALIDADO` | 17 |
-| `NAO_INICIADO` | 1326 |
+| `NAO_INICIADO` | 1324 |
 | `BLOQUEADO` | 0 |
 | `NAO_APLICAVEL_JUSTIFICADO` | 0 |
 
@@ -61,9 +61,9 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Escopo | Total | `EM_DESENVOLVIMENTO` | `IMPLEMENTADO_NAO_TESTADO` | `VALIDADO` | `NAO_INICIADO` | `BLOQUEADO` | `NAO_APLICAVEL_JUSTIFICADO` |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Edital e complementos ED91 | 646 | 27 | 0 | 7 | 612 | 0 | 0 |
-| Termo de Referência TR91 | 742 | 18 | 0 | 10 | 714 | 0 | 0 |
-| Total da matriz | 1388 | 45 | 0 | 17 | 1326 | 0 | 0 |
+| Edital e complementos ED91 | 646 | 28 | 0 | 7 | 611 | 0 | 0 |
+| Termo de Referência TR91 | 742 | 19 | 0 | 10 | 713 | 0 | 0 |
+| Total da matriz | 1388 | 47 | 0 | 17 | 1324 | 0 | 0 |
 
 ## Natureza
 

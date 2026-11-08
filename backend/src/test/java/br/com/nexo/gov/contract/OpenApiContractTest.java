@@ -123,6 +123,49 @@ class OpenApiContractTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void administrativeProcessNumberingContractDefinesTenantScopedPoliciesAndSnapshots() throws Exception {
+        Path contractPath = repositoryRoot().resolve(CONTRACT);
+        Map<String, Object> document;
+        try (InputStream source = Files.newInputStream(contractPath)) {
+            document = new Yaml().load(source);
+        }
+
+        Map<String, Object> paths = (Map<String, Object>) document.get("paths");
+        Map<String, Object> workflowPost = (Map<String, Object>) ((Map<String, Object>) paths
+                .get("/staff/administrative-workflows")).get("post");
+        assertThat(workflowPost.toString()).contains("process numbering policy", "invalid numbering pattern");
+
+        Map<String, Object> components = (Map<String, Object>) document.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        Map<String, Object> createRequest = (Map<String, Object>) schemas
+                .get("AdministrativeWorkflowCreateRequest");
+        Map<String, Object> workflowProperties = (Map<String, Object>) createRequest.get("properties");
+        Map<String, Object> mode = (Map<String, Object>) workflowProperties.get("numberingMode");
+        Map<String, Object> pattern = (Map<String, Object>) workflowProperties.get("numberPattern");
+        assertThat(mode.get("enum")).isEqualTo(List.of("BY_SUBJECT", "GENERAL_SEQUENCE"));
+        assertThat(mode.get("description").toString())
+                .contains("one sequence across all subjects", "later versions inherit the current mode");
+        assertThat(pattern.get("description").toString())
+                .contains("{numero}", "{ano}", "{assunto}", "Unknown or incomplete placeholders are rejected",
+                        "first-version default is {numero}", "inherits the current pattern", "NEXOGOV_PROCESS_NUMBERING_ZONE_ID");
+
+        Map<String, Object> workflowView = (Map<String, Object>) schemas.get("AdministrativeWorkflowView");
+        assertThat((List<String>) workflowView.get("required")).contains("numberingMode", "numberPattern");
+        Map<String, Object> summary = (Map<String, Object>) schemas.get("AdministrativeProcessSummary");
+        assertThat((List<String>) summary.get("required")).contains("processNumber");
+        Map<String, Object> summaryProperties = (Map<String, Object>) summary.get("properties");
+        Map<String, Object> processNumber = (Map<String, Object>) summaryProperties.get("processNumber");
+        assertThat(processNumber.get("nullable")).isEqualTo(true);
+        assertThat(processNumber.get("description").toString()).contains("legacy processes", "server-generated number");
+        Map<String, Object> listPath = (Map<String, Object>) paths.get("/staff/administrative-processes");
+        Map<String, Object> listOperation = (Map<String, Object>) listPath.get("get");
+        List<Map<String, Object>> listParameters = (List<Map<String, Object>>) listOperation.get("parameters");
+        assertThat(listParameters.stream().filter(parameter -> "q".equals(parameter.get("name")))
+                .findFirst().orElseThrow().get("description").toString()).contains("process number");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void administrativeProcessDecisionContractDefinesPolicyAndOutcomes() throws Exception {
         Path contractPath = repositoryRoot().resolve(CONTRACT);
         Map<String, Object> document;

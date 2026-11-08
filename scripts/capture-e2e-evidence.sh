@@ -3,19 +3,27 @@ set -euo pipefail
 umask 077
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if (( $# > 0 )); then
-  if [[ "$1" == "--help" || "$1" == "-h" ]]; then
-    cat <<'HELP'
+capture_scope="all"
+if (( $# == 1 )); then
+  case "$1" in
+    --help|-h)
+      cat <<'HELP'
 Uso: ./dev evidence
+     ./dev evidence-layout
 
-Executa somente pares exatos spec/cenário revisados para captura segura,
-em ambiente Compose descartável. Exporta PNG/manifesto em Documentos; vídeo está desligado.
-Não aceita filtros: isso evita incluir cenários com tokens/chaves bearer.
+`evidence` executa todos os pares exatos spec/cenário revisados.
+`evidence-layout` executa somente a captura aprovada da caixa vazia do servidor.
+Ambos usam ambiente Compose descartável e exportam PNG/manifesto privado em Documentos;
+vídeo está desligado. Nenhum dos comandos aceita filtros livres.
 Requer Docker e Chrome.
 HELP
-    exit 0
-  fi
-  echo "./dev evidence não aceita filtros; a lista gravável é controlada no config Playwright." >&2
+      exit 0
+      ;;
+    --layout-only) capture_scope="layout" ;;
+    *) echo "./dev evidence aceita somente --layout-only; filtros livres são recusados." >&2; exit 2 ;;
+  esac
+elif (( $# > 1 )); then
+  echo "Uso: ./dev evidence [--layout-only]; filtros livres são recusados." >&2
   exit 2
 fi
 
@@ -73,7 +81,12 @@ export NEXOGOV_EVIDENCE_MODE=1
 mkdir -p "$NEXOGOV_EVIDENCE_ARTIFACTS_DIR"
 
 set +e
-"$repo_root/scripts/run-e2e.sh" --config=playwright.evidence.config.ts
+if [[ "$capture_scope" == "layout" ]]; then
+  "$repo_root/scripts/run-e2e.sh" --config=playwright.evidence.config.ts \
+    --grep 'caixa do servidor ocupa a largura disponível sem overflow após login'
+else
+  "$repo_root/scripts/run-e2e.sh" --config=playwright.evidence.config.ts
+fi
 runner_exit_code=$?
 set -e
 

@@ -9,6 +9,7 @@ import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessDeadlineCreateR
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessDeadlineView;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessEventView;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessPageView;
+import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessNumberingMode;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessSummaryView;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessStepView;
 import br.com.nexo.gov.process.AdministrativeWorkflowDtos.ProcessView;
@@ -23,6 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.Year;
+import java.time.Clock;
 import java.nio.charset.StandardCharsets;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -35,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class AdministrativeWorkflowService {
@@ -42,10 +47,15 @@ public class AdministrativeWorkflowService {
     static final int MAX_PROCESS_PAGE_SIZE = 100;
     static final int MAX_PROCESS_PAGE_INDEX = 10_000;
     static final int MAX_PROCESS_SEARCH_LENGTH = 120;
+    private static final String DEFAULT_PROCESS_NUMBER_PATTERN = "{assunto}-{numero}";
+    private static final Pattern NUMBER_PATTERN_TOKEN = Pattern.compile("\\{([^{}]+)}");
+    private static final Set<String> PROCESS_NUMBER_TOKENS = Set.of("assunto", "ano", "numero");
     private final JdbcTemplate jdbc;
+    private final Clock processNumberingClock;
 
-    public AdministrativeWorkflowService(JdbcTemplate jdbc) {
+    public AdministrativeWorkflowService(JdbcTemplate jdbc, Clock processNumberingClock) {
         this.jdbc = jdbc;
+        this.processNumberingClock = processNumberingClock;
     }
 
     @Transactional
@@ -98,15 +108,30 @@ public class AdministrativeWorkflowService {
         if (currentVersion != request.expectedVersion()) {
             throw new WorkflowConflict("A versão esperada não é mais a atual; recarregue o fluxo antes de publicar.");
         }
+        NumberingSettings previousNumbering = currentVersion == 0 ? null : jdbc.query("""
+                SELECT w.numbering_mode, w.number_pattern
+                  FROM administrative_workflow_heads h
+                  JOIN administrative_workflows w
+                    ON w.organization_id=h.organization_id AND w.subject_key=h.subject_key
+                   AND w.id=h.current_workflow_id AND w.version=h.current_version
+                 WHERE h.organization_id=? AND h.subject_key=?
+                """, (rs, row) -> new NumberingSettings(
+                ProcessNumberingMode.valueOf(rs.getString("numbering_mode")), rs.getString("number_pattern")),
+                organizationId, subjectKey).stream().findFirst().orElseThrow(WorkflowNotFound::new);
+        NumberingSettings numbering = numberingSettings(request.numberingMode(), request.numberPattern(),
+                previousNumbering);
+        validateNumberPattern(numbering.mode(), numbering.pattern());
         Map<UUID, String> departmentNames = lockActiveWorkflowDepartments(organizationId, request.steps());
 
         int version = currentVersion + 1;
         UUID workflowId = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO administrative_workflows(
-                    id, organization_id, subject_key, subject_name, version, created_by)
-                VALUES(?,?,?,?,?,?)
-                """, workflowId, organizationId, subjectKey, subjectName, version, actor);
+                    id, organization_id, subject_key, subject_name, version, created_by,
+                    numbering_mode, number_pattern)
+                VALUES(?,?,?,?,?,?,?,?)
+                """, workflowId, organizationId, subjectKey, subjectName, version, actor,
+                numbering.mode().name(), numbering.pattern());
 
         for (int index = 0; index < request.steps().size(); index++) {
             WorkflowStepRequest step = request.steps().get(index);
@@ -151,6 +176,10 @@ public class AdministrativeWorkflowService {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             updateHashString(digest, subjectKey);
             updateHashString(digest, subjectName);
+            updateHashString(digest, request.numberingMode() == null
+                    ? "<omitted>" : request.numberingMode().name());
+            updateHashString(digest, request.numberPattern() == null
+                    ? "<omitted>" : request.numberPattern().trim());
             updateHashInt(digest, request.expectedVersion());
             updateHashInt(digest, request.steps().size());
             for (WorkflowStepRequest step : request.steps()) {
@@ -196,7 +225,8 @@ public class AdministrativeWorkflowService {
     public ProcessView createProcess(String actor, ProcessCreateRequest request) {
         UUID organizationId = TenantContext.requireTenantId();
         WorkflowSelection reference = jdbc.query("""
-                SELECT h.current_workflow_id, h.current_version, w.subject_name
+                SELECT h.current_workflow_id, h.current_version, w.subject_name,
+                       w.numbering_mode, w.number_pattern
                   FROM administrative_workflow_heads h
                   JOIN administrative_workflows w
                     ON w.organization_id=h.organization_id
@@ -206,7 +236,9 @@ public class AdministrativeWorkflowService {
                  WHERE h.organization_id=? AND h.subject_key=?
                  FOR SHARE OF h
                 """, (rs, row) -> new WorkflowSelection(rs.getObject("current_workflow_id", UUID.class),
-                        rs.getString("subject_name"), rs.getInt("current_version")),
+                        rs.getString("subject_name"), rs.getInt("current_version"),
+                        ProcessNumberingMode.valueOf(rs.getString("numbering_mode")),
+                        rs.getString("number_pattern")),
                 organizationId, request.subjectKey()).stream().findFirst().orElseThrow(WorkflowNotFound::new);
 
         List<WorkflowStepView> definitionSteps = workflowSteps(organizationId, reference.id(), reference.version());
@@ -216,15 +248,16 @@ public class AdministrativeWorkflowService {
         if (firstStep.departments().stream().noneMatch(department -> department.id().equals(initialDepartmentId)))
             throw new WorkflowConflict("O setor inicial precisa pertencer à primeira etapa do fluxo ativo.");
         requireDepartmentMembership(organizationId, initialDepartmentId, actor);
+        String processNumber = allocateProcessNumber(organizationId, request.subjectKey(), reference);
 
         UUID processId = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO administrative_processes(
                     id, organization_id, workflow_subject_key, workflow_id, workflow_version,
-                    title, current_step_order, current_department_id, created_by)
-                VALUES(?,?,?,?,?,?,1,?,?)
+                    process_number, title, current_step_order, current_department_id, created_by)
+                VALUES(?,?,?,?,?,?,?,1,?,?)
                 """, processId, organizationId, request.subjectKey(), reference.id(), reference.version(),
-                request.title().trim(), initialDepartmentId, actor);
+                processNumber, request.title().trim(), initialDepartmentId, actor);
         jdbc.update("""
                 INSERT INTO administrative_process_workflow_steps(
                     organization_id, process_id, step_order, step_name)
@@ -245,6 +278,119 @@ public class AdministrativeWorkflowService {
                 VALUES(?,?,?,'OPENED',1,?)
                 """, organizationId, processId, actor, initialDepartmentId);
         return processView(organizationId, processId);
+    }
+
+    private NumberingSettings numberingSettings(ProcessNumberingMode requestedMode, String requestedPattern,
+                                                NumberingSettings previous) {
+        ProcessNumberingMode mode = requestedMode != null ? requestedMode
+                : previous != null ? previous.mode() : ProcessNumberingMode.BY_SUBJECT;
+        String pattern = requestedPattern != null ? requestedPattern.trim()
+                : previous != null ? previous.pattern()
+                : mode == ProcessNumberingMode.GENERAL_SEQUENCE ? "{numero}" : DEFAULT_PROCESS_NUMBER_PATTERN;
+        return new NumberingSettings(mode, pattern);
+    }
+
+    private void validateNumberPattern(ProcessNumberingMode mode, String pattern) {
+        if (pattern.isBlank() || pattern.length() > 120
+                || pattern.chars().anyMatch(Character::isISOControl)) {
+            throw new InvalidWorkflowNumbering("O modelo deve conter texto visível e ter até 120 caracteres.");
+        }
+        Map<String, Integer> counts = new HashMap<>();
+        Matcher matcher = NUMBER_PATTERN_TOKEN.matcher(pattern);
+        StringBuffer literalText = new StringBuffer();
+        while (matcher.find()) {
+            String token = matcher.group(1);
+            if (!PROCESS_NUMBER_TOKENS.contains(token)) {
+                throw new InvalidWorkflowNumbering("Use somente os campos {numero}, {ano} e {assunto}.");
+            }
+            counts.merge(token, 1, Integer::sum);
+            matcher.appendReplacement(literalText, "");
+        }
+        matcher.appendTail(literalText);
+        if (literalText.indexOf("{") >= 0 || literalText.indexOf("}") >= 0) {
+            throw new InvalidWorkflowNumbering("O modelo contém uma chave de campo incompleta.");
+        }
+        if (counts.getOrDefault("numero", 0) != 1) {
+            throw new InvalidWorkflowNumbering("Inclua {numero} exatamente uma vez no modelo.");
+        }
+        if (counts.getOrDefault("ano", 0) > 1) {
+            throw new InvalidWorkflowNumbering("Use {ano} no máximo uma vez no modelo.");
+        }
+        int subjectCount = counts.getOrDefault("assunto", 0);
+        if (mode == ProcessNumberingMode.BY_SUBJECT && subjectCount != 1) {
+            throw new InvalidWorkflowNumbering("Na sequência por assunto, inclua {assunto} exatamente uma vez.");
+        }
+        if (mode == ProcessNumberingMode.GENERAL_SEQUENCE && subjectCount != 0) {
+            throw new InvalidWorkflowNumbering("A sequência geral não pode incluir {assunto}.");
+        }
+    }
+
+    private String allocateProcessNumber(UUID organizationId, String subjectKey, WorkflowSelection workflow) {
+        String scope = workflow.numberingMode() == ProcessNumberingMode.GENERAL_SEQUENCE
+                ? "GENERAL" : "SUBJECT:" + subjectKey;
+
+        jdbc.update("""
+                INSERT INTO administrative_process_number_registry_locks(organization_id)
+                VALUES(?) ON CONFLICT (organization_id) DO NOTHING
+                """, organizationId);
+        jdbc.query("""
+                SELECT organization_id FROM administrative_process_number_registry_locks
+                 WHERE organization_id=? FOR UPDATE
+                """, (rs, row) -> rs.getObject("organization_id", UUID.class), organizationId)
+                .stream().findFirst().orElseThrow(WorkflowNotFound::new);
+
+        List<Long> storedCounters = jdbc.query("""
+                SELECT next_value FROM administrative_process_number_counters
+                 WHERE organization_id=? AND counter_scope=? FOR UPDATE
+                """, (rs, row) -> rs.getLong("next_value"), organizationId, scope);
+        boolean newCounter = storedCounters.isEmpty();
+        long sequence = newCounter ? 1 : storedCounters.getFirst();
+        int year = Year.now(processNumberingClock).getValue();
+        String processNumber;
+        while (true) {
+            processNumber = renderProcessNumber(workflow.numberPattern(), subjectKey, year, sequence);
+            if (jdbc.queryForObject("""
+                    SELECT NOT EXISTS (
+                        SELECT 1 FROM administrative_processes
+                         WHERE organization_id=? AND process_number=?
+                    )
+                    """, Boolean.class, organizationId, processNumber)) {
+                break;
+            }
+            if (sequence == Long.MAX_VALUE) {
+                throw new WorkflowConflict("A sequência de numeração atingiu o limite suportado.");
+            }
+            sequence++;
+        }
+
+        if (sequence == Long.MAX_VALUE) {
+            throw new WorkflowConflict("A sequência de numeração atingiu o limite suportado.");
+        }
+        long nextValue = sequence + 1;
+        if (newCounter) {
+            jdbc.update("""
+                    INSERT INTO administrative_process_number_counters(
+                        organization_id, counter_scope, next_value)
+                    VALUES(?,?,?)
+                    """, organizationId, scope, nextValue);
+        } else {
+            jdbc.update("""
+                    UPDATE administrative_process_number_counters
+                       SET next_value=?
+                     WHERE organization_id=? AND counter_scope=?
+                    """, nextValue, organizationId, scope);
+        }
+        return processNumber;
+    }
+
+    private String renderProcessNumber(String pattern, String subjectKey, int year, long sequence) {
+        String number = pattern.replace("{assunto}", subjectKey)
+                .replace("{ano}", Integer.toString(year))
+                .replace("{numero}", Long.toString(sequence));
+        if (number.length() > 240) {
+            throw new InvalidWorkflowNumbering("O número gerado ultrapassa 240 caracteres.");
+        }
+        return number;
     }
 
     @Transactional
@@ -307,7 +453,7 @@ public class AdministrativeWorkflowService {
         long offset = (long) page * size;
         List<ProcessSummaryView> rows = jdbc.query("""
                 SELECT p.id, p.workflow_subject_key, w.subject_name, p.workflow_id, p.workflow_version,
-                       p.title, p.current_step_order, current_step.step_name AS current_step_name,
+                       p.process_number, p.title, p.current_step_order, current_step.step_name AS current_step_name,
                        p.current_department_id, current_department.department_name AS current_department_name,
                        p.status, p.decision_outcome, p.created_at
                   FROM administrative_processes p
@@ -341,17 +487,19 @@ public class AdministrativeWorkflowService {
                     )
                     AND (?='' OR strpos(lower(p.title), lower(?)) > 0
                          OR strpos(lower(w.subject_name), lower(?)) > 0
-                         OR strpos(lower(p.workflow_subject_key), lower(?)) > 0)
+                         OR strpos(lower(p.workflow_subject_key), lower(?)) > 0
+                         OR strpos(lower(COALESCE(p.process_number, '')), lower(?)) > 0)
                   ORDER BY p.created_at DESC, p.id DESC
                  LIMIT ? OFFSET ?
                 """, (rs, rowNum) -> new ProcessSummaryView(
                 rs.getObject("id", UUID.class), rs.getString("workflow_subject_key"),
                 rs.getString("subject_name"), rs.getObject("workflow_id", UUID.class),
-                rs.getInt("workflow_version"), rs.getString("title"), rs.getInt("current_step_order"),
+                rs.getInt("workflow_version"), rs.getString("process_number"),
+                rs.getString("title"), rs.getInt("current_step_order"),
                 rs.getString("current_step_name"), rs.getObject("current_department_id", UUID.class),
                 rs.getString("current_department_name"), rs.getString("status"), rs.getString("decision_outcome"),
                 rs.getObject("created_at", OffsetDateTime.class)),
-                organizationId, actor, actor, query, query, query, query, size + 1, offset);
+                organizationId, actor, actor, query, query, query, query, query, size + 1, offset);
         boolean hasNext = rows.size() > size;
         List<ProcessSummaryView> items = hasNext ? List.copyOf(rows.subList(0, size)) : List.copyOf(rows);
         return new ProcessPageView(items, page, size, hasNext);
@@ -593,15 +741,18 @@ public class AdministrativeWorkflowService {
 
     private WorkflowView workflowView(UUID organizationId, UUID workflowId, int version) {
         WorkflowReference reference = jdbc.query("""
-                SELECT id, subject_key, subject_name, version, created_at
+                SELECT id, subject_key, subject_name, version, created_at, numbering_mode, number_pattern
                   FROM administrative_workflows
                  WHERE organization_id=? AND id=? AND version=?
                 """, (rs, row) -> new WorkflowReference(rs.getObject("id", UUID.class),
                         rs.getString("subject_key"), rs.getString("subject_name"),
-                        rs.getInt("version"), rs.getObject("created_at", OffsetDateTime.class)),
+                        rs.getInt("version"), rs.getObject("created_at", OffsetDateTime.class),
+                        ProcessNumberingMode.valueOf(rs.getString("numbering_mode")),
+                        rs.getString("number_pattern")),
                 organizationId, workflowId, version).stream().findFirst().orElseThrow(WorkflowNotFound::new);
         return new WorkflowView(reference.id(), reference.subjectKey(), reference.subjectName(),
-                reference.version(), reference.createdAt(), workflowSteps(organizationId, workflowId, version));
+                reference.version(), reference.createdAt(), reference.numberingMode(), reference.numberPattern(),
+                workflowSteps(organizationId, workflowId, version));
     }
 
     private List<WorkflowStepView> workflowSteps(UUID organizationId, UUID workflowId, int version) {
@@ -636,7 +787,7 @@ public class AdministrativeWorkflowService {
     private ProcessView processView(UUID organizationId, UUID processId) {
         ProcessRecord process = jdbc.query("""
                 SELECT p.id, p.workflow_subject_key, w.subject_name, p.workflow_id, p.workflow_version,
-                       p.title, p.current_step_order, current_step.step_name AS current_step_name,
+                       p.process_number, p.title, p.current_step_order, current_step.step_name AS current_step_name,
                        p.current_department_id, current_department.department_name AS current_department_name,
                        p.status, p.decision_outcome, p.decision_actor, p.decision_at, p.created_at
                   FROM administrative_processes p
@@ -655,7 +806,7 @@ public class AdministrativeWorkflowService {
                 """, (rs, row) -> new ProcessRecord(rs.getObject("id", UUID.class),
                         rs.getString("workflow_subject_key"), rs.getString("subject_name"),
                         rs.getObject("workflow_id", UUID.class), rs.getInt("workflow_version"),
-                        rs.getString("title"), rs.getInt("current_step_order"),
+                        rs.getString("process_number"), rs.getString("title"), rs.getInt("current_step_order"),
                         rs.getString("current_step_name"), rs.getObject("current_department_id", UUID.class),
                         rs.getString("current_department_name"), rs.getString("status"),
                         rs.getString("decision_outcome"), rs.getString("decision_actor"),
@@ -693,7 +844,7 @@ public class AdministrativeWorkflowService {
                 rs.getString("created_by"), rs.getObject("created_at", OffsetDateTime.class)),
                 organizationId, processId);
         return new ProcessView(process.id(), process.subjectKey(), process.subjectName(), process.workflowId(),
-                process.workflowVersion(), process.title(), process.currentStepOrder(), process.currentStepName(),
+                process.workflowVersion(), process.processNumber(), process.title(), process.currentStepOrder(), process.currentStepName(),
                 process.currentDepartmentId(), process.currentDepartmentName(), process.status(),
                 process.decisionOutcome(), process.decisionActor(), process.decisionAt(), process.createdAt(),
                 List.copyOf(steps), List.copyOf(events), List.copyOf(deadlines));
@@ -712,8 +863,11 @@ public class AdministrativeWorkflowService {
     }
 
     private record WorkflowReference(UUID id, String subjectKey, String subjectName, int version,
-                                     OffsetDateTime createdAt) {}
-    private record WorkflowSelection(UUID id, String subjectName, int version) {}
+                                     OffsetDateTime createdAt, ProcessNumberingMode numberingMode,
+                                     String numberPattern) {}
+    private record WorkflowSelection(UUID id, String subjectName, int version,
+                                     ProcessNumberingMode numberingMode, String numberPattern) {}
+    private record NumberingSettings(ProcessNumberingMode mode, String pattern) {}
     private record WorkflowPointer(UUID id, int version) {}
     private record PublicationKey(String subjectKey, String requestHash, UUID workflowId, Integer workflowVersion) {}
     private record DepartmentSnapshot(UUID id, String name) {}
@@ -722,13 +876,16 @@ public class AdministrativeWorkflowService {
     private record DecisionState(int currentStepOrder, UUID currentDepartmentId, String status,
                                  String decisionOutcome) {}
     private record ProcessRecord(UUID id, String subjectKey, String subjectName, UUID workflowId,
-                                 int workflowVersion, String title, int currentStepOrder,
+                                 int workflowVersion, String processNumber, String title, int currentStepOrder,
                                  String currentStepName, UUID currentDepartmentId,
                                  String currentDepartmentName, String status, String decisionOutcome,
                                  String decisionActor, OffsetDateTime decisionAt, OffsetDateTime createdAt) {}
 
     public static class WorkflowNotFound extends RuntimeException {}
     public static class WorkflowForbidden extends RuntimeException {}
+    public static class InvalidWorkflowNumbering extends RuntimeException {
+        public InvalidWorkflowNumbering(String message) { super(message); }
+    }
     public static class WorkflowConflict extends RuntimeException {
         public WorkflowConflict(String message) { super(message); }
     }
