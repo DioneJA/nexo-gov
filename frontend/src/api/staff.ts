@@ -33,6 +33,33 @@ export interface OrganizationMemberAccessResult {
   accessStatus: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE'
   changed: boolean
 }
+export type OrganizationContactType = 'PERSON' | 'MUNICIPAL_DEPARTMENT' | 'LEGAL_ENTITY'
+export interface OrganizationContact {
+  id: string
+  type: OrganizationContactType
+  name: string
+  email: string | null
+  phone: string | null
+  active: boolean
+}
+export interface OrganizationContactInput {
+  type: OrganizationContactType
+  name: string
+  email: string | null
+  phone: string | null
+}
+export interface OrganizationContactPage {
+  items: OrganizationContact[]
+  total: number
+  page: number
+  size: number
+}
+export interface OrganizationContactImportResult {
+  created: number
+  updated: number
+  unchanged: number
+  processed: number
+}
 export interface AttachmentRequirement {
   id: string
   name: string

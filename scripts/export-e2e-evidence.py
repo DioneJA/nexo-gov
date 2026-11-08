@@ -36,6 +36,26 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
         ),
     },
     (
+        "organization-contacts.spec.ts",
+        "administrador mantém contatos por tipo e importa/exporta CSV",
+    ): {
+        "labels": {"contatos-tipos", "contatos-gerenciados", "contatos-csv-importado-exportado"},
+        "ids": {"ED91-0130", "ED91-0131", "ED91-0132", "TR91-0135", "TR91-0136", "TR91-0137"},
+        "id_labels": {
+            "ED91-0130": {"contatos-gerenciados"},
+            "ED91-0131": {"contatos-tipos"},
+            "ED91-0132": {"contatos-csv-importado-exportado"},
+            "TR91-0135": {"contatos-gerenciados"},
+            "TR91-0136": {"contatos-tipos"},
+            "TR91-0137": {"contatos-csv-importado-exportado"},
+        },
+        "nota": (
+            "Capturas da área de contatos da organização com dados fictícios: manutenção, categorias previstas no TR e CSV importado/exportado. "
+            "As imagens não provam, sozinhas, autorização, persistência, rollback, isolamento ou auditoria; consulte testes Testcontainers. "
+            "O cenário não comprova organograma oficial, vCard, deduplicação, listas de contatos, integração legada ou POC oficial."
+        ),
+    },
+    (
         "protocol-participant-fields.spec.ts",
         "administrador configura e mantém campos de identificação por assunto",
     ): {

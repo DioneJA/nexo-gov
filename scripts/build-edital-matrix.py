@@ -307,6 +307,32 @@ partial_federated_identity_requirements = {
         federated_identity_evidence + ' Sem evidência de matriz completa de autorização documental.',
     ),
 }
+contact_requirements = {
+    'ED91-0130': (
+        'Demonstrar que um administrador organizacional consegue criar, consultar, pesquisar, editar, arquivar e reativar contatos internos, com dados persistidos e trilha de auditoria; autorização e isolamento devem ser aplicados no servidor.',
+        'V23 organization_contacts; OrganizationContactController/Service deriva o tenant de TenantContext, exige ADMIN organizacional ativo, limita cada consulta/mutação à organization_id e registra eventos append-only.',
+        'Painel Contatos da organização na área do servidor: criação, consulta, busca, edição, arquivamento e reativação; oculto para quem não recebe capacidade ADMIN.',
+        './dev contacts-test (PostgreSQL Testcontainers): autorização ADMIN organizacional vs ADMIN setorial, pesquisa, paginação, arquivo, reativação, escopo e auditoria; ./dev contacts-e2e exercita o fluxo real na UI (frontend/e2e/organization-contacts.spec.ts, cenário "administrador mantém contatos por tipo e importa/exporta CSV").',
+        "POC-ADMIN-CONTATOS: entrar como ADMIN, cadastrar contato fictício, pesquisar, editar, arquivar, incluir arquivados, reativar e recarregar; repetir a leitura/mutação com usuário sem ADMIN e confirmar recusa. Evidência E2E: organization-contacts.spec.ts, cenário 'administrador mantém contatos por tipo e importa/exporta CSV'.",
+        'docs/INCREMENTO_51.md; OrganizationContactIntegrationTest; organization-contacts.spec.ts; captura privada `contatos-gerenciados` em Documentos após ./dev evidence. Escopo não prova organograma oficial, vCard, fusão de duplicados ou listas de contatos.',
+    ),
+    'ED91-0131': (
+        'Criar, consultar e editar contatos separados nas três categorias expressas: pessoa física, setor da Prefeitura (por exemplo Financeiro ou Suporte) e Prefeitura/pessoa jurídica; o tipo deve persistir e aparecer na interface.',
+        'OrganizationContactDtos.ContactType e V23 restringem o tipo a PERSON, MUNICIPAL_DEPARTMENT ou LEGAL_ENTITY; validação e leitura/mutação ocorrem com organization_id validada.',
+        'Painel interno mantém e exibe cada uma das três categorias com rótulos distintos.',
+        './dev contacts-test valida enum e round-trip persistido; ./dev contacts-e2e cria e verifica as três categorias na interface real (frontend/e2e/organization-contacts.spec.ts, cenário "administrador mantém contatos por tipo e importa/exporta CSV").',
+        "POC-ADMIN-TIPOS-CONTATO: criar e editar um contato fictício de cada tipo; recarregar e confirmar que os três rótulos persistem. Evidência E2E: organization-contacts.spec.ts, cenário 'administrador mantém contatos por tipo e importa/exporta CSV'.",
+        'docs/INCREMENTO_51.md; OrganizationContactIntegrationTest; organization-contacts.spec.ts; captura privada `contatos-tipos` em Documentos após ./dev evidence. Não valida tipos adicionais ausentes na fonte.',
+    ),
+    'ED91-0132': (
+        'Importar contatos de um CSV UTF-8 e exportar contatos para CSV pela ferramenta; conferir registros persistidos, conteúdo exportado, limites, erros e ausência de gravação parcial em CSV inválido.',
+        'OrganizationContactCsv limita a leitura a 1 MiB e 1.000 linhas; valida cabeçalho, encoding, campos e IDs no tenant antes de gravar; import é transacional e exporta somente contatos da organização autorizada.',
+        'Painel de contatos oferece seleção e importação de arquivo CSV e download da exportação.',
+        './dev contacts-test verifica import/export CSV, round-trip idempotente por ID, CSV inválido/oversize, fórmula e rollback atômico; ./dev contacts-e2e importa arquivo fictício e aciona o download pela interface (frontend/e2e/organization-contacts.spec.ts, cenário "administrador mantém contatos por tipo e importa/exporta CSV").',
+        "POC-ADMIN-CSV-CONTATOS: importar contatos fictícios em CSV pela interface, confirmar quantidade e persistência, exportar CSV e conferir que contém os registros da organização. Evidência E2E: organization-contacts.spec.ts, cenário 'administrador mantém contatos por tipo e importa/exporta CSV'.",
+        'docs/INCREMENTO_51.md; OrganizationContactIntegrationTest; organization-contacts.spec.ts; captura privada `contatos-csv-importado-exportado` em Documentos após ./dev evidence. CSV é de formato documentado, não um mapeador de colunas de sistemas legados.',
+    ),
+}
 for row in rows:
     if row[0] in partial_organization_requirements:
         row[6] = 'Parcial — ' + partial_organization_requirements[row[0]]
@@ -316,6 +342,12 @@ for row in rows:
         row[10] = 'POC-ADMIN-ORGANIZACAO: autenticar como ADMIN, cadastrar setor, atualizar lista e demonstrar que outra organização não vê o novo setor.'
         row[11] = 'Parcial: teste PostgreSQL confirma criação autorizada, isolamento entre organizações e trilha append-only; hierarquia, contatos e organograma visual pendentes conforme o requisito.'
         row[12] = 'EM_DESENVOLVIMENTO'
+
+    if row[0] in contact_requirements:
+        (row[6], row[7], row[8], row[9], row[10], row[11]) = contact_requirements[row[0]]
+        row[4] = 'ADMINISTRACAO'
+        row[5] = 'SOFTWARE'
+        row[12] = 'VALIDADO'
 
     if row[0] in partial_member_access_requirements:
         (row[6], row[7], row[8], row[9], row[10], row[11]) = partial_member_access_requirements[row[0]]
@@ -507,8 +539,8 @@ progress_columns = {
 for row in rows:
     previous = previous_progress.get(row[0])
     if previous and previous['requisito_resumo_fiel'] == row[1]:
-        regenerated_details = set(partial_protocol_access_requirements) | set(partial_protocol_read_status_requirements) | set(partial_member_access_requirements) | set(partial_protocol_subject_requirements) | set(partial_protocol_attachment_requirements) | set(partial_protocol_completion_requirements) | set(partial_protocol_storage_requirements) | set(partial_protocol_receipt_requirements) | set(partial_workflow_requirements) | set(process_decision_requirements) | set(partial_federated_identity_requirements) | {'ED91-X001', 'ED91-X002', 'ED91-X003', 'ED91-X004', 'ED91-X005', 'ED91-X006'}
-        force_source_mapped_refresh = row[0] in partial_protocol_read_status_requirements or row[0] in partial_member_access_requirements or row[0] in partial_protocol_subject_requirements or row[0] in partial_protocol_attachment_requirements or row[0] in partial_protocol_completion_requirements or row[0] in partial_protocol_storage_requirements or row[0] in partial_protocol_receipt_requirements or row[0] in partial_workflow_requirements or row[0] in process_decision_requirements or row[0] in partial_federated_identity_requirements
+        regenerated_details = set(partial_protocol_access_requirements) | set(partial_protocol_read_status_requirements) | set(partial_member_access_requirements) | set(partial_protocol_subject_requirements) | set(partial_protocol_attachment_requirements) | set(partial_protocol_completion_requirements) | set(partial_protocol_storage_requirements) | set(partial_protocol_receipt_requirements) | set(partial_workflow_requirements) | set(process_decision_requirements) | set(partial_federated_identity_requirements) | set(contact_requirements) | {'ED91-X001', 'ED91-X002', 'ED91-X003', 'ED91-X004', 'ED91-X005', 'ED91-X006'}
+        force_source_mapped_refresh = row[0] in partial_protocol_read_status_requirements or row[0] in partial_member_access_requirements or row[0] in partial_protocol_subject_requirements or row[0] in partial_protocol_attachment_requirements or row[0] in partial_protocol_completion_requirements or row[0] in partial_protocol_storage_requirements or row[0] in partial_protocol_receipt_requirements or row[0] in partial_workflow_requirements or row[0] in process_decision_requirements or row[0] in partial_federated_identity_requirements or row[0] in contact_requirements
         preserve_existing = not force_source_mapped_refresh and (
             row[0] not in regenerated_details or previous['status'] != 'NAO_INICIADO'
         )

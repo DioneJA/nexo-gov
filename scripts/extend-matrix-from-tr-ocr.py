@@ -1233,22 +1233,58 @@ for index, candidate in enumerate(candidates, start=1):
         test = "ProtocolVerticalIntegrationTest.departmentAdministrationIsTenantScopedAdminOnlyAndAudited e teste E2E do cadastro de setor; a parte hierárquica/dinâmica do requisito permanece sem teste."
         evidence = "Teste PostgreSQL confirma criação autorizada, isolamento entre organizações e trilha append-only; consulte docs/INCREMENTO_15.md."
         poc = "POC-ADMIN-ORGANIZACAO: autenticar como ADMIN, cadastrar setor, atualizar lista e demonstrar que outra organização não vê o novo setor; registrar lacunas hierárquicas/dinâmicas."
+    contact_requirements = {
+        "TR91-0135": (
+            "Demonstrar que ADMIN organizacional consegue criar, consultar, pesquisar, editar, arquivar e reativar contatos internos persistidos; autorização e isolamento são aplicados no servidor.",
+            "V23 organization_contacts; OrganizationContactController/Service deriva o tenant de TenantContext, exige ADMIN organizacional ativo, limita consultas/mutações por organization_id e grava auditoria append-only.",
+            "Painel Contatos da organização na área do servidor permite criar, consultar, pesquisar, editar, arquivar e reativar; acesso visual acompanha a capacidade retornada pelo backend.",
+            "OrganizationContactIntegrationTest (PostgreSQL Testcontainers) e organization-contacts.spec.ts (Playwright contra API real); executar ./dev contacts-test e ./dev contacts-e2e.",
+            "POC-TR91-0135: entrar como ADMIN, manter contato fictício pela interface, recarregar e confirmar persistência; verificar recusa de ADMIN apenas setorial. Captura: organization-contacts.spec.ts, cenário 'administrador mantém contatos por tipo e importa/exporta CSV'.",
+            "docs/INCREMENTO_51.md; OrganizationContactIntegrationTest; organization-contacts.spec.ts; screenshot privado `contatos-gerenciados` em Documentos após ./dev evidence. Não valida organograma oficial, vCard, fusão de duplicados ou listas.",
+        ),
+        "TR91-0136": (
+            "Criar, consultar e editar contatos separados nas três categorias expressas: pessoa física, setor da Prefeitura (por exemplo Financeiro ou Suporte) e Prefeitura/pessoa jurídica; tipo persiste e aparece na interface.",
+            "OrganizationContactDtos.ContactType e V23 restringem o tipo a PERSON, MUNICIPAL_DEPARTMENT ou LEGAL_ENTITY; operações permanecem no tenant validado.",
+            "Painel interno mantém e exibe as três categorias com rótulos distintos.",
+            "OrganizationContactIntegrationTest verifica enum e persistência; organization-contacts.spec.ts cria as três categorias e confirma os rótulos na interface real; executar ./dev contacts-test e ./dev contacts-e2e.",
+            "POC-TR91-0136: criar e editar um contato fictício de cada tipo, recarregar e confirmar os três tipos persistidos. Captura: organization-contacts.spec.ts, cenário 'administrador mantém contatos por tipo e importa/exporta CSV'.",
+            "docs/INCREMENTO_51.md; OrganizationContactIntegrationTest; organization-contacts.spec.ts; screenshot privado `contatos-tipos` em Documentos após ./dev evidence. Não valida categorias adicionais não descritas na fonte.",
+        ),
+        "TR91-0137": (
+            "Importar contatos de um CSV UTF-8 e exportar contatos para CSV pela ferramenta; conferir persistência, conteúdo exportado, limites, validação e ausência de gravação parcial em CSV inválido.",
+            "OrganizationContactCsv limita a leitura a 1 MiB e 1.000 linhas; valida encoding, cabeçalho, campos e IDs no tenant antes de aplicar a transação; a exportação escapa prefixos de fórmula.",
+            "Painel oferece importação de arquivo CSV e download da exportação.",
+            "OrganizationContactIntegrationTest verifica import/export, round-trip idempotente por ID, CSV inválido/oversize, fórmula, tenant e rollback atômico; organization-contacts.spec.ts importa arquivo e baixa a exportação pela interface real; executar ./dev contacts-test e ./dev contacts-e2e.",
+            "POC-TR91-0137: importar CSV fictício pela interface, confirmar quantidade e persistência, exportar e conferir os registros. Captura: organization-contacts.spec.ts, cenário 'administrador mantém contatos por tipo e importa/exporta CSV'.",
+            "docs/INCREMENTO_51.md; OrganizationContactIntegrationTest; organization-contacts.spec.ts; screenshot privado `contatos-csv-importado-exportado` em Documentos após ./dev evidence. Não inclui mapeamento de colunas de sistemas legados.",
+        ),
+    }
+    if requirement_id in contact_requirements:
+        acceptance, backend, frontend, test, poc, evidence = contact_requirements[requirement_id]
     row = {
         "id": requirement_id,
         "requisito_resumo_fiel": summary,
         "origem_documento_pagina_secao_item": origin,
         "prioridade": priority_for(candidate["section"], candidate["body"]),
-        "modulo": module_for(candidate["section"], candidate["body"]),
-        "natureza": nature_for(candidate["section"], candidate["body"]),
+        "modulo": "ADMINISTRACAO" if requirement_id in contact_requirements else module_for(candidate["section"], candidate["body"]),
+        "natureza": "SOFTWARE" if requirement_id in contact_requirements else nature_for(candidate["section"], candidate["body"]),
         "criterio_de_aceite": acceptance,
-        "backend_envolvido": "OrganizationAdminService, OrganizationAdminController e tabela departments com escopo validado por TenantContext." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
-        "frontend_envolvido": "Área do servidor: cadastro e seleção de setores retornados pela organização atual." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
+        "backend_envolvido": backend if requirement_id in contact_requirements else "OrganizationAdminService, OrganizationAdminController e tabela departments com escopo validado por TenantContext." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
+        "frontend_envolvido": frontend if requirement_id in contact_requirements else "Área do servidor: cadastro e seleção de setores retornados pela organização atual." if requirement_id in partial_organization_requirements else "A definir após validação visual e decomposição do requisito.",
         "teste_automatizado": test,
         "roteiro_poc": poc,
         "evidencia": evidence,
         "status": "EM_DESENVOLVIMENTO" if requirement_id in partial_organization_requirements else "NAO_INICIADO" if visually_reviewed else "BLOQUEADO",
         "validacao_fonte": "CONFERIDA_VISUALMENTE" if visually_reviewed else "OCR_PENDENTE",
     }
+    if requirement_id in contact_requirements:
+        row.update({
+            "criterio_de_aceite": acceptance,
+            "teste_automatizado": test,
+            "roteiro_poc": poc,
+            "evidencia": evidence,
+            "status": "VALIDADO",
+        })
     federated_identity_backend = (
         "SecurityConfiguration valida assinatura RS256 por JWKS, issuer, audience e validade; issuer e JWKS exigem HTTPS, com HTTP permitido apenas para loopback no perfil de teste; "
         "JdbcExternalIdentityResolver resolve vínculo ativo por organization_id + issuer + subject somente quando user_accounts.active=true; "
@@ -1367,7 +1403,7 @@ for index, candidate in enumerate(candidates, start=1):
         generated_blocker = previous["criterio_de_aceite"].startswith(
             "BLOQUEADO: transcrição conferida; decompor obrigações, definir aceite observável"
         )
-        preserve_previous = not generated_blocker and requirement_id not in partial_federated_identity_requirements and not (
+        preserve_previous = not generated_blocker and requirement_id not in partial_federated_identity_requirements and requirement_id not in contact_requirements and not (
             requirement_id in poc_requirement_details and previous["status"] == "NAO_INICIADO"
         )
         if preserve_previous:

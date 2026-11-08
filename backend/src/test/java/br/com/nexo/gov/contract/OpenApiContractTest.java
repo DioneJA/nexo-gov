@@ -50,6 +50,34 @@ class OpenApiContractTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void organizationContactsContractDefinesTenantAdminScopeAndCsvLimits() throws Exception {
+        Path contractPath = repositoryRoot().resolve(CONTRACT);
+        Map<String, Object> document;
+        try (InputStream source = Files.newInputStream(contractPath)) {
+            document = new Yaml().load(source);
+        }
+        Map<String, Object> paths = (Map<String, Object>) document.get("paths");
+        Map<String, Object> contacts = (Map<String, Object>) paths.get("/staff/organization/contacts");
+        assertThat(contacts).containsKeys("get", "post");
+        assertThat(contacts.get("get").toString()).contains("organization administrators only", "10000", "100");
+        Map<String, Object> importOperation = (Map<String, Object>) ((Map<String, Object>) paths
+                .get("/staff/organization/contacts/import")).get("post");
+        Map<String, Object> requestBody = (Map<String, Object>) importOperation.get("requestBody");
+        assertThat(requestBody.get("description").toString()).contains("1,000 rows", "1 MiB", "all-or-nothing");
+        Map<String, Object> content = (Map<String, Object>) requestBody.get("content");
+        assertThat(content).containsKey("text/csv");
+        Map<String, Object> responses = (Map<String, Object>) importOperation.get("responses");
+        assertThat(responses).containsKeys("400", "403", "404", "413");
+
+        Map<String, Object> components = (Map<String, Object>) document.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        Map<String, Object> type = (Map<String, Object>) schemas.get("OrganizationContactType");
+        assertThat(type.get("enum")).isEqualTo(List.of("PERSON", "MUNICIPAL_DEPARTMENT", "LEGAL_ENTITY"));
+        assertThat(schemas).containsKeys("OrganizationContact", "OrganizationContactPage", "OrganizationContactImportResult");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void administrativeProcessListContractDocumentsBoundsAndCompactProjection() throws Exception {
         Path contractPath = repositoryRoot().resolve(CONTRACT);
         Map<String, Object> document;

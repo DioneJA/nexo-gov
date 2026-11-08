@@ -168,6 +168,7 @@ input, textarea { caret-color: var(--nexo-color-action); }
 .staff-auth-unavailable { color: var(--nexo-color-danger); }
 .staff-auth-status { margin: 0; color: var(--nexo-color-text-secondary); font-size: 13px; line-height: 1.5; }
 .staff-workspace { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, .8fr); gap: clamp(36px, 5.5vw, 76px); margin-top: 35px; align-items: start; }
+.contacts-workspace { margin-top: 42px; padding-top: 28px; border-top: 1px solid var(--nexo-color-separator); }
 .inbox-panel { min-width: 0; }
 .inbox-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
 .inbox-heading .section-subheading { margin: 6px 0 0; }

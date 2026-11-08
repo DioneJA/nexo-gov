@@ -10,6 +10,9 @@ case "$command" in
   doctor) exec "$repo_root/scripts/doctor.sh" ;;
   setup|bootstrap) exec "$repo_root/scripts/bootstrap-local.sh" ;;
   start) exec "$repo_root/scripts/start-local.sh" ;;
+  sandbox) exec "$repo_root/scripts/manual-sandbox.sh" start ;;
+  sandbox-status) exec "$repo_root/scripts/manual-sandbox.sh" status ;;
+  sandbox-stop) exec "$repo_root/scripts/manual-sandbox.sh" stop ;;
   web) exec "$repo_root/scripts/start-web-local.sh" ;;
   e2e) exec "$repo_root/scripts/run-e2e.sh" "$@" ;;
   evidence) exec "$repo_root/scripts/capture-e2e-evidence.sh" "$@" ;;
@@ -18,6 +21,8 @@ case "$command" in
   frontend-auth-bundle-test) exec "$repo_root/scripts/frontend-auth-bundle-test.sh" ;;
   identity-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=FederatedIdentityIntegrationTest,MigrationSafetyIntegrationTest' test ;;
   admin-access-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=OrganizationMemberAccessIntegrationTest test ;;
+  contacts-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=OrganizationContactIntegrationTest test ;;
+  contacts-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'administrador mantém contatos por tipo e importa/exporta CSV' ;;
   subject-catalog-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=ProtocolVerticalIntegrationTest#protocolSubjectCatalogIsTenantScopedOnlineOnlyAndKeepsSnapshots test ;;
   participant-fields-test) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=ProtocolVerticalIntegrationTest#protocolSubjectParticipantFieldsAreTenantScopedAndAdminOnly test ;;
   participant-fields-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'administrador configura e mantém campos de identificação por assunto' ;;
@@ -50,6 +55,9 @@ Uso: ./dev <comando>
   doctor          Confere ferramentas, NEXO Core e arquivos locais
   setup           Instala dependências e executa build/testes iniciais
   start           Inicia PostgreSQL local e API
+  sandbox         Abre app manual com DB/S3Mock descartáveis e dados fictícios, sem usar .env ou volume persistente
+  sandbox-status  Mostra a URL e saúde do sandbox manual ativo
+  sandbox-stop    Encerra somente o Compose temporário do sandbox e apaga seus dados fictícios
   web             Inicia a interface local em outra janela de terminal
   verify-fast     Testa Core e API, compila frontend e confere matriz
   verify          Executa verify-fast, E2E local Basic e OIDC focado em projetos descartáveis separados
@@ -60,6 +68,8 @@ Uso: ./dev <comando>
   frontend-auth-bundle-test  Compila em pasta temporária e verifica isolamento do bundle público
   identity-test   Testa JWT, vínculo externo por organização e segurança da migração V9 (requer Docker)
   admin-access-test Testa autorização de mutação por papel setorial/organizacional, alvo de outro tenant, suspensão/reativação, auditoria e último administrador (requer Docker)
+  contacts-test   Testa CRUD, tipos, CSV UTF-8, limites, importação atômica, transição concorrente, auditoria, autorização e isolamento de contatos (requer Docker)
+  contacts-e2e    Testa contatos pela interface real: tipos, edição, arquivamento, importação e exportação CSV, com largura desktop (requer Docker e Chrome)
   subject-catalog-test Testa catálogo de assuntos, filtro público, isolamento, numeração e snapshots (requer Docker)
   participant-fields-test Testa configuração tenant-scoped de campos de pessoas envolvidas e autorização administrativa (requer Docker)
   participant-fields-e2e Testa criar, editar, persistir, recarregar, remover e ajustar o layout em painel estreito via interface e API real (requer Docker e Chrome)

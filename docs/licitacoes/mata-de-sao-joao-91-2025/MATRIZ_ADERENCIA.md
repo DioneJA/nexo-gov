@@ -6,9 +6,9 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 
 - Total de linhas/requisitos rastreados: **1388**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Itens de fonte do Termo de Referência: **742**; transcrições conferidas visualmente: **742**; ainda pendentes de cotejo visual: **0**. Status TR: `EM_DESENVOLVIMENTO`=18, `IMPLEMENTADO_NAO_TESTADO`=0, `VALIDADO`=6, `NAO_INICIADO`=718, `BLOQUEADO`=0, `NAO_APLICAVEL_JUSTIFICADO`=0; **713/742** ainda aguardam decomposição em critérios observáveis. Os requisitos `VALIDADO` cobrem apenas seus critérios delimitados; a POC integral e a conformidade global não estão comprovadas.
-- Obrigações sem implementação exclusiva em software: **222** (mesmo escopo para total e parcelas; inclui POC e proposta comercial; natureza `PREFERENCIAL` (**1**) é reportada separadamente). Operação contratual **107**, integração externa **78**, habilitação **8**, obrigações externas/contratuais **23**, POC **5**, proposta comercial **1**.
-- Status `VALIDADO`: **10**. Não há alegação de 100% de aderência.
+- Itens de fonte do Termo de Referência: **742**; transcrições conferidas visualmente: **742**; ainda pendentes de cotejo visual: **0**. Status TR: `EM_DESENVOLVIMENTO`=18, `IMPLEMENTADO_NAO_TESTADO`=0, `VALIDADO`=9, `NAO_INICIADO`=715, `BLOQUEADO`=0, `NAO_APLICAVEL_JUSTIFICADO`=0; **710/742** ainda aguardam decomposição em critérios observáveis. Os requisitos `VALIDADO` cobrem apenas seus critérios delimitados; a POC integral e a conformidade global não estão comprovadas.
+- Obrigações sem implementação exclusiva em software: **221** (mesmo escopo para total e parcelas; inclui POC e proposta comercial; natureza `PREFERENCIAL` (**1**) é reportada separadamente). Operação contratual **106**, integração externa **78**, habilitação **8**, obrigações externas/contratuais **23**, POC **5**, proposta comercial **1**.
+- Status `VALIDADO`: **16**. Não há alegação de 100% de aderência.
 
 ## Contagem por status
 
@@ -16,8 +16,8 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 |---|---:|
 | `EM_DESENVOLVIMENTO` | 45 |
 | `IMPLEMENTADO_NAO_TESTADO` | 0 |
-| `VALIDADO` | 10 |
-| `NAO_INICIADO` | 1333 |
+| `VALIDADO` | 16 |
+| `NAO_INICIADO` | 1327 |
 | `BLOQUEADO` | 0 |
 | `NAO_APLICAVEL_JUSTIFICADO` | 0 |
 
@@ -25,7 +25,7 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Módulo | Linhas |
 |---|---:|
-| `ADMINISTRACAO` | 88 |
+| `ADMINISTRACAO` | 92 |
 | `APROVACAO_PROJETOS` | 113 |
 | `ASSINATURAS` | 117 |
 | `CAPACIDADE_E_LICENCIAMENTO` | 5 |
@@ -36,12 +36,12 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 | `GESTAO_DOCUMENTAL` | 164 |
 | `HABILITACAO_EMPRESARIAL` | 7 |
 | `IDENTIDADE_E_SEGURANCA` | 94 |
-| `IMPLANTACAO_E_SUPORTE` | 7 |
+| `IMPLANTACAO_E_SUPORTE` | 6 |
 | `MIGRACAO` | 1 |
 | `NOTIFICACOES` | 19 |
-| `OPERACAO_E_INTEGRACOES` | 25 |
+| `OPERACAO_E_INTEGRACOES` | 24 |
 | `OUVIDORIA` | 66 |
-| `PLATAFORMA_E_ARQUITETURA` | 138 |
+| `PLATAFORMA_E_ARQUITETURA` | 136 |
 | `POC` | 1 |
 | `POC_E_OPERACAO` | 7 |
 | `PORTAL_EXTERNO` | 70 |
@@ -61,9 +61,9 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Escopo | Total | `EM_DESENVOLVIMENTO` | `IMPLEMENTADO_NAO_TESTADO` | `VALIDADO` | `NAO_INICIADO` | `BLOQUEADO` | `NAO_APLICAVEL_JUSTIFICADO` |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Edital e complementos ED91 | 646 | 27 | 0 | 4 | 615 | 0 | 0 |
-| Termo de Referência TR91 | 742 | 18 | 0 | 6 | 718 | 0 | 0 |
-| Total da matriz | 1388 | 45 | 0 | 10 | 1333 | 0 | 0 |
+| Edital e complementos ED91 | 646 | 27 | 0 | 7 | 612 | 0 | 0 |
+| Termo de Referência TR91 | 742 | 18 | 0 | 9 | 715 | 0 | 0 |
+| Total da matriz | 1388 | 45 | 0 | 16 | 1327 | 0 | 0 |
 
 ## Natureza
 
@@ -72,11 +72,11 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 | `EXTERNO/CONTRATUAL` | 23 |
 | `HABILITACAO_EMPRESARIAL` | 8 |
 | `INTEGRACAO_EXTERNA` | 78 |
-| `OPERACAO_CONTRATUAL` | 107 |
+| `OPERACAO_CONTRATUAL` | 106 |
 | `POC` | 5 |
 | `PREFERENCIAL` | 1 |
 | `PROPOSTA_COMERCIAL` | 1 |
-| `SOFTWARE` | 1165 |
+| `SOFTWARE` | 1166 |
 
 ## Regra de aceite
 

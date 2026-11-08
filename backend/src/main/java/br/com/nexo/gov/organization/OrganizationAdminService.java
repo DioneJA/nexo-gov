@@ -267,7 +267,7 @@ public class OrganizationAdminService {
         return new PresenceHeartbeatView("ONLINE");
     }
 
-    private boolean isOrganizationAdmin(String actor, UUID organizationId) {
+    boolean isOrganizationAdmin(String actor, UUID organizationId) {
         Integer count = jdbc.queryForObject(
                 "SELECT count(*) FROM organization_memberships om WHERE username=? AND organization_id=? AND role_code='ADMIN' AND active=true " +
                         "AND NOT EXISTS (SELECT 1 FROM organization_member_access_status s WHERE s.organization_id=om.organization_id " +
@@ -276,7 +276,7 @@ public class OrganizationAdminService {
         return count != null && count > 0;
     }
 
-    private void requireOrganizationAdmin(String actor, UUID organizationId) {
+    void requireOrganizationAdmin(String actor, UUID organizationId) {
         if (!isOrganizationAdmin(actor, organizationId)) throw new ForbiddenAction();
     }
 

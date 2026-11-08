@@ -19,6 +19,7 @@
 ## Harness
 
 - `./dev doctor`: dependências e configuração local.
+- `./dev sandbox`: abre a aplicação para teste manual em projeto Compose temporário com portas, PostgreSQL e S3Mock próprios; usa dados fictícios e não lê `.env` nem toca volume persistente. `./dev sandbox-status` mostra a URL e `./dev sandbox-stop` encerra apenas o projeto registrado.
 - `./dev verify-fast`: NEXO Core, testes de backend/Testcontainers, build frontend e matriz.
 - `./dev verify`: tudo acima, E2E local Basic e suite focada OIDC, em projetos/portas Compose descartáveis separados; os cenários de navegador rodam em um worker porque compartilham o banco e verificam revogação de acesso.
 - `./dev e2e`: E2E local Basic em um worker; cenários OIDC são condicionados ao modo e rodam por `./dev oidc-test`.
@@ -29,6 +30,8 @@
 - `./dev identity-test`: prova focada da identidade federada por organização e da migração V9, com PostgreSQL Testcontainers/JWKS temporário; rejeita links globais ambíguos sem alteração de dados; requer Docker.
 - `./dev frontend-auth-bundle-test`: compila fora de `frontend/dist` e percorre imports do portal público, recusando helpers de Basic/Axios e campos internos de encaminhamento.
 - `./dev admin-access-test`: prova de listagem, suspensão/reativação, autorização por papel organizacional, isolamento, preservação de relações/histórico, revogação na requisição seguinte e proteção concorrente do último administrador; requer Docker.
+- `./dev contacts-test`: testa contatos persistidos, autorização de ADMIN organizacional, recusa de ADMIN setorial, escopo cross-tenant, busca, arquivo/reativação, transição concorrente idempotente, CSV UTF-8, limite de corpo, importação atômica, round-trip e auditoria; requer Docker.
+- `./dev contacts-e2e`: percorre no navegador a manutenção por tipo, edição, arquivo/reativação, importação e exportação CSV contra API e PostgreSQL descartáveis, e protege a largura do painel administrativo em desktop; requer Docker e Chrome.
 - `./dev subject-catalog-test`: prova do catálogo de assuntos por organização, autorização ADMIN, filtro público online, recusa de balcão/outro tenant antes da numeração e compatibilidade de snapshots; requer Docker.
 - `./dev participant-fields-test`: prova a configuração persistida de campos de identificação por assunto, validação, autorização ADMIN e isolamento de organização; cobre somente a configuração, não o acesso de participantes externos; requer Docker.
 - `./dev participant-fields-e2e`: prova criar, editar, persistir, recarregar e remover campos na interface contra a API real; requer Docker e Chrome.
@@ -45,7 +48,7 @@
 - `./dev process-decision-test`: prova configuração decisória por etapa, snapshot do processo, membership ativa no setor corrente, idempotência para repetição do resultado, novo evento append-only quando o resultado muda, estado `ACTIVE` independente e isolamento tenant com PostgreSQL Testcontainers.
 - `./dev process-workflow-e2e`: demonstra publicação v1/v2, seleção de setores decisores na interface, registro de `Deferido` por chamada real, estado `ACTIVE` independente, histórico, shell ocupada durante decisão, listagem e persistência após recarga/nova autenticação. Também mantém os testes de snapshot, salto recusado (409), falta de lotação no setor atual (403), bloqueio dos controles de contexto durante abertura/avanço/refresh, spans de portal sem semântica de link enquanto há operação e sinal cancelável de `beforeunload`. Requer Docker e Chrome. `./dev process-list-test` cobre paginação e escopo tenant/setor; o GET de detalhe ainda tem regra histórica mais ampla que a listagem. Nenhum desses comandos comprova encerramento, workflows avançados ou POC oficial.
 - `./dev matrix` verifica sem alterar arquivos; `./dev matrix-refresh` regenera artefatos.
-- O ambiente local persistente usa volume/porta próprios; não execute comandos Compose de remoção fora do projeto temporário criado pelo E2E.
+- O ambiente local persistente usa volume/porta próprios; não execute comandos Compose de remoção nele. Use apenas o encerramento que o E2E faz para o projeto dele ou `./dev sandbox-stop` para o projeto temporário manual registrado.
 
 ## Skills locais
 

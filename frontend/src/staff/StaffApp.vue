@@ -4,6 +4,7 @@ import { publicApi, type Organization } from '../api/public'
 import { organizationHeaders, staffApi, type AttachmentRequirement, type Department, type DepartmentMember, type OrganizationMember, type OrganizationMemberAccessResult, type OrganogramNode, type ParticipantIdentityField, type ParticipantIdentityFieldInput, type ParticipantIdentityFieldType, type Protocol, type ProtocolAttachment, type ProtocolInteraction, type ProtocolInteractionAttachment, type ProtocolInteractionVisibility, type ProtocolReadReceipt, type ProtocolReadStatus, type StaffProtocolSubject } from '../api/staff'
 import { beginOidcSignIn, clearStaffAuthorization, completeOidcCallback, hasStaffAuthorization, setLocalBasicCredentials, signOutStaff, staffAuthMode } from '../auth/staff-session'
 import AdministrativeProcessPanel from './AdministrativeProcessPanel.vue'
+import OrganizationContactsPanel from './OrganizationContactsPanel.vue'
 
 interface ProtocolSubjectDraft {
   onlineAvailable: boolean
@@ -1961,6 +1962,10 @@ function flattenStaff(nodes: OrganogramNode[]) {
           :can-manage-definitions="canManageDepartments"
           @process-busy-change="administrativeProcessBusy = $event"
         />
+      </div>
+
+      <div v-if="canManageDepartments && staffLoaded" class="contacts-workspace">
+        <OrganizationContactsPanel :organization-id="organizationId" />
       </div>
 
       <footer class="app-footer">NexoGov <span aria-hidden="true">·</span> Área do servidor</footer>

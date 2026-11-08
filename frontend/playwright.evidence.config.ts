@@ -3,6 +3,7 @@ import baseConfig from './playwright.config'
 
 const approvedScenarioNames = [
   'administrador consulta membros e suspende/reativa acesso pela API da organização',
+  'administrador mantém contatos por tipo e importa/exporta CSV',
   'administrador configura e mantém campos de identificação por assunto',
   'assunto exige documento, cidadão envia e servidor consulta e baixa o anexo',
   'cidadão abre protocolo, servidor tramita e cidadão acompanha até a conclusão',
@@ -18,7 +19,7 @@ const safeScenarioPattern = new RegExp(`^(?:.*[ ›])?(?:${approvedScenarioNames
 
 export default defineConfig({
   ...baseConfig,
-  testMatch: /(?:^|[\\/])(?:organization-members|protocol-participant-fields|protocol-attachments|protocol-flow|protocol-read-status|protocol-interactions|protocol-subject-catalog|process-workflow)\.spec\.ts$/,
+  testMatch: /(?:^|[\\/])(?:organization-members|organization-contacts|protocol-participant-fields|protocol-attachments|protocol-flow|protocol-read-status|protocol-interactions|protocol-subject-catalog|process-workflow)\.spec\.ts$/,
   grep: safeScenarioPattern,
   retries: 0,
   workers: 1,
