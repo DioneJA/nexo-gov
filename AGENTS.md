@@ -20,6 +20,7 @@
 
 - `./dev doctor`: dependências e configuração local.
 - `./dev sandbox`: abre a aplicação para teste manual em projeto Compose temporário com portas, PostgreSQL e S3Mock próprios; usa dados fictícios e não lê `.env` nem toca volume persistente. `./dev sandbox-status` mostra a URL e `./dev sandbox-stop` encerra apenas o projeto registrado.
+- `./dev sandbox-test`: valida recuperação de estado parcial e prova que o harness não sinaliza processos sem identidade validada.
 - `./dev verify-fast`: NEXO Core, testes de backend/Testcontainers, build frontend e matriz.
 - `./dev verify`: tudo acima, E2E local Basic e suite focada OIDC, em projetos/portas Compose descartáveis separados; os cenários de navegador rodam em um worker porque compartilham o banco e verificam revogação de acesso.
 - `./dev e2e`: E2E local Basic em um worker; cenários OIDC são condicionados ao modo e rodam por `./dev oidc-test`.

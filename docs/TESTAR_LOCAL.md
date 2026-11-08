@@ -51,3 +51,5 @@ O teste automatizado também dispara duas solicitações simultâneas de arquiva
 ```
 
 Esse comando confere a identidade e o tempo de início dos processos antes de sinalizar seus grupos; se um PID tiver sido reutilizado ou não corresponder ao sandbox, a parada é recusada. Ao concluir, remove somente o projeto Compose temporário criado pelo `./dev sandbox` e o banco/arquivos fictícios dele. O ambiente local persistente e qualquer dado real não são usados. O sandbox é uma ajuda de desenvolvimento, não um ambiente de produção, não usa storage produtivo e não prova todos os requisitos do Pregão nem uma POC oficial.
+
+Se um início falhar antes de validar a identidade de um processo, o harness preserva o arquivo de estado e se recusa a sinalizar esse processo. `./dev sandbox-stop` ainda encerra o Compose do projeto registrado; se o processo continuar ativo, o estado permanece para inspeção e uma nova tentativa depois que ele sair. `./dev sandbox-test` exercita essa recuperação usando um Compose simulado e um processo temporário descartável.

@@ -32,8 +32,17 @@ read_state() {
   done < "$state_dir/state"
   [[ "${project:-}" =~ ^nexogov-manual-${UID}-[a-f0-9]{8}$ ]] || { echo "Identidade do sandbox inválida; parada recusada." >&2; return 1; }
   [[ "${db_port:-}" =~ ^[0-9]+$ && "${api_port:-}" =~ ^[0-9]+$ && "${web_port:-}" =~ ^[0-9]+$ && "${storage_port:-}" =~ ^[0-9]+$ ]] || { echo "Portas do sandbox inválidas; parada recusada." >&2; return 1; }
-  [[ "${api_pid:-}" =~ ^[0-9]+$ && "${web_pid:-}" =~ ^[0-9]+$ ]] || { echo "Identidade dos processos do sandbox inválida; parada recusada." >&2; return 1; }
-  if [[ -z "${api_start_ticks:-}" || -z "${web_start_ticks:-}" ]]; then
+  api_pid="${api_pid:-}"
+  web_pid="${web_pid:-}"
+  api_start_ticks="${api_start_ticks:-}"
+  web_start_ticks="${web_start_ticks:-}"
+  [[ -z "$api_pid" || "$api_pid" =~ ^[0-9]+$ ]] || { echo "Identidade do processo da API inválida; parada recusada." >&2; return 1; }
+  [[ -z "$web_pid" || "$web_pid" =~ ^[0-9]+$ ]] || { echo "Identidade do processo da interface inválida; parada recusada." >&2; return 1; }
+  [[ -z "$api_start_ticks" || "$api_start_ticks" =~ ^[0-9]+$ ]] || { echo "Tempo de início da API inválido; parada recusada." >&2; return 1; }
+  [[ -z "$web_start_ticks" || "$web_start_ticks" =~ ^[0-9]+$ ]] || { echo "Tempo de início da interface inválido; parada recusada." >&2; return 1; }
+  [[ -n "$api_pid" || -z "$api_start_ticks" ]] || { echo "Estado inconsistente da API; parada recusada." >&2; return 1; }
+  [[ -n "$web_pid" || -z "$web_start_ticks" ]] || { echo "Estado inconsistente da interface; parada recusada." >&2; return 1; }
+  if [[ -z "$api_start_ticks" && -z "$web_start_ticks" && -n "$api_pid" && -n "$web_pid" ]]; then
     api_start_ticks="$(process_start_ticks "$api_pid" 2>/dev/null || true)"
     web_start_ticks="$(process_start_ticks "$web_pid" 2>/dev/null || true)"
     if [[ ! "$api_start_ticks" =~ ^[0-9]+$ || ! "$web_start_ticks" =~ ^[0-9]+$ ]] \
@@ -44,7 +53,6 @@ read_state() {
     fi
     printf 'API_START_TICKS=%s\nWEB_START_TICKS=%s\n' "$api_start_ticks" "$web_start_ticks" >> "$state_dir/state"
   fi
-  [[ "$api_start_ticks" =~ ^[0-9]+$ && "$web_start_ticks" =~ ^[0-9]+$ ]] || { echo "Identidade dos processos do sandbox inválida; parada recusada." >&2; return 1; }
 }
 
 wait_for_http() {
@@ -107,8 +115,13 @@ capture_process_identity() {
 
 stop_process_group() {
   local pid="$1" service="$2" port="$3" expected_start_ticks="$4"
-  [[ "$pid" =~ ^[0-9]+$ && "$expected_start_ticks" =~ ^[0-9]+$ ]] || return 1
+  [[ -n "$pid" ]] || return 0
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
   if ! kill -0 -- "-$pid" 2>/dev/null; then return 0; fi
+  if [[ ! "$expected_start_ticks" =~ ^[0-9]+$ ]]; then
+    echo "O processo $service ainda existe, mas sua identidade não foi validada; sinalização recusada." >&2
+    return 1
+  fi
   if ! process_group_matches_sandbox "$pid" "$service" "$port" "$expected_start_ticks"; then
     echo "O grupo de processos $service não corresponde ao sandbox; parada recusada para proteger processos alheios." >&2
     return 1
@@ -124,6 +137,19 @@ stop_process_group() {
       return 1
     }
     kill -KILL -- "-$pid"
+  fi
+}
+
+cleanup_failed_start() {
+  local safe_to_remove=1
+  stop_process_group "${web_pid:-}" web "${web_port:-}" "${web_start_ticks:-}" || safe_to_remove=0
+  stop_process_group "${api_pid:-}" api "${api_port:-}" "${api_start_ticks:-}" || safe_to_remove=0
+  compose down --volumes --remove-orphans || safe_to_remove=0
+  if [[ "$safe_to_remove" == 1 ]]; then
+    rm -f "$state_dir/compose.env" "$state_dir/state" "$state_dir/api.log" "$state_dir/web.log"
+    rmdir "$state_dir"
+  else
+    echo "Os serviços de dados foram encerrados quando possível; o estado foi preservado para inspeção. Revise os logs em $state_dir e tente ./dev sandbox-stop novamente." >&2
   fi
 }
 
@@ -178,9 +204,7 @@ EOF
       "$project" "$db_port" "$api_port" "$web_port" "$storage_port" "$db_name" "$db_username" > "$state_dir/state"
     chmod 600 "$state_dir/compose.env" "$state_dir/state" "$state_dir/api.log" "$state_dir/web.log"
     if ! compose up -d --wait --wait-timeout 90 postgres s3mock; then
-      compose down --volumes --remove-orphans || true
-      rm -f "$state_dir/compose.env" "$state_dir/state" "$state_dir/api.log" "$state_dir/web.log"
-      rmdir "$state_dir"
+      cleanup_failed_start
       exit 1
     fi
     (
@@ -199,14 +223,14 @@ EOF
         mvn -B spring-boot:run
     ) > "$state_dir/api.log" 2>&1 < /dev/null &
     api_pid="$!"
-    if ! api_start_ticks="$(capture_process_identity "$api_pid" api "$api_port")"; then exit 1; fi
     printf 'API_PID=%s\n' "$api_pid" >> "$state_dir/state"
+    if ! api_start_ticks="$(capture_process_identity "$api_pid" api "$api_port")"; then
+      cleanup_failed_start
+      exit 1
+    fi
     printf 'API_START_TICKS=%s\n' "$api_start_ticks" >> "$state_dir/state"
     if ! wait_for_http "http://127.0.0.1:$api_port/actuator/health" api; then
-      stop_process_group "$api_pid" api "$api_port" "$api_start_ticks"
-      compose down --volumes --remove-orphans || true
-      rm -f "$state_dir/compose.env" "$state_dir/state" "$state_dir/api.log" "$state_dir/web.log"
-      rmdir "$state_dir"
+      cleanup_failed_start
       exit 1
     fi
     (
@@ -215,15 +239,14 @@ EOF
         npm run dev -- --host 127.0.0.1 --port "$web_port" --strictPort
     ) > "$state_dir/web.log" 2>&1 < /dev/null &
     web_pid="$!"
-    if ! web_start_ticks="$(capture_process_identity "$web_pid" web "$web_port")"; then exit 1; fi
     printf 'WEB_PID=%s\n' "$web_pid" >> "$state_dir/state"
+    if ! web_start_ticks="$(capture_process_identity "$web_pid" web "$web_port")"; then
+      cleanup_failed_start
+      exit 1
+    fi
     printf 'WEB_START_TICKS=%s\n' "$web_start_ticks" >> "$state_dir/state"
     if ! wait_for_http "http://127.0.0.1:$web_port/servidor/" web; then
-      stop_process_group "$web_pid" web "$web_port" "$web_start_ticks"
-      stop_process_group "$api_pid" api "$api_port" "$api_start_ticks"
-      compose down --volumes --remove-orphans || true
-      rm -f "$state_dir/compose.env" "$state_dir/state" "$state_dir/api.log" "$state_dir/web.log"
-      rmdir "$state_dir"
+      cleanup_failed_start
       exit 1
     fi
     cat <<EOF
@@ -244,9 +267,14 @@ EOF
     ;;
   stop)
     read_state
-    stop_process_group "$web_pid" web "$web_port" "$web_start_ticks"
-    stop_process_group "$api_pid" api "$api_port" "$api_start_ticks"
-    compose down --volumes --remove-orphans
+    stop_failed=0
+    stop_process_group "$web_pid" web "$web_port" "$web_start_ticks" || stop_failed=1
+    stop_process_group "$api_pid" api "$api_port" "$api_start_ticks" || stop_failed=1
+    compose down --volumes --remove-orphans || stop_failed=1
+    if [[ "$stop_failed" != 0 ]]; then
+      echo "O Compose do sandbox foi encerrado quando possível, mas o estado foi preservado porque ao menos um processo não pôde ser validado/parado." >&2
+      exit 1
+    fi
     rm -f "$state_dir/compose.env" "$state_dir/state" "$state_dir/api.log" "$state_dir/web.log"
     rmdir "$state_dir"
     echo "Sandbox $project encerrado; seus dados fictícios foram removidos."

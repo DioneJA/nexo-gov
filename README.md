@@ -19,7 +19,7 @@ Pré-requisitos: Java 21, Maven, Node/npm e Docker Compose.
 3. Em outro terminal, execute `./dev web` para abrir o portal do cidadão em `http://localhost:9000`.
 4. A área do servidor fica em `http://localhost:9000/servidor/`; informe o usuário e a senha definidos no `.env`. O perfil local cria `Município Alfa` e `Município Beta`, cada qual com Protocolo Geral e Secretaria de Obras.
 
-Para testar manualmente sem usar a configuração ou os volumes locais persistentes, prefira `./dev sandbox`. Ele cria uma instância temporária com portas, PostgreSQL e S3Mock próprios, inicia a API e a interface e mostra as contas fictícias. Consulte [docs/TESTAR_LOCAL.md](docs/TESTAR_LOCAL.md); `./dev sandbox-status` verifica a instância e `./dev sandbox-stop` remove somente os dados temporários dela.
+Para testar manualmente sem usar a configuração ou os volumes locais persistentes, prefira `./dev sandbox`. Ele cria uma instância temporária com portas, PostgreSQL e S3Mock próprios, inicia a API e a interface e mostra as contas fictícias. Consulte [docs/TESTAR_LOCAL.md](docs/TESTAR_LOCAL.md); `./dev sandbox-status` verifica a instância, `./dev sandbox-stop` remove somente os dados temporários dela e `./dev sandbox-test` verifica a recuperação segura de um início incompleto.
 
 Para executar o fluxo automatizado no Chrome, use `./dev e2e` (requer Docker e Google Chrome); ele usa Basic apenas localmente e mantém os cenários OIDC condicionados ao modo `oidc`. O harness escolhe portas livres e um projeto Compose exclusivo, com PostgreSQL e S3Mock temporários removidos ao terminar. Os cenários rodam em um worker porque compartilham o banco e alguns verificam suspensão/reativação de acesso. Não precisa do `.env` de desenvolvimento. `./dev oidc-test` valida PKCE, state/nonce, callback, Bearer, logout e configuração fail-closed com provedor simulado e chamadas de staff simuladas. `./dev verify` executa os dois modos em projetos Compose separados: E2E local Basic e OIDC focado. `./dev frontend-auth-bundle-test` compila em diretório temporário e percorre os imports do portal público para detectar helpers de Basic/Axios e campos internos de encaminhamento. `./dev identity-test` executa as provas federadas e de migração V9 com PostgreSQL Testcontainers e servidor JWKS local efêmero; exige conta local ativa, isola os vínculos por organização e recusa links globais antigos até reconciliação (requer Docker).
 
@@ -37,7 +37,7 @@ O banco de demonstração usa volume e porta próprios (`127.0.0.1:55433`, volum
 - `frontend/`: duas entradas Vue 3/Quasar independentes no mesmo pacote — portal público em `/` e área autenticada em `/servidor/`. Elas compartilham contratos, cliente da API, tokens e estilos neutros, e geram páginas e bundles separados; o bundle público não importa a interface administrativa. A autorização continua sendo validada pela API.
 - `contracts/`: contratos OpenAPI versionados.
 - `docs/`: análise de origem, decisão de extração, edital, rastreabilidade, riscos e plano de implantação.
-- `docs/INCREMENTO_01.md` a `docs/INCREMENTO_51.md`: histórico dos incrementos verificáveis.
+- `docs/INCREMENTO_01.md` a `docs/INCREMENTO_52.md`: histórico dos incrementos verificáveis.
 - `../nexo-core/`: repositório Maven independente do NEXO Core; a versão `0.2.0` é instalada localmente antes do build do Gov.
 
 ## Padrão visual

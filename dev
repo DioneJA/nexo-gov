@@ -13,6 +13,7 @@ case "$command" in
   sandbox) exec "$repo_root/scripts/manual-sandbox.sh" start ;;
   sandbox-status) exec "$repo_root/scripts/manual-sandbox.sh" status ;;
   sandbox-stop) exec "$repo_root/scripts/manual-sandbox.sh" stop ;;
+  sandbox-test) exec "$repo_root/scripts/test-manual-sandbox.sh" ;;
   web) exec "$repo_root/scripts/start-web-local.sh" ;;
   e2e) exec "$repo_root/scripts/run-e2e.sh" "$@" ;;
   evidence) exec "$repo_root/scripts/capture-e2e-evidence.sh" "$@" ;;
@@ -58,6 +59,7 @@ Uso: ./dev <comando>
   sandbox         Abre app manual com DB/S3Mock descartáveis e dados fictícios, sem usar .env ou volume persistente
   sandbox-status  Mostra a URL e saúde do sandbox manual ativo
   sandbox-stop    Encerra somente o Compose temporário do sandbox e apaga seus dados fictícios
+  sandbox-test    Prova limpeza parcial sem sinalizar processo sem identidade validada
   web             Inicia a interface local em outra janela de terminal
   verify-fast     Testa Core e API, compila frontend e confere matriz
   verify          Executa verify-fast, E2E local Basic e OIDC focado em projetos descartáveis separados
