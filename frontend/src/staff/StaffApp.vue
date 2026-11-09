@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { publicApi, type Organization } from '../api/public'
 import { organizationAccentClass, organizationAccentOptions, type OrganizationAccentToken, type StaffOrganizationBranding } from '../api/organization-branding'
-import { organizationHeaders, staffApi, type AttachmentRequirement, type Department, type DepartmentMember, type OrganizationMember, type OrganizationMemberAccessResult, type OrganogramNode, type ParticipantIdentityField, type ParticipantIdentityFieldInput, type ParticipantIdentityFieldType, type Protocol, type ProtocolAttachment, type ProtocolInteraction, type ProtocolInteractionAttachment, type ProtocolInteractionVisibility, type ProtocolReadReceipt, type ProtocolReadStatus, type StaffProtocolSubject } from '../api/staff'
+import { organizationHeaders, staffApi, type AttachmentRequirement, type Department, type DepartmentMember, type OrganizationMember, type OrganizationMemberAccessResult, type OrganogramNode, type ParticipantIdentityField, type ParticipantIdentityFieldInput, type ParticipantIdentityFieldType, type Protocol, type ProtocolAccessHistoryEvent, type ProtocolAttachment, type ProtocolInteraction, type ProtocolInteractionAttachment, type ProtocolInteractionVisibility, type ProtocolReadReceipt, type ProtocolReadStatus, type StaffProtocolSubject } from '../api/staff'
 import { beginOidcSignIn, clearStaffAuthorization, completeOidcCallback, hasStaffAuthorization, setLocalBasicCredentials, signOutStaff, staffAuthMode } from '../auth/staff-session'
 import AdministrativeProcessPanel from './AdministrativeProcessPanel.vue'
 import OrganizationContactsPanel from './OrganizationContactsPanel.vue'
@@ -92,6 +92,11 @@ const protocolAttachmentLoading = reactive<Record<string, boolean>>({})
 const protocolAttachmentErrors = reactive<Record<string, string>>({})
 const protocolAttachmentDownloadErrors = reactive<Record<string, string>>({})
 const downloadingProtocolAttachmentId = ref('')
+const expandedAccessHistoryProtocolId = ref('')
+const protocolAccessHistory = reactive<Record<string, ProtocolAccessHistoryEvent[]>>({})
+const protocolAccessHistoryLoaded = reactive<Record<string, boolean>>({})
+const protocolAccessHistoryLoading = reactive<Record<string, boolean>>({})
+const protocolAccessHistoryErrors = reactive<Record<string, string>>({})
 const expandedInteractionProtocolId = ref('')
 const protocolInteractions = reactive<Record<string, ProtocolInteraction[]>>({})
 const protocolInteractionLoading = reactive<Record<string, boolean>>({})
@@ -394,12 +399,17 @@ async function confirmParticipantFieldRemoval() {
 
 function clearProtocolAttachmentState() {
   expandedProtocolId.value = ''
+  expandedAccessHistoryProtocolId.value = ''
   attachmentPolicyActionId.value = ''
   downloadingProtocolAttachmentId.value = ''
   for (const protocolId of Object.keys(protocolAttachments)) delete protocolAttachments[protocolId]
   for (const protocolId of Object.keys(protocolAttachmentLoading)) delete protocolAttachmentLoading[protocolId]
   for (const protocolId of Object.keys(protocolAttachmentErrors)) delete protocolAttachmentErrors[protocolId]
   for (const attachmentId of Object.keys(protocolAttachmentDownloadErrors)) delete protocolAttachmentDownloadErrors[attachmentId]
+  for (const protocolId of Object.keys(protocolAccessHistory)) delete protocolAccessHistory[protocolId]
+  for (const protocolId of Object.keys(protocolAccessHistoryLoaded)) delete protocolAccessHistoryLoaded[protocolId]
+  for (const protocolId of Object.keys(protocolAccessHistoryLoading)) delete protocolAccessHistoryLoading[protocolId]
+  for (const protocolId of Object.keys(protocolAccessHistoryErrors)) delete protocolAccessHistoryErrors[protocolId]
   clearProtocolInteractionState()
   for (const subjectId of Object.keys(newAttachmentDrafts)) delete newAttachmentDrafts[subjectId]
   for (const requirementId of Object.keys(attachmentRequirementDrafts)) delete attachmentRequirementDrafts[requirementId]
@@ -1374,11 +1384,48 @@ async function toggleProtocolAttachments(protocol: Protocol) {
   }
 }
 
+async function loadProtocolAccessHistory(protocol: Protocol) {
+  const selectedOrganizationId = organizationId.value
+  const generation = staffContextGeneration
+  protocolAccessHistoryLoading[protocol.id] = true
+  delete protocolAccessHistoryErrors[protocol.id]
+  try {
+    const response = await staffApi.get<ProtocolAccessHistoryEvent[]>(`/staff/protocols/${protocol.id}/access-history`, {
+      headers: organizationHeaders(selectedOrganizationId)
+    })
+    if (!isCurrentStaffContext(generation, selectedOrganizationId)) return
+    protocolAccessHistory[protocol.id] = response.data
+    protocolAccessHistoryLoaded[protocol.id] = true
+  } catch (e: any) {
+    if (!isCurrentStaffContext(generation, selectedOrganizationId)) return
+    protocolAccessHistoryErrors[protocol.id] = e.response?.status === 401 || e.response?.status === 403
+      ? 'Seu acesso não permite consultar o histórico deste protocolo.'
+      : 'Não foi possível carregar o histórico de acesso. Tente novamente.'
+  } finally {
+    if (isCurrentStaffContext(generation, selectedOrganizationId)) protocolAccessHistoryLoading[protocol.id] = false
+  }
+}
+
+async function toggleProtocolAccessHistory(protocol: Protocol) {
+  if (expandedAccessHistoryProtocolId.value === protocol.id) {
+    expandedAccessHistoryProtocolId.value = ''
+    return
+  }
+  expandedAccessHistoryProtocolId.value = protocol.id
+  if (!protocolAccessHistoryLoaded[protocol.id] || protocolAccessHistoryErrors[protocol.id])
+    await loadProtocolAccessHistory(protocol)
+}
+
+function accessTypeLabel(type: ProtocolAccessHistoryEvent['accessType']) {
+  return type === 'DOWNLOAD' ? 'Download' : type === 'ATTEMPT' ? 'Tentativa de acesso' : 'Leitura'
+}
+
 async function downloadStaffAttachment(protocol: Protocol, attachment: ProtocolAttachment) {
   if (downloadingProtocolAttachmentId.value) return
   const selectedOrganizationId = organizationId.value
   const generation = staffContextGeneration
   downloadingProtocolAttachmentId.value = attachment.id
+  let downloadSucceeded = false
   delete protocolAttachmentDownloadErrors[attachment.id]
   error.value = ''
   try {
@@ -1392,6 +1439,7 @@ async function downloadStaffAttachment(protocol: Protocol, attachment: ProtocolA
     anchor.href = url
     anchor.download = attachment.filename
     anchor.click()
+    downloadSucceeded = true
     window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
   } catch (e: any) {
     if (isCurrentStaffContext(generation, selectedOrganizationId)) {
@@ -1401,6 +1449,10 @@ async function downloadStaffAttachment(protocol: Protocol, attachment: ProtocolA
     }
   } finally {
     if (isCurrentStaffContext(generation, selectedOrganizationId)) downloadingProtocolAttachmentId.value = ''
+  }
+  if (downloadSucceeded && isCurrentStaffContext(generation, selectedOrganizationId)) {
+    await loadProtocolAttachments(protocol)
+    if (protocolAccessHistoryLoaded[protocol.id]) await loadProtocolAccessHistory(protocol)
   }
 }
 
@@ -1525,6 +1577,13 @@ function flattenStaff(nodes: OrganogramNode[]) {
                 <div class="row items-center q-gutter-xs protocol-actions">
                   <span class="status-label">{{ statusLabels[protocol.status] || protocol.status }}</span>
                   <q-btn
+                    color="primary" flat no-caps icon="history" label="Acessos"
+                    :aria-expanded="expandedAccessHistoryProtocolId === protocol.id"
+                    :aria-controls="`protocol-access-history-${protocol.id}`"
+                    :disable="loading"
+                    @click="toggleProtocolAccessHistory(protocol)"
+                  />
+                  <q-btn
                     color="primary" flat no-caps icon="attach_file"
                     :label="`Anexos da abertura (${protocol.attachmentCount ?? 0})`"
                     :aria-expanded="expandedProtocolId === protocol.id"
@@ -1566,7 +1625,7 @@ function flattenStaff(nodes: OrganogramNode[]) {
                   <li v-for="attachment in protocolAttachments[protocol.id]" :key="attachment.id" class="attachment-row attachment-row-staff">
                     <div class="attachment-details">
                       <span class="attachment-name">{{ attachment.filename }}</span>
-                      <span class="muted text-caption">{{ formatFileSize(attachment.sizeBytes) }} · {{ formatDate(attachment.uploadedAt) }}</span>
+                      <span class="muted text-caption">{{ formatFileSize(attachment.sizeBytes) }} · {{ formatDate(attachment.uploadedAt) }} · Downloads: {{ attachment.downloadCount }}</span>
                     </div>
                     <q-btn
                       color="primary" outline no-caps label="Baixar arquivo"
@@ -1581,6 +1640,36 @@ function flattenStaff(nodes: OrganogramNode[]) {
                   </li>
                 </ul>
                 <p v-else class="empty-state" role="status">Este protocolo não tem documentos anexados.</p>
+              </section>
+              <section
+                v-show="expandedAccessHistoryProtocolId === protocol.id"
+                :id="`protocol-access-history-${protocol.id}`"
+                class="protocol-attachments-panel protocol-access-history-panel"
+                :aria-label="`Histórico de acesso do protocolo ${protocol.protocolNumber}`"
+              >
+                <div class="interaction-panel-heading">
+                  <div>
+                    <h3 class="subsection-heading">Histórico de acesso</h3>
+                    <p class="member-access-note">Leituras e downloads registrados para este protocolo e seus documentos.</p>
+                  </div>
+                  <q-btn flat color="primary" no-caps label="Atualizar histórico" :loading="protocolAccessHistoryLoading[protocol.id]" @click="loadProtocolAccessHistory(protocol)" />
+                </div>
+                <p v-if="protocolAccessHistoryLoading[protocol.id]" class="member-loading" role="status">Carregando histórico…</p>
+                <div v-else-if="protocolAccessHistoryErrors[protocol.id]" class="member-retry">
+                  <p class="member-feedback member-feedback-error" role="alert">{{ protocolAccessHistoryErrors[protocol.id] }}</p>
+                  <q-btn color="primary" outline no-caps label="Tentar carregar o histórico novamente" :loading="protocolAccessHistoryLoading[protocol.id]" @click="loadProtocolAccessHistory(protocol)" />
+                </div>
+                <ol v-else-if="protocolAccessHistory[protocol.id]?.length" class="interaction-list access-history-list" :aria-label="`Eventos de leitura e download do protocolo ${protocol.protocolNumber}`">
+                  <li v-for="event in protocolAccessHistory[protocol.id]" :key="event.id" class="interaction-entry access-history-entry">
+                    <div class="interaction-entry-heading">
+                      <strong class="interaction-author">{{ event.documentLabel }}</strong>
+                      <span class="interaction-visibility">{{ accessTypeLabel(event.accessType) }}</span>
+                      <span class="muted interaction-date">{{ event.actorLabel }}</span>
+                      <time class="muted interaction-date" :datetime="event.accessedAt">{{ formatDate(event.accessedAt) }}</time>
+                    </div>
+                  </li>
+                </ol>
+                <p v-else class="empty-state" role="status">Ainda não há registros de leitura ou download.</p>
               </section>
               <section
                 v-show="expandedInteractionProtocolId === protocol.id"

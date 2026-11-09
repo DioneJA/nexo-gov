@@ -93,6 +93,17 @@ export interface ProtocolAttachment {
   uploadedAt: string
   downloadPath: string
 }
+export interface ProtocolAccessHistoryEvent {
+  id: string
+  documentType: 'PROTOCOL' | 'ATTACHMENT' | 'INTERACTION'
+  documentId: string
+  documentLabel: string
+  actorType: 'STAFF' | 'APPLICANT' | 'PARTICIPANT' | 'ANONYMOUS'
+  actorLabel: string
+  accessType: 'READ' | 'DOWNLOAD' | 'ATTEMPT'
+  outcome: 'ALLOWED' | 'DENIED'
+  accessedAt: string
+}
 export interface ProtocolInteractionAttachment {
   id: string
   filename: string

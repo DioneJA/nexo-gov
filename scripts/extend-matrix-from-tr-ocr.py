@@ -1181,6 +1181,56 @@ partial_protocol_read_status_requirements = {
         "Evidência parcial de recibo de leitura por protocolo/setor na migração V21, ProtocolService/Controller e teste Testcontainers. Capturas `leitura-nao-iniciada`, `leitura-por-colega` e `leitura-pelo-servidor` em frontend/e2e/protocol-read-status.spec.ts e no manifesto da execução aprovada. Não valida histórico de quem acessou cada documento, acesso externo, quantidade de downloads nem a POC integral; manter EM_DESENVOLVIMENTO.",
     ),
 }
+document_access_test = (
+    "`./dev document-access-test` (PostgreSQL Testcontainers) comprova cronologia, tenant, ator/papel neutro e imutabilidade; "
+    "`./dev attachment-test` cobre downloads autorizados e isolamento com S3Mock; `./dev openapi-check` valida o contrato; "
+    "`frontend/e2e/protocol-attachments.spec.ts`, cenário `assunto exige documento, cidadão envia e servidor consulta e baixa o anexo`, "
+    "via `./dev document-access-e2e`. Testes não cobrem tentativas negadas/anônimas, login ou outros módulos."
+)
+document_access_backend = (
+    "V28 cria `protocol_document_access_events` append-only, com tenant/protocolo, documento, ator/papel e horário. "
+    "ProtocolDocumentAccessService agrega leituras autorizadas aos downloads concluídos já registrados; a consulta exige autorização "
+    "setorial ou ADMIN organizacional e tenant validado. Tokens e credenciais não são persistidos na trilha."
+)
+document_access_frontend = (
+    "StaffApp.vue apresenta cronologia de acessos autorizados de protocolo, anexos e mensagens/despachos, identificando servidor "
+    "ou papel externo, item e horário; a linha de anexo mostra o total de downloads concluídos. A trilha fica disponível somente "
+    "ao servidor autorizado."
+)
+document_access_poc = (
+    "POC-ACESSO-DOCUMENTAL (parcial): com dados fictícios, requerente e servidor autorizado consultam protocolo, anexo e mensagem; "
+    "na área do servidor, conferir ator/papel, item, horário e total de downloads por arquivo. Tentar consultar com setor não envolvido "
+    "ou outra organização e confirmar recusa. Tentativas negadas/anônimas, login, documentos de outros módulos e POC oficial permanecem "
+    "pendentes; este roteiro não é uma sessão oficial da comissão."
+)
+document_access_evidence = (
+    "Evidência parcial em docs/INCREMENTO_57.md, `./dev document-access-test`, `./dev attachment-test`, `./dev openapi-check`, "
+    "build frontend e Playwright `./dev document-access-e2e`; capturas `historico-acesso-do-documento` e "
+    "`anexo-setor-consultado-baixado`. Somente leituras autorizadas e downloads concluídos do módulo de protocolo são cobertos; "
+    "tentativas, login, identidade civil externa, demais módulos e POC oficial permanecem sem evidência."
+)
+partial_protocol_document_access_requirements = {
+    "TR91-0143": (
+        'Termo de Referência, §14 “Funcionalidade de quem visualizou”, PDF p.13; transcrição conferida visualmente no PDF oficial.',
+        "Parcial — registrar e exibir leituras autorizadas de cada demanda/protocolo, anexos e mensagens/despachos e downloads concluídos, com papel do ator e horário. A cobertura limita-se ao módulo de protocolo; tentativas negadas/anônimas, login do sistema e documentos de outros módulos permanecem pendentes.",
+    ),
+    "TR91-0144": (
+        'Termo de Referência, §14 “Funcionalidade de quem visualizou”, PDF p.13; transcrição conferida visualmente no PDF oficial.',
+        "Parcial — diferenciar servidor municipal autenticado (interno) e requerente/participante externo com credencial válida (externo). A credencial externa prova posse de acesso, não identidade civil; acessos não autorizados e demais módulos não são cobertos.",
+    ),
+    "TR91-0146": (
+        'Termo de Referência, §15 “Status de Leitura e Rastreabilidade dos Documentos”, PDF p.14; transcrição conferida visualmente no PDF oficial.',
+        "Parcial — persistir em trilha append-only e exibir cronologia de leituras autorizadas de protocolo, anexos e mensagens/despachos, com ator/papel e data/hora. Tentativas negadas/anônimas, login do sistema e documentos de outros módulos não são registrados nesta fatia.",
+    ),
+    "TR91-0147": (
+        'Termo de Referência, §15 “Status de Leitura e Rastreabilidade dos Documentos”, PDF p.14; transcrição conferida visualmente no PDF oficial.',
+        "Parcial — registrar acessos válidos de requerentes e participantes externos aos itens de protocolo visíveis à própria credencial, e disponibilizar esses eventos a servidor autorizado. O ator é apresentado por papel neutro, sem identidade civil verificada; acessos negados/anônimos e outros módulos continuam pendentes.",
+    ),
+    "TR91-0148": (
+        'Termo de Referência, §15 “Status de Leitura e Rastreabilidade dos Documentos”, PDF p.14; transcrição conferida visualmente no PDF oficial.',
+        "Parcial — servidor autorizado consulta quem leu protocolo/anexo/mensagem por papel e horário; cada anexo exibe o total de downloads concluídos. Cobertura restrita ao protocolo, leituras autorizadas e downloads; tentativas negadas/anônimas, demais módulos e POC oficial permanecem pendentes.",
+    ),
+}
 for index, candidate in enumerate(candidates, start=1):
     page_ref = (f"PDF p.{candidate['page_start']}" if candidate["page_start"] == candidate["page_end"]
                 else f"PDF pp.{candidate['page_start']}–{candidate['page_end']}")
@@ -1639,6 +1689,21 @@ for index, candidate in enumerate(candidates, start=1):
             "status": "EM_DESENVOLVIMENTO",
             "validacao_fonte": "CONFERIDA_VISUALMENTE",
         })
+    document_access_details = partial_protocol_document_access_requirements.get(requirement_id)
+    if document_access_details:
+        source, criterion = document_access_details
+        row.update({
+            "origem_documento_pagina_secao_item": source,
+            "modulo": "GESTAO_DOCUMENTAL",
+            "criterio_de_aceite": criterion,
+            "backend_envolvido": document_access_backend,
+            "frontend_envolvido": document_access_frontend,
+            "teste_automatizado": document_access_test,
+            "roteiro_poc": document_access_poc,
+            "evidencia": document_access_evidence,
+            "status": "EM_DESENVOLVIMENTO",
+            "validacao_fonte": "CONFERIDA_VISUALMENTE",
+        })
     rows.append(row)
 
 for requirement_id, previous in previous_tr_rows.items():
@@ -1701,6 +1766,17 @@ for row in rows:
     if receipt_details:
         (row["criterio_de_aceite"], row["backend_envolvido"], row["frontend_envolvido"],
          row["teste_automatizado"], row["roteiro_poc"], row["evidencia"], row["status"]) = receipt_details
+    document_access_details = partial_protocol_document_access_requirements.get(row["id"])
+    if document_access_details:
+        (row["origem_documento_pagina_secao_item"], row["criterio_de_aceite"]) = document_access_details
+        row["modulo"] = "GESTAO_DOCUMENTAL"
+        row["backend_envolvido"] = document_access_backend
+        row["frontend_envolvido"] = document_access_frontend
+        row["teste_automatizado"] = document_access_test
+        row["roteiro_poc"] = document_access_poc
+        row["evidencia"] = document_access_evidence
+        row["status"] = "EM_DESENVOLVIMENTO"
+        row["validacao_fonte"] = "CONFERIDA_VISUALMENTE"
 
 rows.sort(key=lambda row: (0 if row["id"].startswith("ED91-") else 1 if row["id"].startswith("TR91-") else 2, row["id"]))
 ID_REGISTRY.save()

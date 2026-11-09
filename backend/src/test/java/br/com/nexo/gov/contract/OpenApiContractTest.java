@@ -115,6 +115,39 @@ class OpenApiContractTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void protocolAccessHistoryContractDefinesTenantScopedChronologyAndNeutralExternalActors() throws Exception {
+        Path contractPath = repositoryRoot().resolve(CONTRACT);
+        Map<String, Object> document;
+        try (InputStream source = Files.newInputStream(contractPath)) {
+            document = new Yaml().load(source);
+        }
+
+        Map<String, Object> paths = (Map<String, Object>) document.get("paths");
+        Map<String, Object> path = (Map<String, Object>) paths.get("/staff/protocols/{id}/access-history");
+        Map<String, Object> get = (Map<String, Object>) path.get("get");
+        assertThat(get.get("operationId")).isEqualTo("getProtocolAccessHistoryForStaff");
+        assertThat(get.toString()).contains("validated organization", "denied/anonymous access", "private, no-store");
+        Map<String, Object> responses = (Map<String, Object>) get.get("responses");
+        Map<String, Object> success = (Map<String, Object>) responses.get("200");
+        Map<String, Object> content = (Map<String, Object>) success.get("content");
+        Map<String, Object> json = (Map<String, Object>) content.get("application/json");
+        Map<String, Object> array = (Map<String, Object>) json.get("schema");
+        Map<String, Object> eventRef = (Map<String, Object>) array.get("items");
+        assertThat(eventRef.get("$ref")).isEqualTo("#/components/schemas/ProtocolAccessHistoryEvent");
+
+        Map<String, Object> components = (Map<String, Object>) document.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        Map<String, Object> event = (Map<String, Object>) schemas.get("ProtocolAccessHistoryEvent");
+        assertThat((List<String>) event.get("required")).containsExactly("id", "documentType", "documentId",
+                "documentLabel", "actorType", "actorLabel", "accessType", "outcome", "accessedAt");
+        Map<String, Object> properties = (Map<String, Object>) event.get("properties");
+        assertThat(((Map<String, Object>) properties.get("accessType")).get("enum")).isEqualTo(List.of("READ", "DOWNLOAD"));
+        assertThat(((Map<String, Object>) properties.get("actorLabel")).get("description").toString())
+                .contains("raw bearer tokens are never returned");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void administrativeProcessListContractDocumentsBoundsAndCompactProjection() throws Exception {
         Path contractPath = repositoryRoot().resolve(CONTRACT);
         Map<String, Object> document;

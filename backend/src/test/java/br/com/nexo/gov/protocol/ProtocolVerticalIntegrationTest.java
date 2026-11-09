@@ -163,9 +163,40 @@ class ProtocolVerticalIntegrationTest {
                 HttpMethod.GET, staffHeaders(organizationId), new ParameterizedTypeReference<>() {});
         assertThat(staffAttachments.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(staffAttachments.getBody()).hasSize(1);
+        ResponseEntity<ProtocolReadReceipt> staffRead = http.exchange("/api/v1/staff/protocols/" + created.id() + "/read",
+                HttpMethod.POST, staffHeaders(organizationId), ProtocolReadReceipt.class);
+        assertThat(staffRead.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ResponseEntity<byte[]> staffDownload = http.exchange("/api/v1/staff/protocols/" + created.id()
+                        + "/attachments/" + publicAttachment.id() + "/download",
+                HttpMethod.GET, staffHeaders(organizationId), byte[].class);
+        assertThat(staffDownload.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT download_count FROM protocol_attachments WHERE id=?", Long.class,
+                publicAttachment.id())).isEqualTo(2L);
+
+        ResponseEntity<List<Map<String, Object>>> accessHistory = http.exchange(
+                "/api/v1/staff/protocols/" + created.id() + "/access-history", HttpMethod.GET,
+                staffHeaders(organizationId), new ParameterizedTypeReference<>() {});
+        assertThat(accessHistory.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(accessHistory.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL)).contains("no-store");
+        assertThat(accessHistory.getBody()).isNotEmpty();
+        assertThat(accessHistory.getBody()).extracting(event -> event.get("actorType"))
+                .contains("APPLICANT", "STAFF");
+        assertThat(accessHistory.getBody()).extracting(event -> event.get("accessType"))
+                .contains("READ", "DOWNLOAD");
+        assertThat(accessHistory.getBody().toString()).doesNotContain(created.trackingToken());
+        assertThat(accessHistory.getBody().stream().map(event -> java.time.OffsetDateTime.parse(event.get("accessedAt").toString()))
+                .toList()).isSortedAccordingTo(Comparator.reverseOrder());
+        assertThatThrownBy(() -> jdbc.update("UPDATE protocol_document_access_events SET actor_reference='alterado' WHERE protocol_id=?",
+                created.id())).isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> jdbc.update("DELETE FROM protocol_document_access_events WHERE protocol_id=?", created.id()))
+                .isInstanceOf(DataAccessException.class);
+
         ResponseEntity<String> wrongTenant = http.exchange("/api/v1/staff/protocols/" + created.id() + "/attachments",
                 HttpMethod.GET, staffHeaders(LocalDemoData.ORG_BETA), String.class);
         assertThat(wrongTenant.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        ResponseEntity<String> wrongTenantHistory = http.exchange("/api/v1/staff/protocols/" + created.id() + "/access-history",
+                HttpMethod.GET, staffHeaders(LocalDemoData.ORG_BETA), String.class);
+        assertThat(wrongTenantHistory.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         ResponseEntity<String> wrongTenantDownload = http.exchange("/api/v1/staff/protocols/" + created.id()
                         + "/attachments/" + publicAttachment.id() + "/download",
                 HttpMethod.GET, staffHeaders(LocalDemoData.ORG_BETA), String.class);
@@ -194,6 +225,10 @@ class ProtocolVerticalIntegrationTest {
                             + "/attachments/" + publicAttachment.id() + "/download",
                     HttpMethod.GET, staffHeaders(organizationId, null, "servidor.teste"), String.class);
             assertThat(wrongDepartmentDownload.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            ResponseEntity<String> wrongDepartmentHistory = http.exchange("/api/v1/staff/protocols/" + created.id()
+                            + "/access-history", HttpMethod.GET,
+                    staffHeaders(organizationId, null, "servidor.teste"), String.class);
+            assertThat(wrongDepartmentHistory.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
             assertThat(jdbc.queryForObject("SELECT count(*) FROM protocol_attachment_downloads WHERE attachment_id=?",
                     Long.class, publicAttachment.id())).isEqualTo(downloadsBeforeDeniedRead);
         } finally {
@@ -206,6 +241,51 @@ class ProtocolVerticalIntegrationTest {
                 jdbc.update("INSERT INTO organization_memberships(username,organization_id,role_code) VALUES('servidor.teste',?,?)",
                         organizationId, role);
         }
+    }
+
+    @Test void protocolDocumentAccessHistoryIsTenantScopedCredentialFreeAndAppendOnly() {
+        UUID organizationId = LocalDemoData.ORG_ALPHA;
+        Created created = create("municipio-alfa", "Histórico de acesso " + UUID.randomUUID(),
+                "Demanda fictícia para validar a trilha de acesso.");
+
+        ResponseEntity<TrackingView> publicRead = http.exchange("/api/v1/public/protocols/tracking", HttpMethod.GET,
+                bearer(created.trackingToken()), TrackingView.class);
+        assertThat(publicRead.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ResponseEntity<ProtocolReadReceipt> staffRead = http.exchange("/api/v1/staff/protocols/" + created.id() + "/read",
+                HttpMethod.POST, staffHeaders(organizationId), ProtocolReadReceipt.class);
+        assertThat(staffRead.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<List<ProtocolDocumentAccessService.AccessHistoryEvent>> history = http.exchange(
+                "/api/v1/staff/protocols/" + created.id() + "/access-history", HttpMethod.GET,
+                staffHeaders(organizationId), new ParameterizedTypeReference<>() {});
+        assertThat(history.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(history.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL)).contains("no-store");
+        assertThat(history.getBody()).hasSize(2);
+        assertThat(history.getBody()).extracting(ProtocolDocumentAccessService.AccessHistoryEvent::documentType)
+                .containsOnly("PROTOCOL");
+        assertThat(history.getBody()).extracting(ProtocolDocumentAccessService.AccessHistoryEvent::documentId)
+                .containsOnly(created.id());
+        assertThat(history.getBody()).extracting(ProtocolDocumentAccessService.AccessHistoryEvent::actorType)
+                .contains("APPLICANT", "STAFF");
+        assertThat(history.getBody()).extracting(ProtocolDocumentAccessService.AccessHistoryEvent::accessType)
+                .containsOnly("READ");
+        assertThat(history.getBody()).extracting(ProtocolDocumentAccessService.AccessHistoryEvent::outcome)
+                .containsOnly("ALLOWED");
+        assertThat(history.getBody()).extracting(ProtocolDocumentAccessService.AccessHistoryEvent::actorLabel)
+                .contains("Requerente", USER);
+        assertThat(history.getBody()).extracting(ProtocolDocumentAccessService.AccessHistoryEvent::accessedAt)
+                .isSortedAccordingTo(Comparator.reverseOrder());
+        assertThat(history.getBody().toString()).doesNotContain(created.trackingToken());
+
+        ResponseEntity<String> otherOrganization = http.exchange("/api/v1/staff/protocols/" + created.id()
+                        + "/access-history", HttpMethod.GET, staffHeaders(LocalDemoData.ORG_BETA), String.class);
+        assertThat(otherOrganization.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThatThrownBy(() -> jdbc.update("UPDATE protocol_document_access_events SET actor_reference='changed' WHERE protocol_id=?",
+                created.id())).isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> jdbc.update("DELETE FROM protocol_document_access_events WHERE protocol_id=?", created.id()))
+                .isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> jdbc.execute("TRUNCATE protocol_document_access_events"))
+                .isInstanceOf(DataAccessException.class);
     }
 
     @Test void protocolInteractionsAreAppendOnlyPrivateAndReopenRequiresResponsibleSector() throws Exception {

@@ -95,6 +95,11 @@ class ExportEvidencePolicyTests(unittest.TestCase):
             "TR91-0019": {"anexo-setor-consultado-baixado"},
             "ED91-0170": {"anexo-cidadao-enviado-listado", "anexo-setor-consultado-baixado"},
             "TR91-0174": {"anexo-cidadao-enviado-listado", "anexo-setor-consultado-baixado"},
+            "TR91-0143": {"historico-acesso-do-documento"},
+            "TR91-0144": {"historico-acesso-do-documento"},
+            "TR91-0146": {"historico-acesso-do-documento"},
+            "TR91-0147": {"historico-acesso-do-documento"},
+            "TR91-0148": {"anexo-setor-consultado-baixado", "historico-acesso-do-documento"},
         }, policy["id_labels"])
         self.assertNotIn("ED91-0484", policy["ids"])
         self.assertEqual({"TR91-0516"}, EXPORTER.supported_ids(policy, {

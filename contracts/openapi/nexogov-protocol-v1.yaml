@@ -937,6 +937,32 @@ paths:
                   $ref: '#/components/schemas/ProtocolAttachment'
         '403': { description: "Actor is not authorized for the validated organization or an involved department." }
         '404': { description: Protocol is unavailable in the validated organization. }
+  /staff/protocols/{id}/access-history:
+    get:
+      operationId: getProtocolAccessHistoryForStaff
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: >-
+            Chronological history of recorded protocol, attachment, and interaction reads plus successful attachment
+            downloads, limited to the validated organization and staff authorized for the current or an involved
+            department. External actors are represented by role because this portal currently uses protocol-scoped
+            bearer credentials rather than verified external identities. Login attempts and denied/anonymous access
+            attempts are not included by this increment. Cache-Control is private, no-store.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'private, no-store' } }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ProtocolAccessHistoryEvent' }
+        '403': { description: Actor lacks access to this protocol or its involved departments. }
+        '404': { description: Protocol is unavailable in the validated organization; IDs from other organizations are indistinguishable. }
   /staff/protocols/{id}/attachments/{attachmentId}/download:
     get:
       operationId: downloadProtocolAttachmentForStaff
@@ -1427,9 +1453,22 @@ components:
         filename: { type: string }
         mediaType: { type: string }
         sizeBytes: { type: integer, format: int64 }
-        downloadCount: { type: integer, format: int64 }
+        downloadCount: { type: integer, format: int64, description: Total successful downloads recorded for this attachment. }
         uploadedAt: { type: string, format: date-time }
         downloadPath: { type: string }
+    ProtocolAccessHistoryEvent:
+      type: object
+      required: [id, documentType, documentId, documentLabel, actorType, actorLabel, accessType, outcome, accessedAt]
+      properties:
+        id: { type: string, description: Opaque event identifier; it is not a bearer credential. }
+        documentType: { type: string, enum: [PROTOCOL, ATTACHMENT, INTERACTION] }
+        documentId: { type: string, format: uuid }
+        documentLabel: { type: string }
+        actorType: { type: string, enum: [STAFF, APPLICANT, PARTICIPANT] }
+        actorLabel: { type: string, description: Staff username or neutral external role; raw bearer tokens are never returned. }
+        accessType: { type: string, enum: [READ, DOWNLOAD] }
+        outcome: { type: string, enum: [ALLOWED] }
+        accessedAt: { type: string, format: date-time }
     ProtocolInteractionAttachment:
       type: object
       required: [id, filename, mediaType, sizeBytes, downloadPath]

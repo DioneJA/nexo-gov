@@ -28,14 +28,17 @@ public class ProtocolInteractionService {
     private final ProtocolAttachmentService attachments;
     private final ProtocolAttachmentPolicyService policies;
     private final ProtocolPublicAccessService publicAccess;
+    private final ProtocolDocumentAccessService documentAccess;
 
     public ProtocolInteractionService(JdbcTemplate jdbc, ProtocolAttachmentService attachments,
                                       ProtocolAttachmentPolicyService policies,
-                                      ProtocolPublicAccessService publicAccess) {
+                                      ProtocolPublicAccessService publicAccess,
+                                      ProtocolDocumentAccessService documentAccess) {
         this.jdbc = jdbc;
         this.attachments = attachments;
         this.policies = policies;
         this.publicAccess = publicAccess;
+        this.documentAccess = documentAccess;
     }
 
     @Transactional
@@ -86,6 +89,7 @@ public class ProtocolInteractionService {
                 normalizedMessage, visibility, OffsetDateTime.now(), interactionAttachments(protocol, interactionId, true, actor));
     }
 
+    @Transactional
     public List<InteractionView> publicList(UUID organizationId, UUID protocolId,
                                             ProtocolPublicAccessService.Principal principal) {
         List<InteractionRow> rows = jdbc.query("""
@@ -95,10 +99,18 @@ public class ProtocolInteractionService {
                          WHERE i.organization_id=? AND i.protocol_id=? AND i.visibility='PUBLIC'
                          ORDER BY i.created_at,i.id
                         """, this::mapRow, organizationId, protocolId);
-        return rows.stream().map(row -> toView(organizationId, protocolId, row, false, null, principal)).toList();
+        List<InteractionView> result = rows.stream().map(row -> toView(organizationId, protocolId, row, false, null, principal)).toList();
+        String actorType = principal.applicant() ? "APPLICANT" : "PARTICIPANT";
+        String actorReference = principal.applicant() ? "APPLICANT" : principal.participantId().toString();
+        for (InteractionView interaction : result) {
+            documentAccess.recordRead(organizationId, protocolId, "INTERACTION", interaction.id(), actorType, actorReference);
+            interaction.attachments().forEach(attachment -> documentAccess.recordRead(organizationId, protocolId,
+                    "ATTACHMENT", attachment.id(), actorType, actorReference));
+        }
+        return result;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<InteractionView> staffList(UUID protocolId, String actor) {
         UUID organizationId = TenantContext.requireTenantId();
         ProtocolRow protocol = findStaffProtocol(organizationId, protocolId);
@@ -114,7 +126,13 @@ public class ProtocolInteractionService {
                                  AND sm.department_id=i.department_id AND sm.active=true))
                          ORDER BY i.created_at,i.id
                         """, this::mapRow, organizationId, protocolId, admin, actor);
-        return rows.stream().map(row -> toView(organizationId, protocolId, row, true, actor, null)).toList();
+        List<InteractionView> result = rows.stream().map(row -> toView(organizationId, protocolId, row, true, actor, null)).toList();
+        for (InteractionView interaction : result) {
+            documentAccess.recordRead(organizationId, protocolId, "INTERACTION", interaction.id(), "STAFF", actor);
+            interaction.attachments().forEach(attachment -> documentAccess.recordRead(organizationId, protocolId,
+                    "ATTACHMENT", attachment.id(), "STAFF", actor));
+        }
+        return result;
     }
 
     public List<String> interactionAllowedExtensions(UUID organizationId, UUID subjectId) {

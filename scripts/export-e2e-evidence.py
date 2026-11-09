@@ -182,20 +182,26 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
             "regra-anexo-persistida",
             "anexo-cidadao-enviado-listado",
             "anexo-setor-consultado-baixado",
+            "historico-acesso-do-documento",
         },
-        "ids": {"TR91-0516", "TR91-0019", "ED91-0170", "TR91-0174"},
+        "ids": {"TR91-0516", "TR91-0019", "ED91-0170", "TR91-0174", "TR91-0143", "TR91-0144", "TR91-0146", "TR91-0147", "TR91-0148"},
         "id_labels": {
             "TR91-0516": {"regra-anexo-persistida", "anexo-cidadao-enviado-listado"},
             "TR91-0019": {"anexo-setor-consultado-baixado"},
             "ED91-0170": {"anexo-cidadao-enviado-listado", "anexo-setor-consultado-baixado"},
             "TR91-0174": {"anexo-cidadao-enviado-listado", "anexo-setor-consultado-baixado"},
+            "TR91-0143": {"historico-acesso-do-documento"},
+            "TR91-0144": {"historico-acesso-do-documento"},
+            "TR91-0146": {"historico-acesso-do-documento"},
+            "TR91-0147": {"historico-acesso-do-documento"},
+            "TR91-0148": {"anexo-setor-consultado-baixado", "historico-acesso-do-documento"},
         },
         "nota": (
-            "Subfluxos visuais locais com assunto, protocolo e arquivo fictícios: configuração de regra, anexo enviado/listado pelo cidadão e anexo consultado/baixado no setor. "
+            "Subfluxos visuais locais com assunto, protocolo e arquivo fictícios: configuração de regra, anexo enviado/listado pelo cidadão, anexo consultado/baixado no setor, total de downloads e histórico cronológico de leituras/downloads com origem interna/externa. "
             "Na captura pública a chave do comprovante é convertida para password e seu locator é incluído na máscara do helper; nenhum QR ou cabeçalho de autenticação é exibido. "
             "A ocultação dos pixels só é confirmada pela inspeção visual do PNG exportado, não por busca do bearer nos bytes comprimidos. "
             "S3Mock é um dublê local da API S3 e não comprova hospedagem, segurança ou operação de bucket produtivo. "
-            "As imagens não demonstram a regra opcional, todos os formatos, todo o escopo documental, obrigação contratual completa ou POC oficial. "
+            "O histórico registra leituras autorizadas e downloads; não inclui tentativas negadas/anônimas, login do sistema, identidade externa verificada ou documentos fora do módulo de protocolo. As imagens não demonstram a regra opcional, todos os formatos, todo o escopo documental, obrigação contratual completa ou POC oficial. "
             "ED91-0484 é composto também por prazo automático e permanece sem associação visual por este cenário de anexos."
         ),
     },

@@ -89,6 +89,12 @@ public class ProtocolController {
         return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "private, no-store")
                 .body(service.staffAttachments(id, auth.getName()));
     }
+    @GetMapping("/staff/protocols/{id}/access-history")
+    public ResponseEntity<List<ProtocolDocumentAccessService.AccessHistoryEvent>> staffAccessHistory(@PathVariable UUID id,
+                                                                                                      Authentication auth) {
+        return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .body(service.accessHistory(id, auth.getName()));
+    }
     @GetMapping("/staff/protocols/{id}/attachments/{attachmentId}/download")
     public ResponseEntity<byte[]> downloadStaffAttachment(@PathVariable UUID id, @PathVariable UUID attachmentId, Authentication auth) {
         return attachmentResponse(service.downloadStaffAttachment(id, attachmentId, auth.getName()));

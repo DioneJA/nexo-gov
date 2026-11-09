@@ -37,16 +37,18 @@ public class ProtocolService {
     private final ProtocolInteractionService interactions;
     private final ProtocolParticipantService participants;
     private final ProtocolPublicAccessService publicAccess;
+    private final ProtocolDocumentAccessService documentAccess;
 
     public ProtocolService(JdbcTemplate jdbc, ReceiptPdfService receiptPdf, ProtocolAttachmentService attachments,
                            ProtocolInteractionService interactions, ProtocolParticipantService participants,
-                           ProtocolPublicAccessService publicAccess) {
+                           ProtocolPublicAccessService publicAccess, ProtocolDocumentAccessService documentAccess) {
         this.jdbc = jdbc;
         this.receiptPdf = receiptPdf;
         this.attachments = attachments;
         this.interactions = interactions;
         this.participants = participants;
         this.publicAccess = publicAccess;
+        this.documentAccess = documentAccess;
     }
 
     @Transactional
@@ -183,7 +185,8 @@ public class ProtocolService {
         OffsetDateTime readAt = jdbc.queryForObject("""
                         SELECT read_at FROM protocol_read_receipts
                          WHERE organization_id=? AND protocol_id=? AND department_id=? AND username=?
-                        """, OffsetDateTime.class, protocol.organizationId, protocol.id, departmentId, actor);
+                """, OffsetDateTime.class, protocol.organizationId, protocol.id, departmentId, actor);
+        documentAccess.recordRead(protocol.organizationId, protocol.id, "PROTOCOL", protocol.id, "STAFF", actor);
         return new ProtocolReadReceipt(protocol.id, departmentId, readAt, ProtocolReadStatus.READ_BY_ME);
     }
 
@@ -212,10 +215,17 @@ public class ProtocolService {
     public TrackingView track(String rawToken) {
         ProtocolPublicAccessService.Principal resolved = publicAccess.resolve(rawToken);
         ProtocolPublicAccessService.Principal protocol = publicAccess.lockForProtocol(resolved.protocolId(), rawToken);
+        String externalActorReference = protocol.applicant() ? "APPLICANT" : protocol.participantId().toString();
+        String externalActorType = protocol.applicant() ? "APPLICANT" : "PARTICIPANT";
+        documentAccess.recordRead(protocol.organizationId(), protocol.protocolId(), "PROTOCOL", protocol.protocolId(),
+                externalActorType, externalActorReference);
         List<EventView> events = jdbc.query("SELECT action,summary,created_at FROM protocol_events WHERE protocol_id=? AND visibility='PUBLIC' ORDER BY created_at,id",
                 (rs, n) -> new EventView(rs.getString("action"), rs.getString("summary"), rs.getObject("created_at", OffsetDateTime.class)), protocol.protocolId());
+        List<ProtocolAttachmentService.AttachmentView> publicAttachments = attachments.publicList(protocol.organizationId(), protocol.protocolId());
+        publicAttachments.forEach(attachment -> documentAccess.recordRead(protocol.organizationId(), protocol.protocolId(),
+                "ATTACHMENT", attachment.id(), externalActorType, externalActorReference));
         return new TrackingView(protocol.protocolId(), protocol.protocolNumber(), protocol.subject(), protocol.status(), protocol.createdAt(), events,
-                attachments.publicList(protocol.organizationId(), protocol.protocolId()),
+                publicAttachments,
                 interactions.publicList(protocol.organizationId(), protocol.protocolId(), protocol),
                 interactions.interactionAllowedExtensions(protocol.organizationId(), protocol.subjectId()),
                 protocol.applicant(), protocol.participantName(),
@@ -232,10 +242,21 @@ public class ProtocolService {
                 "O acesso de uma pessoa vinculada foi revogado pelo requerente.", "PUBLIC");
     }
 
+    @Transactional
     public List<ProtocolAttachmentService.AttachmentView> staffAttachments(UUID id, String actor) {
         ProtocolRow protocol = requireProtocol(id);
         authorizeForAttachmentRead(protocol, actor);
-        return attachments.staffList(protocol.organizationId, id);
+        List<ProtocolAttachmentService.AttachmentView> staffAttachments = attachments.staffList(protocol.organizationId, id);
+        staffAttachments.forEach(attachment -> documentAccess.recordRead(protocol.organizationId, id,
+                "ATTACHMENT", attachment.id(), "STAFF", actor));
+        return staffAttachments;
+    }
+
+    @Transactional
+    public List<ProtocolDocumentAccessService.AccessHistoryEvent> accessHistory(UUID id, String actor) {
+        ProtocolRow protocol = requireProtocol(id);
+        authorizeForAttachmentRead(protocol, actor);
+        return documentAccess.history(protocol.organizationId, id);
     }
 
     public ProtocolAttachmentService.Downloaded downloadStaffAttachment(UUID id, UUID attachmentId, String actor) {
