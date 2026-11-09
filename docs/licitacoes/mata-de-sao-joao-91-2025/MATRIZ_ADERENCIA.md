@@ -1,14 +1,14 @@
 # Matriz de aderência — resumo de rastreabilidade
 
-Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
+Gerada em 2026-11-09 a partir de `MATRIZ_ADERENCIA.csv`.
 
 ## Estado atual
 
 - Total de linhas/requisitos rastreados: **1388**.
 - Marcadores do edital §14.1.13 (pp. impressas 13–40) e complementos ED91: **646**.
-- Itens de fonte do Termo de Referência: **742**; transcrições conferidas visualmente: **742**; ainda pendentes de cotejo visual: **0**. Status TR: `EM_DESENVOLVIMENTO`=26, `IMPLEMENTADO_NAO_TESTADO`=0, `VALIDADO`=10, `NAO_INICIADO`=706, `BLOQUEADO`=0, `NAO_APLICAVEL_JUSTIFICADO`=0; **701/742** ainda aguardam decomposição em critérios observáveis. Os requisitos `VALIDADO` cobrem apenas seus critérios delimitados; a POC integral e a conformidade global não estão comprovadas.
+- Itens de fonte do Termo de Referência: **742**; transcrições conferidas visualmente: **742**; ainda pendentes de cotejo visual: **0**. Status TR: `EM_DESENVOLVIMENTO`=26, `IMPLEMENTADO_NAO_TESTADO`=0, `VALIDADO`=11, `NAO_INICIADO`=705, `BLOQUEADO`=0, `NAO_APLICAVEL_JUSTIFICADO`=0; **700/742** ainda aguardam decomposição em critérios observáveis. Os requisitos `VALIDADO` cobrem apenas seus critérios delimitados; a POC integral e a conformidade global não estão comprovadas.
 - Obrigações sem implementação exclusiva em software: **221** (mesmo escopo para total e parcelas; inclui POC e proposta comercial; natureza `PREFERENCIAL` (**1**) é reportada separadamente). Operação contratual **106**, integração externa **78**, habilitação **8**, obrigações externas/contratuais **23**, POC **5**, proposta comercial **1**.
-- Status `VALIDADO`: **17**. Não há alegação de 100% de aderência.
+- Status `VALIDADO`: **19**. Não há alegação de 100% de aderência.
 
 ## Contagem por status
 
@@ -16,8 +16,8 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 |---|---:|
 | `EM_DESENVOLVIMENTO` | 54 |
 | `IMPLEMENTADO_NAO_TESTADO` | 0 |
-| `VALIDADO` | 17 |
-| `NAO_INICIADO` | 1317 |
+| `VALIDADO` | 19 |
+| `NAO_INICIADO` | 1315 |
 | `BLOQUEADO` | 0 |
 | `NAO_APLICAVEL_JUSTIFICADO` | 0 |
 
@@ -41,10 +41,10 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 | `NOTIFICACOES` | 19 |
 | `OPERACAO_E_INTEGRACOES` | 24 |
 | `OUVIDORIA` | 66 |
-| `PLATAFORMA_E_ARQUITETURA` | 136 |
+| `PLATAFORMA_E_ARQUITETURA` | 135 |
 | `POC` | 1 |
 | `POC_E_OPERACAO` | 7 |
-| `PORTAL_EXTERNO` | 69 |
+| `PORTAL_EXTERNO` | 70 |
 | `PRAZOS` | 13 |
 | `PROCESSOS_ADMINISTRATIVOS` | 111 |
 | `PROCESSO_ADMINISTRATIVO_DISCIPLINAR` | 12 |
@@ -61,9 +61,9 @@ Gerada em 2026-11-08 a partir de `MATRIZ_ADERENCIA.csv`.
 
 | Escopo | Total | `EM_DESENVOLVIMENTO` | `IMPLEMENTADO_NAO_TESTADO` | `VALIDADO` | `NAO_INICIADO` | `BLOQUEADO` | `NAO_APLICAVEL_JUSTIFICADO` |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Edital e complementos ED91 | 646 | 28 | 0 | 7 | 611 | 0 | 0 |
-| Termo de Referência TR91 | 742 | 26 | 0 | 10 | 706 | 0 | 0 |
-| Total da matriz | 1388 | 54 | 0 | 17 | 1317 | 0 | 0 |
+| Edital e complementos ED91 | 646 | 28 | 0 | 8 | 610 | 0 | 0 |
+| Termo de Referência TR91 | 742 | 26 | 0 | 11 | 705 | 0 | 0 |
+| Total da matriz | 1388 | 54 | 0 | 19 | 1315 | 0 | 0 |
 
 ## Natureza
 

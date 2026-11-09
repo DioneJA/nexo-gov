@@ -115,6 +115,40 @@ class OpenApiContractTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void organizationPrivacyNoticeContractDefinesAdminAndPublicTenantScopes() throws Exception {
+        Path contractPath = repositoryRoot().resolve(CONTRACT);
+        Map<String, Object> document;
+        try (InputStream source = Files.newInputStream(contractPath)) {
+            document = new Yaml().load(source);
+        }
+        Map<String, Object> paths = (Map<String, Object>) document.get("paths");
+        Map<String, Object> publicPath = (Map<String, Object>) paths
+                .get("/public/organizations/{organizationSlug}/privacy-notice");
+        assertThat(publicPath.get("get").toString()).contains("no-store", "null values");
+        Map<String, Object> staffPath = (Map<String, Object>) paths.get("/staff/organization/privacy-notice");
+        assertThat(staffPath).containsKeys("get", "put");
+        assertThat(staffPath.toString()).contains("OrganizationId", "active organization administrator", "no-store");
+        assertThat(((Map<String, Object>) staffPath.get("put")).toString())
+                .contains("HTTPS", "both cleared", "2,000", "2,048");
+
+        Map<String, Object> components = (Map<String, Object>) document.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        assertThat(schemas).containsKeys("OrganizationPrivacyNoticeInput", "OrganizationPrivacyNotice",
+                "PublicOrganizationPrivacyNotice");
+        Map<String, Object> input = (Map<String, Object>) schemas.get("OrganizationPrivacyNoticeInput");
+        assertThat((List<String>) input.get("required")).containsExactly("explanatoryText", "privacyPolicyUrl");
+        Map<String, Object> properties = (Map<String, Object>) input.get("properties");
+        assertThat(((Map<String, Object>) properties.get("explanatoryText")).get("maxLength")).isEqualTo(2000);
+        assertThat(((Map<String, Object>) properties.get("privacyPolicyUrl")).get("maxLength")).isEqualTo(2048);
+        assertThat(((Map<String, Object>) properties.get("explanatoryText")).get("description").toString())
+                .contains("line breaks are allowed");
+        Map<String, Object> policyUrl = (Map<String, Object>) properties.get("privacyPolicyUrl");
+        assertThat(policyUrl.get("pattern").toString()).isEqualTo("^(?:https://[^\\s@]+)?$");
+        assertThat(policyUrl).doesNotContainKey("format");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void protocolAccessHistoryContractDefinesTenantScopedChronologyAndNeutralExternalActors() throws Exception {
         Path contractPath = repositoryRoot().resolve(CONTRACT);
         Map<String, Object> document;

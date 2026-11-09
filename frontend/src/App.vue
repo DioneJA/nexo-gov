@@ -2,12 +2,16 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { publicApi, type Organization, type PublicParticipantField, type PublicParticipantInvitation, type PublicProtocolAttachment, type PublicProtocolInteraction, type PublicProtocolInteractionAttachment, type PublicProtocolSubject, type PublicProtocolTracking } from './api/public'
 import { organizationAccentClass, type PublicOrganizationBranding } from './api/organization-branding'
+import type { PublicOrganizationPrivacyNotice } from './api/organization-privacy-notice'
 
 const tab = ref('new')
 const organizations = ref<Organization[]>([])
 const organizationBranding = ref<PublicOrganizationBranding | null>(null)
+const organizationPrivacyNotice = ref<PublicOrganizationPrivacyNotice | null>(null)
 const brandingLoading = ref(false)
 const brandingLoadError = ref('')
+const privacyNoticeLoading = ref(false)
+const privacyNoticeLoadError = ref('')
 const protocolSubjects = ref<PublicProtocolSubject[]>([])
 const loading = ref(false)
 const trackingLookupLoading = ref(false)
@@ -60,6 +64,7 @@ const isLocalEnvironment = import.meta.env.DEV
 let subjectRequestVersion = 0
 let trackingLookupGeneration = 0
 let brandingRequestVersion = 0
+let privacyNoticeRequestVersion = 0
 const visibleOrganizationBranding = computed(() => tab.value === 'new' ? organizationBranding.value : null)
 const brandingClass = computed(() => organizationAccentClass(visibleOrganizationBranding.value?.accentToken))
 const brandCaption = computed(() => {
@@ -67,6 +72,33 @@ const brandCaption = computed(() => {
   if (brandingLoading.value) return 'Carregando identidade visual…'
   return organizationBranding.value?.displayName || 'Gestão pública digital'
 })
+
+function loadPrivacyNotice(slug: string) {
+  const requestVersion = ++privacyNoticeRequestVersion
+  organizationPrivacyNotice.value = null
+  privacyNoticeLoadError.value = ''
+  privacyNoticeLoading.value = !!slug
+  if (!slug) return
+
+  void publicApi.get<PublicOrganizationPrivacyNotice>(`/public/organizations/${encodeURIComponent(slug)}/privacy-notice`)
+    .then(response => {
+      if (requestVersion === privacyNoticeRequestVersion && slug === form.value.organizationSlug) {
+        organizationPrivacyNotice.value = response.data
+      }
+    })
+    .catch(() => {
+      if (requestVersion === privacyNoticeRequestVersion && slug === form.value.organizationSlug) {
+        privacyNoticeLoadError.value = 'Não foi possível carregar o aviso de privacidade desta organização.'
+      }
+    })
+    .finally(() => {
+      if (requestVersion === privacyNoticeRequestVersion) privacyNoticeLoading.value = false
+    })
+}
+
+function retryPrivacyNotice() {
+  loadPrivacyNotice(form.value.organizationSlug)
+}
 
 const statusLabels: Record<string, string> = {
   OPEN: 'Aberto', FORWARDED: 'Encaminhado', RECEIVED: 'Recebido', DISPATCHED: 'Despachado', COMPLETED: 'Concluído'
@@ -100,6 +132,7 @@ watch(() => form.value.organizationSlug, slug => {
   organizationBranding.value = null
   brandingLoadError.value = ''
   brandingLoading.value = !!slug
+  loadPrivacyNotice(slug)
   protocolSubjects.value = []
   form.value.subjectId = ''
   subjectLoadError.value = ''
@@ -257,6 +290,16 @@ function attachmentErrorMessage(message: string, status: number) {
 }
 
 async function createProtocol() {
+  if (!form.value.organizationSlug) {
+    error.value = 'Selecione uma organização antes de informar seus dados.'
+    return
+  }
+  if (privacyNoticeLoading.value || privacyNoticeLoadError.value) {
+    error.value = privacyNoticeLoadError.value
+      ? 'Carregue o aviso de privacidade antes de enviar seus dados.'
+      : 'Aguarde o carregamento do aviso de privacidade antes de enviar seus dados.'
+    return
+  }
   trackingLookupGeneration += 1
   tracking.value = null
   loading.value = true; error.value = ''; notice.value = ''
@@ -509,8 +552,22 @@ function formatDate(value: unknown) {
             <section class="service-sheet section-card" aria-labelledby="new-request-title">
               <h2 id="new-request-title" class="section-heading">Nova solicitação</h2>
               <p class="section-subheading">Informe os dados do pedido. Os campos com * são obrigatórios.</p>
+              <section v-if="privacyNoticeLoading || privacyNoticeLoadError || (organizationPrivacyNotice?.explanatoryText && organizationPrivacyNotice.privacyPolicyUrl)" class="public-privacy-notice" aria-labelledby="public-privacy-notice-title">
+                <h3 id="public-privacy-notice-title">Privacidade</h3>
+                <p v-if="privacyNoticeLoading" class="privacy-notice-status" role="status">Carregando aviso de privacidade…</p>
+                <div v-else-if="privacyNoticeLoadError" class="privacy-notice-error-state">
+                  <p class="privacy-notice-status privacy-notice-error" role="alert">{{ privacyNoticeLoadError }}</p>
+                  <q-btn flat dense no-caps color="primary" label="Tentar carregar o aviso novamente" @click="retryPrivacyNotice" />
+                </div>
+                <template v-else>
+                  <p>{{ organizationPrivacyNotice?.explanatoryText }}</p>
+                  <a :href="organizationPrivacyNotice?.privacyPolicyUrl || undefined" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>
+                </template>
+              </section>
               <q-form class="form-grid" @submit.prevent="createProtocol">
                 <q-select v-model="form.organizationSlug" :options="organizations.map(o => ({ label: o.slug === form.organizationSlug ? organizationBranding?.displayName || o.name : o.name, value: o.slug }))" :disable="loading || organizations.length === 0" :rules="[value => !!value || 'Selecione uma organização.']" emit-value map-options outlined dense label="Organização destinatária *" />
+                <fieldset class="citizen-request-fields span-two" :disabled="loading || !form.organizationSlug || privacyNoticeLoading || !!privacyNoticeLoadError">
+                  <legend class="sr-only">Dados da solicitação</legend>
                 <q-input v-model="form.applicantName" :rules="[value => !!value?.trim() || 'Informe seu nome.']" outlined dense label="Nome completo *" maxlength="180" autocomplete="name" />
                 <q-input v-model="form.applicantEmail" :rules="[value => !!value?.trim() || 'Informe seu e-mail.']" outlined dense type="email" label="E-mail *" maxlength="254" autocomplete="email" />
                 <q-select v-model="form.subjectId" :options="protocolSubjects.map(subject => ({ label: subject.name, value: subject.id }))" :disable="loading || subjectsLoading || protocolSubjects.length === 0" :rules="[value => !!value || 'Selecione um assunto.']" emit-value map-options outlined dense label="Assunto *" />
@@ -519,7 +576,7 @@ function formatDate(value: unknown) {
                 <p v-else-if="form.organizationSlug && protocolSubjects.length === 0" class="subject-list-status" role="status">Esta organização ainda não disponibilizou assuntos para atendimento online. Procure o balcão interno.</p>
                 <fieldset v-if="selectedSubject" class="span-two participant-registration" :disabled="loading">
                   <legend>Pessoas que também acompanharão</legend>
-                  <p class="participant-guidance">Os dados informados ficam vinculados a este protocolo e disponíveis a servidores autorizados para atendimento. Avise a pessoa indicada sobre essa finalidade. O convite concede acesso a quem possuir o link; compartilhe-o somente com ela. Consulte a política de privacidade do órgão sobre retenção e direitos.</p>
+                  <p class="participant-guidance">Os dados informados ficam vinculados a este protocolo e disponíveis a servidores autorizados para atendimento. Avise a pessoa indicada sobre essa finalidade. O convite concede acesso a quem possuir o link; compartilhe-o somente com ela.</p>
                   <p v-if="selectedSubject.participantFields.length === 0" class="subject-list-status">A organização não configurou campos adicionais de identificação para este assunto.</p>
                   <div v-for="(participant, participantIndex) in participantDrafts" :key="participantIndex" class="participant-draft">
                     <div class="participant-draft-heading">
@@ -560,6 +617,7 @@ function formatDate(value: unknown) {
                 <p v-if="uploadingAttachments" class="span-two attachment-upload-status" role="status" aria-live="polite">Enviando a solicitação e os documentos. Aguarde a confirmação.</p>
                 <q-input v-model="form.initialMessage" :rules="[value => !!value?.trim() || 'Descreva sua solicitação.']" class="span-two" outlined type="textarea" autogrow label="Descreva sua solicitação *" maxlength="8000" />
                 <div class="span-two form-actions"><q-btn color="primary" unelevated type="submit" :loading="loading" label="Registrar solicitação" no-caps icon-right="arrow_forward" /></div>
+                </fieldset>
               </q-form>
             </section>
             <aside class="service-aside" aria-labelledby="aside-title">

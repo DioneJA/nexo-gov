@@ -1827,6 +1827,19 @@ for row in rows:
         row["status"] = "EM_DESENVOLVIMENTO"
         row["validacao_fonte"] = "CONFERIDA_VISUALMENTE"
 
+for row in rows:
+    if row["id"] != "TR91-0155":
+        continue
+    row["modulo"] = "PORTAL_EXTERNO"
+    row["natureza"] = "SOFTWARE"
+    row["criterio_de_aceite"] = "Demonstrar que o ADMIN de cada organização consegue publicar e remover, em conjunto, texto explicativo simples e endereço HTTPS da Política de Privacidade; a Central do cidadão exibe ambos antes da coleta de dados somente para a organização selecionada. A redação e adequação jurídica do conteúdo continuam sob responsabilidade da Administração."
+    row["backend_envolvido"] = "V29 organization_privacy_notice; OrganizationPrivacyNoticeController/Service deriva organização autenticada de TenantContext, bloqueia a organização durante a alteração, exige ADMIN organizacional ativo, valida par texto/link HTTPS, grava auditoria sem conteúdo/URL e mantém projeção pública limitada a texto e link com no-store."
+    row["frontend_envolvido"] = "StaffApp.vue oferece edição simples, prévia local, publicação explícita e limpeza; App.vue mostra o texto como conteúdo simples e abre o link HTTPS antes dos dados do pedido. A organização permanece selecionável durante a consulta; os campos pessoais ficam bloqueados até resposta bem-sucedida, há ação de nova tentativa em erro e respostas atrasadas de outro município são ignoradas."
+    row["teste_automatizado"] = "./dev privacy-notice-test (OrganizationPrivacyNoticeIntegrationTest com PostgreSQL Testcontainers e OpenApiContractTest) cobre ADMIN/setor, escopo entre duas organizações, URL HTTPS/credenciais, par incompleto, texto multilinha, limpeza com URL em branco, auditoria sem texto/URL, organização inativa e no-store; ./dev privacy-notice-e2e percorre publicação, recarga, apresentação, bloqueio durante carregamento, corrida entre municípios, falha/retentativa e API real."
+    row["roteiro_poc"] = "POC-TR91-0155 (ensaio local, não sessão oficial): em duas organizações fictícias, entrar como ADMIN de Alfa, publicar texto simples e link HTTPS, recarregar e confirmar persistência; abrir a Central de Alfa e verificar ambos antes dos campos pessoais; alternar para Beta e verificar que a configuração de Alfa não aparece; limpar ambos e confirmar remoção. Executar os testes focados para setor, URL insegura e contexto cross-tenant. O Município fornece e aprova o conteúdo jurídico."
+    row["evidencia"] = "Evidência local em docs/INCREMENTO_59.md, OrganizationPrivacyNoticeIntegrationTest, OpenApiContractTest e cenário `administrador configura aviso municipal e cidadão vê o texto e a política antes do formulário` de `organization-privacy-notice.spec.ts`. `./dev evidence-privacy-notice` exporta os labels `privacy-notice-admin-configured` e `privacy-notice-public-displayed`, inspecionados visualmente. Isto demonstra somente a configuração e exposição por organização, não a adequação jurídica do texto nem a POC oficial."
+    row["validacao_fonte"] = "CONFERIDA_VISUALMENTE"
+
 rows.sort(key=lambda row: (0 if row["id"].startswith("ED91-") else 1 if row["id"].startswith("TR91-") else 2, row["id"]))
 ID_REGISTRY.save()
 with CSV_PATH.open("w", encoding="utf-8-sig", newline="") as stream:

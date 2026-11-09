@@ -228,6 +228,22 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/PublicOrganizationBranding' }
         '404': { description: Organization slug is unknown or inactive. }
+  /public/organizations/{organizationSlug}/privacy-notice:
+    get:
+      operationId: getPublicOrganizationPrivacyNotice
+      parameters:
+        - { in: path, name: organizationSlug, required: true, schema: { type: string, maxLength: 80 } }
+      responses:
+        '200':
+          description: >-
+            The active organization's optional plain-text privacy notice and HTTPS policy link. Only these two
+            public fields are returned; absent configuration is represented by null values. Response is no-store.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicOrganizationPrivacyNotice' }
+        '404': { description: Organization slug is unknown or inactive. }
   /public/organizations/{organizationSlug}/protocol-subjects:
     get:
       operationId: listPublicOnlineProtocolSubjects
@@ -508,6 +524,50 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/OrganizationBranding' }
         '400': { description: Missing/invalid accent token or display name exceeds the documented bounds. }
+        '403': { description: Actor is not an active organization administrator, or tenant validation rejected an inactive organization. }
+        '404': { description: Organization became unavailable after tenant membership validation. }
+  /staff/organization/privacy-notice:
+    get:
+      operationId: getOrganizationPrivacyNotice
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Optional plain-text notice and policy link for the validated organization, with the administrator capability computed by the server. Response is no-store.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationPrivacyNotice' }
+        '403': { description: No active membership in the selected organization; an inactive organization is rejected by tenant validation. }
+        '404': { description: Organization became unavailable after tenant membership validation. }
+    put:
+      operationId: publishOrganizationPrivacyNotice
+      security:
+        - { StaffBearer: [] }
+        - { StaffBasic: [] }
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrganizationPrivacyNoticeInput' }
+      responses:
+        '200':
+          description: >-
+            Only an active organization administrator may publish. The explanatory text and HTTPS policy URL must
+            be provided together, or both cleared with null/blank values. Identical publication adds no audit
+            event; audit summaries never include notice contents or URLs. Response is no-store.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'no-store' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationPrivacyNotice' }
+        '400': { description: 'Text exceeds 2,000 characters, the link exceeds 2,048 characters, or the text/link pair is incomplete or not a valid public HTTPS URL.' }
         '403': { description: Actor is not an active organization administrator, or tenant validation rejected an inactive organization. }
         '404': { description: Organization became unavailable after tenant membership validation. }
   /staff/organization/contacts:
@@ -1698,6 +1758,25 @@ components:
         displayNameOverride: { type: string, nullable: true }
         accentToken: { $ref: '#/components/schemas/OrganizationAccentToken' }
         canManageBranding: { type: boolean, description: Server-computed active organization-administrator capability. }
+    OrganizationPrivacyNoticeInput:
+      type: object
+      required: [explanatoryText, privacyPolicyUrl]
+      properties:
+        explanatoryText: { type: string, maxLength: 2000, nullable: true, description: Plain text only; line breaks are allowed; null or blank is permitted only when privacyPolicyUrl is also null or blank. }
+        privacyPolicyUrl: { type: string, maxLength: 2048, nullable: true, pattern: '^(?:https://[^\s@]+)?$', description: Public HTTPS URL without embedded credentials; null or blank is permitted only when explanatoryText is also null or blank. }
+    PublicOrganizationPrivacyNotice:
+      type: object
+      required: [explanatoryText, privacyPolicyUrl]
+      properties:
+        explanatoryText: { type: string, nullable: true }
+        privacyPolicyUrl: { type: string, format: uri, nullable: true }
+    OrganizationPrivacyNotice:
+      type: object
+      required: [explanatoryText, privacyPolicyUrl, canManagePrivacyNotice]
+      properties:
+        explanatoryText: { type: string, nullable: true }
+        privacyPolicyUrl: { type: string, format: uri, nullable: true }
+        canManagePrivacyNotice: { type: boolean, description: Server-computed active organization-administrator capability. }
     OrganizationContactInput:
       type: object
       required: [type, name]

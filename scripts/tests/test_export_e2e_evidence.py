@@ -22,6 +22,17 @@ def policy_for(spec_name: str) -> dict:
 
 
 class ExportEvidencePolicyTests(unittest.TestCase):
+    def test_privacy_notice_capture_uses_only_the_approved_scenario(self):
+        repo_root = EXPORTER_PATH.parents[1]
+        dev = (repo_root / "dev").read_text(encoding="utf-8")
+        capture = (repo_root / "scripts/capture-e2e-evidence.sh").read_text(encoding="utf-8")
+        approved_title = "administrador configura aviso municipal e cidadão vê o texto e a política antes do formulário"
+
+        self.assertIn("evidence-privacy-notice", dev)
+        self.assertIn("--privacy-notice-only", capture)
+        self.assertIn(f"--grep '{approved_title}'", capture)
+        self.assertIn("Nenhum dos comandos aceita filtros livres.", capture)
+
     def test_helper_configures_bearer_password_and_passes_its_locator_to_mask(self):
         repo_root = EXPORTER_PATH.parents[1]
         helper = (repo_root / "frontend/e2e/evidence-fixtures.ts").read_text(encoding="utf-8")
@@ -118,6 +129,30 @@ class ExportEvidencePolicyTests(unittest.TestCase):
         for missing_label in required:
             with self.subTest(missing=missing_label):
                 self.assertEqual(set(), EXPORTER.supported_ids(policy, required - {missing_label}))
+
+    def test_privacy_notice_requirements_need_admin_and_public_screenshots(self):
+        policy = policy_for("organization-privacy-notice.spec.ts")
+        required = {"privacy-notice-admin-configured", "privacy-notice-public-displayed"}
+        self.assertEqual({"ED91-0150", "TR91-0155"}, policy["ids"])
+        self.assertEqual(required, policy["id_labels"]["ED91-0150"])
+        self.assertEqual(required, policy["id_labels"]["TR91-0155"])
+        self.assertEqual({"ED91-0150", "TR91-0155"}, EXPORTER.supported_ids(policy, required))
+        for missing_label in required:
+            with self.subTest(missing=missing_label):
+                self.assertEqual(set(), EXPORTER.supported_ids(policy, required - {missing_label}))
+
+    def test_privacy_notice_matrix_generators_do_not_auto_promote_status(self):
+        repo_root = EXPORTER_PATH.parents[1]
+        edital_generator = (repo_root / "scripts/build-edital-matrix.py").read_text(encoding="utf-8")
+        tr_generator = (repo_root / "scripts/extend-matrix-from-tr-ocr.py").read_text(encoding="utf-8")
+
+        edital_notice_block = edital_generator.split("for row in rows:\n    if row[0] != 'ED91-0150':", 1)[1].split("\nfields=", 1)[0]
+        tr_notice_block = tr_generator.split('for row in rows:\n    if row["id"] != "TR91-0155":', 1)[1].split("\nrows.sort", 1)[0]
+
+        self.assertNotRegex(edital_notice_block, r"row\[12\]\s*=")
+        self.assertNotRegex(tr_notice_block, r'row\["status"\]\s*=')
+        self.assertIn("previous[field]", edital_generator)
+        self.assertIn('row[field] = previous[field]', tr_generator)
 
     def test_cross_organization_tracking_regression_has_no_visual_capture_or_requirement_mapping(self):
         policy = EXPORTER.SAFE_SCENARIOS[(

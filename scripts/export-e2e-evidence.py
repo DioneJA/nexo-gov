@@ -79,6 +79,22 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
         ),
     },
     (
+        "organization-privacy-notice.spec.ts",
+        "administrador configura aviso municipal e cidadão vê o texto e a política antes do formulário",
+    ): {
+        "labels": {"privacy-notice-admin-configured", "privacy-notice-public-displayed"},
+        "ids": {"ED91-0150", "TR91-0155"},
+        "id_labels": {
+            "ED91-0150": {"privacy-notice-admin-configured", "privacy-notice-public-displayed"},
+            "TR91-0155": {"privacy-notice-admin-configured", "privacy-notice-public-displayed"},
+        },
+        "nota": (
+            "Capturas de configuração administrativa e apresentação pública por organização com dados fictícios. "
+            "Demonstram apenas persistência e exposição do texto simples/link HTTPS; não validam a redação jurídica, "
+            "a política municipal efetiva ou a sessão oficial da POC. O conteúdo deve ser fornecido e aprovado pela Administração."
+        ),
+    },
+    (
         "organization-branding-tracking.spec.ts",
         "cidadão consulta protocolo de outra organização sem atribuir a identidade selecionada",
     ): {

@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { publicApi, type Organization } from '../api/public'
 import { organizationAccentClass, organizationAccentOptions, type OrganizationAccentToken, type StaffOrganizationBranding } from '../api/organization-branding'
+import type { StaffOrganizationPrivacyNotice } from '../api/organization-privacy-notice'
 import { organizationHeaders, staffApi, type AttachmentRequirement, type Department, type DepartmentMember, type OrganizationMember, type OrganizationMemberAccessResult, type OrganogramNode, type ParticipantIdentityField, type ParticipantIdentityFieldInput, type ParticipantIdentityFieldType, type Protocol, type ProtocolAccessHistoryEvent, type ProtocolAttachment, type ProtocolInteraction, type ProtocolInteractionAttachment, type ProtocolInteractionVisibility, type ProtocolReadReceipt, type ProtocolReadStatus, type StaffProtocolSubject } from '../api/staff'
 import { beginOidcSignIn, clearStaffAuthorization, completeOidcCallback, hasStaffAuthorization, setLocalBasicCredentials, signOutStaff, staffAuthMode } from '../auth/staff-session'
 import AdministrativeProcessPanel from './AdministrativeProcessPanel.vue'
@@ -32,6 +33,7 @@ const organizationsLoading = ref(true)
 const organizationsLoadFailed = ref(false)
 const organizationId = ref('')
 const organizationBranding = ref<StaffOrganizationBranding | null>(null)
+const organizationPrivacyNotice = ref<StaffOrganizationPrivacyNotice | null>(null)
 const brandingDraftDisplayName = ref('')
 const brandingDraftAccentToken = ref<OrganizationAccentToken>('ACTION_BLUE')
 const brandingLoading = ref(false)
@@ -39,6 +41,13 @@ const brandingSaving = ref(false)
 const brandingLoadError = ref('')
 const brandingError = ref('')
 const brandingNotice = ref('')
+const privacyNoticeDraftText = ref('')
+const privacyNoticeDraftUrl = ref('')
+const privacyNoticeLoading = ref(false)
+const privacyNoticeSaving = ref(false)
+const privacyNoticeLoadError = ref('')
+const privacyNoticeError = ref('')
+const privacyNoticeNotice = ref('')
 const username = ref('')
 const password = ref('')
 const departments = ref<Department[]>([])
@@ -125,6 +134,7 @@ let presenceTimer: number | undefined
 let membersRequestVersion = 0
 let staffContextGeneration = 0
 let brandingRequestVersion = 0
+let privacyNoticeRequestVersion = 0
 const isLocalEnvironment = import.meta.env.DEV
 const authMode = ref(staffAuthMode())
 const authReady = ref(false)
@@ -143,7 +153,9 @@ watch(organizationId, () => {
   staffContextGeneration++
   membersRequestVersion++
   brandingRequestVersion++
+  privacyNoticeRequestVersion++
   organizationBranding.value = null
+  organizationPrivacyNotice.value = null
   brandingDraftDisplayName.value = ''
   brandingDraftAccentToken.value = 'ACTION_BLUE'
   brandingLoading.value = false
@@ -151,6 +163,13 @@ watch(organizationId, () => {
   brandingLoadError.value = ''
   brandingError.value = ''
   brandingNotice.value = ''
+  privacyNoticeDraftText.value = ''
+  privacyNoticeDraftUrl.value = ''
+  privacyNoticeLoading.value = false
+  privacyNoticeSaving.value = false
+  privacyNoticeLoadError.value = ''
+  privacyNoticeError.value = ''
+  privacyNoticeNotice.value = ''
   canManageDepartments.value = false
   departments.value = []
   organogram.value = []
@@ -574,11 +593,16 @@ async function loadStaff() {
   const selectedOrganizationId = organizationId.value
   const generation = staffContextGeneration
   const currentBrandingRequest = ++brandingRequestVersion
+  const currentPrivacyNoticeRequest = ++privacyNoticeRequestVersion
   loading.value = true; error.value = ''; notice.value = ''
   brandingLoading.value = true
   brandingLoadError.value = ''
   brandingError.value = ''
   brandingNotice.value = ''
+  privacyNoticeLoading.value = true
+  privacyNoticeLoadError.value = ''
+  privacyNoticeError.value = ''
+  privacyNoticeNotice.value = ''
   protocolRoutingDepartmentsLoading.value = true
   protocolRoutingDepartmentsError.value = ''
   canManageDepartments.value = false
@@ -596,12 +620,16 @@ async function loadStaff() {
     const brandingRequest = staffApi.get<StaffOrganizationBranding>('/staff/organization/branding', { headers })
       .then(response => ({ branding: response.data, failed: false }))
       .catch(() => ({ branding: null, failed: true }))
-    const [departmentResult, protocolResponse, capabilityResponse, organogramResponse, brandingResult] = await Promise.all([
+    const privacyNoticeRequest = staffApi.get<StaffOrganizationPrivacyNotice>('/staff/organization/privacy-notice', { headers })
+      .then(response => ({ privacyNotice: response.data, failed: false }))
+      .catch(() => ({ privacyNotice: null, failed: true }))
+    const [departmentResult, protocolResponse, capabilityResponse, organogramResponse, brandingResult, privacyNoticeResult] = await Promise.all([
       departmentRequest,
       staffApi.get<Protocol[]>('/staff/protocols', { headers }),
       staffApi.get<{ canManageDepartments: boolean }>('/staff/organization/department-management', { headers }),
       staffApi.get<OrganogramNode[]>('/staff/organization/organogram', { headers }),
-      brandingRequest
+      brandingRequest,
+      privacyNoticeRequest
     ])
     if (!isCurrentStaffContext(generation, selectedOrganizationId)) return
     departments.value = departmentResult.departments
@@ -620,6 +648,17 @@ async function loadStaff() {
       }
       brandingLoading.value = false
     }
+    if (currentPrivacyNoticeRequest === privacyNoticeRequestVersion) {
+      organizationPrivacyNotice.value = privacyNoticeResult.privacyNotice
+      privacyNoticeLoadError.value = privacyNoticeResult.failed
+        ? 'Não foi possível carregar o aviso de privacidade desta organização.'
+        : ''
+      if (privacyNoticeResult.privacyNotice) {
+        privacyNoticeDraftText.value = privacyNoticeResult.privacyNotice.explanatoryText || ''
+        privacyNoticeDraftUrl.value = privacyNoticeResult.privacyNotice.privacyPolicyUrl || ''
+      }
+      privacyNoticeLoading.value = false
+    }
     staffLoaded.value = true
     if (departments.value.length) destinationDepartmentId.value = departments.value[0].id
     if (canManageDepartments.value) await Promise.all([loadOrganizationMembers(), loadProtocolSubjects()])
@@ -631,6 +670,7 @@ async function loadStaff() {
       ? 'Acesso recusado. Confira suas credenciais e a organização selecionada.'
       : 'Não foi possível carregar a caixa de entrada.'
     if (currentBrandingRequest === brandingRequestVersion) brandingLoading.value = false
+    if (currentPrivacyNoticeRequest === privacyNoticeRequestVersion) privacyNoticeLoading.value = false
   }
   finally {
     if (isCurrentStaffContext(generation, selectedOrganizationId)) {
@@ -698,6 +738,68 @@ async function publishOrganizationBranding() {
   } finally {
     if (isCurrentStaffContext(generation, selectedOrganizationId) && requestVersion === brandingRequestVersion) {
       brandingSaving.value = false
+    }
+  }
+}
+
+async function reloadPrivacyNotice() {
+  if (!staffLoaded.value || !organizationId.value) return
+  const selectedOrganizationId = organizationId.value
+  const generation = staffContextGeneration
+  const requestVersion = ++privacyNoticeRequestVersion
+  privacyNoticeLoading.value = true
+  privacyNoticeLoadError.value = ''
+  privacyNoticeError.value = ''
+  try {
+    const response = await staffApi.get<StaffOrganizationPrivacyNotice>('/staff/organization/privacy-notice', {
+      headers: organizationHeaders(selectedOrganizationId)
+    })
+    if (!isCurrentStaffContext(generation, selectedOrganizationId) || requestVersion !== privacyNoticeRequestVersion) return
+    organizationPrivacyNotice.value = response.data
+    privacyNoticeDraftText.value = response.data.explanatoryText || ''
+    privacyNoticeDraftUrl.value = response.data.privacyPolicyUrl || ''
+  } catch {
+    if (isCurrentStaffContext(generation, selectedOrganizationId) && requestVersion === privacyNoticeRequestVersion) {
+      privacyNoticeLoadError.value = 'Não foi possível carregar o aviso de privacidade desta organização.'
+    }
+  } finally {
+    if (requestVersion === privacyNoticeRequestVersion) privacyNoticeLoading.value = false
+  }
+}
+
+function restorePrivacyNoticeDefaults() {
+  privacyNoticeDraftText.value = ''
+  privacyNoticeDraftUrl.value = ''
+  privacyNoticeError.value = ''
+  privacyNoticeNotice.value = ''
+}
+
+async function publishPrivacyNotice() {
+  if (!staffLoaded.value || !organizationId.value || !organizationPrivacyNotice.value?.canManagePrivacyNotice || privacyNoticeSaving.value) return
+  const selectedOrganizationId = organizationId.value
+  const generation = staffContextGeneration
+  const requestVersion = privacyNoticeRequestVersion
+  privacyNoticeSaving.value = true
+  privacyNoticeError.value = ''
+  privacyNoticeNotice.value = ''
+  try {
+    const response = await staffApi.put<StaffOrganizationPrivacyNotice>('/staff/organization/privacy-notice', {
+      explanatoryText: privacyNoticeDraftText.value.trim() || null,
+      privacyPolicyUrl: privacyNoticeDraftUrl.value.trim() || null
+    }, { headers: organizationHeaders(selectedOrganizationId) })
+    if (!isCurrentStaffContext(generation, selectedOrganizationId) || requestVersion !== privacyNoticeRequestVersion) return
+    organizationPrivacyNotice.value = response.data
+    privacyNoticeDraftText.value = response.data.explanatoryText || ''
+    privacyNoticeDraftUrl.value = response.data.privacyPolicyUrl || ''
+    privacyNoticeNotice.value = 'Aviso de privacidade publicado para esta organização.'
+  } catch (e: any) {
+    if (!isCurrentStaffContext(generation, selectedOrganizationId) || requestVersion !== privacyNoticeRequestVersion) return
+    privacyNoticeError.value = e.response?.status === 403
+      ? 'Seu vínculo não permite publicar o aviso de privacidade desta organização.'
+      : 'Não foi possível publicar o aviso. Informe o texto e o link HTTPS juntos, ou limpe os dois campos.'
+  } finally {
+    if (isCurrentStaffContext(generation, selectedOrganizationId) && requestVersion === privacyNoticeRequestVersion) {
+      privacyNoticeSaving.value = false
     }
   }
 }
@@ -1804,6 +1906,49 @@ function flattenStaff(nodes: OrganogramNode[]) {
                 <div class="branding-actions">
                   <q-btn type="button" flat color="primary" no-caps label="Restaurar padrão" :disable="brandingSaving" @click="restoreBrandingDraftDefaults" />
                   <q-btn color="primary" unelevated type="submit" no-caps label="Publicar identidade visual" :loading="brandingSaving" :disable="brandingSaving || brandingLoading" />
+                </div>
+              </q-form>
+            </template>
+          </section>
+          <section v-if="organizationPrivacyNotice?.canManagePrivacyNotice || (canManageDepartments && privacyNoticeLoadError)" class="organization-privacy-notice-section" aria-labelledby="organization-privacy-notice-title">
+            <div class="branding-section-heading">
+              <div>
+                <h2 id="organization-privacy-notice-title" class="section-heading">Aviso de privacidade</h2>
+                <p class="section-subheading">Informe o texto e o endereço público da política que o cidadão verá antes do formulário.</p>
+              </div>
+              <q-btn v-if="privacyNoticeLoadError" flat color="primary" no-caps label="Tentar carregar novamente" :loading="privacyNoticeLoading" @click="reloadPrivacyNotice" />
+            </div>
+            <p v-if="privacyNoticeLoading" class="member-loading" role="status">Carregando aviso de privacidade…</p>
+            <p v-if="privacyNoticeLoadError" class="member-feedback member-feedback-error" role="alert">{{ privacyNoticeLoadError }}</p>
+            <template v-if="!privacyNoticeLoading && !privacyNoticeLoadError">
+              <p v-if="privacyNoticeNotice" class="member-feedback member-feedback-success" role="status">{{ privacyNoticeNotice }}</p>
+              <p v-if="privacyNoticeError" class="member-feedback member-feedback-error" role="alert">{{ privacyNoticeError }}</p>
+              <q-form class="privacy-notice-editor" @submit.prevent="publishPrivacyNotice">
+                <q-input
+                  v-model="privacyNoticeDraftText"
+                  type="textarea" autogrow outlined maxlength="2000"
+                  label="Texto explicativo"
+                  hint="O cidadão verá este texto antes de informar os dados. Será exibido como texto simples."
+                  :disable="privacyNoticeSaving"
+                />
+                <q-input
+                  v-model="privacyNoticeDraftUrl"
+                  type="url" outlined maxlength="2048"
+                  label="Endereço da Política de Privacidade"
+                  hint="Use o endereço público HTTPS da política da Administração."
+                  :rules="[value => !value || /^https:\/\//i.test(String(value)) || 'Informe um endereço HTTPS público.']"
+                  :disable="privacyNoticeSaving"
+                />
+                <div v-if="privacyNoticeDraftText.trim() && privacyNoticeDraftUrl.trim()" class="privacy-notice-preview-wrap">
+                  <p class="privacy-notice-preview-label">Prévia local</p>
+                  <div class="privacy-notice-preview" aria-label="Prévia local do aviso público de privacidade">
+                    <p>{{ privacyNoticeDraftText.trim() }}</p>
+                    <span class="privacy-notice-preview-link">Política de Privacidade</span>
+                  </div>
+                </div>
+                <div class="privacy-notice-actions">
+                  <q-btn type="button" flat color="primary" no-caps label="Limpar campos" :disable="privacyNoticeSaving" @click="restorePrivacyNoticeDefaults" />
+                  <q-btn color="primary" unelevated type="submit" no-caps label="Publicar aviso" :loading="privacyNoticeSaving" :disable="privacyNoticeSaving || privacyNoticeLoading" />
                 </div>
               </q-form>
             </template>

@@ -10,9 +10,11 @@ if (( $# == 1 )); then
       cat <<'HELP'
 Uso: ./dev evidence
      ./dev evidence-layout
+     ./dev evidence-privacy-notice
 
 `evidence` executa todos os pares exatos spec/cenário revisados.
 `evidence-layout` executa somente a captura aprovada da caixa vazia do servidor.
+`evidence-privacy-notice` executa somente o cenário aprovado de aviso de privacidade por organização.
 Ambos usam ambiente Compose descartável e exportam PNG/manifesto privado em Documentos;
 vídeo está desligado. Nenhum dos comandos aceita filtros livres.
 Requer Docker e Chrome.
@@ -20,7 +22,8 @@ HELP
       exit 0
       ;;
     --layout-only) capture_scope="layout" ;;
-    *) echo "./dev evidence aceita somente --layout-only; filtros livres são recusados." >&2; exit 2 ;;
+    --privacy-notice-only) capture_scope="privacy-notice" ;;
+    *) echo "./dev evidence aceita somente --layout-only ou --privacy-notice-only; filtros livres são recusados." >&2; exit 2 ;;
   esac
 elif (( $# > 1 )); then
   echo "Uso: ./dev evidence [--layout-only]; filtros livres são recusados." >&2
@@ -84,6 +87,9 @@ set +e
 if [[ "$capture_scope" == "layout" ]]; then
   "$repo_root/scripts/run-e2e.sh" --config=playwright.evidence.config.ts \
     --grep 'caixa do servidor ocupa a largura disponível sem overflow após login'
+elif [[ "$capture_scope" == "privacy-notice" ]]; then
+  "$repo_root/scripts/run-e2e.sh" --config=playwright.evidence.config.ts \
+    --grep 'administrador configura aviso municipal e cidadão vê o texto e a política antes do formulário'
 else
   "$repo_root/scripts/run-e2e.sh" --config=playwright.evidence.config.ts
 fi
