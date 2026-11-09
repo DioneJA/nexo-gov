@@ -107,17 +107,20 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
         "protocol-flow.spec.ts",
         "cidadão abre protocolo, servidor tramita e cidadão acompanha até a conclusão",
     ): {
-        "labels": {"organograma-presenca"},
-        "ids": {"ED91-0103", "ED91-0107", "TR91-0111"},
+        "labels": {"organograma-presenca", "recibo-disponivel-apos-falha"},
+        "ids": {"ED91-0103", "ED91-0107", "ED91-0481", "TR91-0111"},
         "id_labels": {
             "ED91-0103": {"organograma-presenca"},
             "ED91-0107": {"organograma-presenca"},
+            "ED91-0481": {"recibo-disponivel-apos-falha"},
             "TR91-0111": {"organograma-presenca"},
         },
         "nota": (
-            "Subfluxo visual da árvore organizacional, perfil fictício e presença ONLINE após as verificações do teste. "
-            "A imagem não expõe nem comprova a chave do protocolo; isolamento, persistência, auditoria e transições "
-            "dependem também dos testes de backend referidos na matriz."
+            "As capturas mostram subfluxos distintos: árvore/perfil/presença no servidor e recibo ainda disponível após falha "
+            "transitória de acompanhamento no portal cidadão. Na imagem pública, a chave do requerente é convertida para password "
+            "e passada à máscara do screenshot; inspecione os pixels exportados antes de compartilhar. A captura do recibo não prova "
+            "isolamento, persistência, auditoria, autorização de backend, acesso setorial integral, resposta direta nem POC oficial; "
+            "consulte os testes de integração e os limites da linha de matriz."
         ),
     },
     (

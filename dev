@@ -36,6 +36,7 @@ case "$command" in
   protocol-read-status-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'caixa mostra leitura por setor, por outro servidor e pelo usuário atual' ;;
   protocol-routing-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=ProtocolVerticalIntegrationTest#configuredSubjectRoutesProtocolAndReceiptWithoutCrossTenantLeakOrCounterConsumption+receiptKeepsTheOpeningDepartmentAfterForwardingAndDispatch+forwardingRequiresBodyAndDestinationDepartment+otherTransitionBodiesAreOptionalAndDoNotRequireDestination+staffTransitionsRejectProtocolsFromOtherOrganizationsWithoutMutation+protocolSubjectCatalogIsTenantScopedOnlineOnlyAndKeepsSnapshots' test ;;
   protocol-deadline-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=ProtocolVerticalIntegrationTest#subjectDeadlineIsConfiguredSnapshottedAndPrintedOnReceipt' test ;;
+  protocol-receipt-recovery-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'cidadão abre protocolo, servidor tramita e cidadão acompanha até a conclusão' ;;
   openapi-check) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=OpenApiContractTest test ;;
   attachment-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=ProtocolVerticalIntegrationTest#protocolAttachmentsAreRequiredValidatedPrivateAndTenantScoped' test ;;
   interaction-test) exec "$repo_root/scripts/protocol-interaction-test.sh" ;;
@@ -94,6 +95,7 @@ Uso: ./dev <comando>
   protocol-read-status-e2e Demonstra os estados de leitura antes/depois de outro servidor e do usuário atual, com persistência após recarga (requer Docker e Chrome)
   protocol-routing-test Testa recibo estável, contratos das transições e isolamento cross-tenant (requer Docker)
   protocol-deadline-test Testa prazo por assunto, semântica de campo ausente/null no PUT, snapshot e comprovante PDF (requer Docker)
+  protocol-receipt-recovery-e2e Testa a recuperação do comprovante após falha transitória do primeiro carregamento do andamento (requer Docker e Chrome)
   process-decision-test Testa configuração por etapa, snapshot, membership atual, idempotência, revisão auditada e isolamento entre organizações (requer Docker)
   process-numbering-test Testa contadores por assunto/organização, padrão e ano configurável, herança de versões, replay idempotente, concorrência, overflow e imutabilidade (requer Docker)
   openapi-check  Valida sintaxe e semântica essencial do contrato OpenAPI versionado

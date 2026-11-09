@@ -18,6 +18,8 @@ const error = ref('')
 const token = ref('')
 const tracking = ref<PublicProtocolTracking | null>(null)
 const receiptPath = ref('')
+const receiptApplicantToken = ref('')
+const receiptProtocolId = ref('')
 const participantDrafts = ref<Array<{ name: string; identityValues: Record<string, string> }>>([])
 const participantInvitations = ref<PublicParticipantInvitation[]>([])
 const participantInvitationApplicantToken = ref('')
@@ -32,9 +34,8 @@ const visibleParticipantInvitations = computed(() => tracking.value?.applicantVi
   && tracking.value.id === participantInvitationProtocolId.value
   && token.value.trim() === participantInvitationApplicantToken.value
   ? participantInvitations.value : [])
-const canDownloadReceipt = computed(() => !!receiptPath.value && tracking.value?.applicantView === true
-  && tracking.value.id === participantInvitationProtocolId.value
-  && token.value.trim() === participantInvitationApplicantToken.value)
+const canDownloadReceipt = computed(() => !!receiptPath.value && !!receiptProtocolId.value
+  && token.value.trim() === receiptApplicantToken.value)
 const activeAttachmentRequirements = computed(() => selectedSubject.value?.attachmentRequirements?.filter(requirement => requirement.active) || [])
 const filesByRequirement = ref<Record<string, File | null>>({})
 const attachmentFieldErrors = ref<Record<string, string>>({})
@@ -143,11 +144,13 @@ watch(token, value => {
   error.value = ''
   citizenInteractionError.value = ''
   citizenInteractionNotice.value = ''
-  if (participantInvitationApplicantToken.value && value.trim() !== participantInvitationApplicantToken.value) {
+  if (value.trim() !== receiptApplicantToken.value) {
     participantInvitations.value = []
     participantInvitationApplicantToken.value = ''
     participantInvitationProtocolId.value = ''
     receiptPath.value = ''
+    receiptApplicantToken.value = ''
+    receiptProtocolId.value = ''
     invitationCopyNotice.value = ''
   }
 }, { flush: 'sync' })
@@ -261,6 +264,8 @@ async function createProtocol() {
   participantInvitationApplicantToken.value = ''
   participantInvitationProtocolId.value = ''
   receiptPath.value = ''
+  receiptApplicantToken.value = ''
+  receiptProtocolId.value = ''
   invitationCopyNotice.value = ''
   attachmentFieldErrors.value = {}
   const selectedFiles = (selectedSubject.value?.attachmentRequirements || [])
@@ -293,8 +298,12 @@ async function createProtocol() {
     token.value = response.data.trackingToken
     receiptPath.value = response.data.receiptPath
     participantInvitations.value = response.data.participantInvitations || []
-    participantInvitationApplicantToken.value = response.data.trackingToken
-    participantInvitationProtocolId.value = response.data.id
+    receiptApplicantToken.value = response.data.trackingToken
+    receiptProtocolId.value = response.data.id
+    if (participantInvitations.value.length) {
+      participantInvitationApplicantToken.value = response.data.trackingToken
+      participantInvitationProtocolId.value = response.data.id
+    }
     notice.value = `Protocolo ${response.data.protocolNumber} registrado. Guarde o comprovante para consultar o andamento.`
     tab.value = 'tracking'
     await lookup()
@@ -324,11 +333,13 @@ async function lookup() {
   if (!token.value.trim()) { error.value = 'Informe a chave que aparece no comprovante.'; return }
   const requestedToken = token.value.trim()
   const requestGeneration = ++trackingLookupGeneration
-  if (requestedToken !== participantInvitationApplicantToken.value) {
+  if (requestedToken !== receiptApplicantToken.value) {
     participantInvitations.value = []
     participantInvitationApplicantToken.value = ''
     participantInvitationProtocolId.value = ''
     receiptPath.value = ''
+    receiptApplicantToken.value = ''
+    receiptProtocolId.value = ''
     invitationCopyNotice.value = ''
   }
   trackingLookupLoading.value = true; error.value = ''
@@ -343,8 +354,11 @@ async function lookup() {
       tracking.value = response.data
   }
   catch {
-    if (requestGeneration === trackingLookupGeneration && requestedToken === token.value.trim())
-      error.value = 'Protocolo não localizado. Confira a chave do comprovante.'
+    if (requestGeneration === trackingLookupGeneration && requestedToken === token.value.trim()) {
+      error.value = requestedToken === receiptApplicantToken.value && !!receiptPath.value
+        ? 'O protocolo foi registrado, mas não foi possível carregar o andamento agora. Tente consultar novamente; o comprovante continua disponível.'
+        : 'Protocolo não localizado. Confira a chave do comprovante.'
+    }
   }
   finally {
     if (requestGeneration === trackingLookupGeneration) trackingLookupLoading.value = false

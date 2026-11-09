@@ -257,6 +257,19 @@ class ExportEvidencePolicyTests(unittest.TestCase):
         self.assertTrue(EXPORTER.capture_is_complete(policy, found))
         self.assertEqual({"TR91-0510", "TR91-0517"}, EXPORTER.supported_ids(policy, found))
 
+    def test_protocol_flow_maps_receipt_recovery_only_when_its_capture_exists(self):
+        policy = policy_for("protocol-flow.spec.ts")
+        self.assertEqual(
+            {"organograma-presenca", "recibo-disponivel-apos-falha"}, policy["labels"]
+        )
+        self.assertEqual({"recibo-disponivel-apos-falha"}, policy["id_labels"]["ED91-0481"])
+        self.assertEqual(set(), EXPORTER.supported_ids(policy, {"organograma-presenca"}) & {"ED91-0481"})
+        self.assertEqual(
+            {"ED91-0481"},
+            EXPORTER.supported_ids(policy, {"organograma-presenca", "recibo-disponivel-apos-falha"})
+            & {"ED91-0481"},
+        )
+
     def test_read_status_scenario_requires_all_three_states_before_mapping(self):
         policy = policy_for("protocol-read-status.spec.ts")
         partial = {"leitura-nao-iniciada", "leitura-por-colega"}

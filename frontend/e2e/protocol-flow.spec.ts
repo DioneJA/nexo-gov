@@ -3,6 +3,14 @@ import { attachEvidenceScreenshot } from './evidence-fixtures'
 
 test('cidadão abre protocolo, servidor tramita e cidadão acompanha até a conclusão', async ({ page }, testInfo) => {
   const subject = 'Solicitação geral'
+  let failedTrackingLookups = 0
+  await page.route('**/api/v1/public/protocols/tracking', async route => {
+    if (failedTrackingLookups++ === 0) {
+      await route.abort('failed')
+      return
+    }
+    await route.continue()
+  })
   await page.goto('/')
 
   await page.getByLabel('Nome completo *').fill('Pessoa de Teste E2E')
@@ -19,11 +27,18 @@ test('cidadão abre protocolo, servidor tramita e cidadão acompanha até a conc
   expect(protocolNumber).toBeTruthy()
   const token = await page.getByLabel('Chave do comprovante').inputValue()
   expect(token.length).toBeGreaterThan(40)
+  await expect(page.getByRole('button', { name: 'Baixar comprovante' })).toBeVisible()
+  await expect(page.getByText('O protocolo foi registrado, mas não foi possível carregar o andamento agora. Tente consultar novamente; o comprovante continua disponível.')).toBeVisible()
+  await attachEvidenceScreenshot(page, testInfo, 'recibo-disponivel-apos-falha', page.getByRole('button', { name: 'Baixar comprovante' }))
 
   const downloadReady = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Baixar comprovante' }).click()
   const receipt = await downloadReady
   expect(receipt.suggestedFilename()).toBe('comprovante-protocolo.pdf')
+
+  await page.getByRole('button', { name: 'Consultar' }).click()
+  await expect(page.getByText(subject, { exact: true })).toBeVisible()
+  await expect(page.getByText('O protocolo foi registrado, mas não foi possível carregar o andamento agora. Tente consultar novamente; o comprovante continua disponível.')).toHaveCount(0)
 
   const staffPage = await page.context().newPage()
   await staffPage.goto('/servidor/')
