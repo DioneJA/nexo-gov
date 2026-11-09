@@ -343,7 +343,19 @@ paths:
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: PDF receipt with QR code, opening department snapshot, and the configured subject deadline duration captured when the protocol was opened. The PDF shows the duration in days and does not calculate a due date; protocols predating V11/V15 have no reconstructed department/deadline snapshot., content: { application/pdf: { schema: { type: string, format: binary } } } }
+        '200':
+          description: >-
+            PDF receipt with a QR code that opens the public tracking route. The route removes the token from browser history
+            after reading it. The PDF contains a bearer tracking credential and therefore must not be stored by shared caches;
+            Cache-Control is private, no-store. The receipt also contains the opening department snapshot and configured subject
+            deadline duration captured when the protocol was opened. It shows the duration in days and does not calculate a due
+            date; protocols predating V11/V15 have no reconstructed department/deadline snapshot. This QR tracking coverage
+            applies to the protocol receipt and does not prove QR coverage for other document types or digital-signature validation.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'private, no-store' } }
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
         '404': { description: Invalid token or unavailable protocol. }
   /staff/departments:
     get:

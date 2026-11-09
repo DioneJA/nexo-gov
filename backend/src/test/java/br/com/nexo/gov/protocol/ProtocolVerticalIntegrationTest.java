@@ -1095,6 +1095,7 @@ class ProtocolVerticalIntegrationTest {
                 HttpMethod.GET, bearer(created.trackingToken()), byte[].class);
         assertThat(receipt.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(receipt.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
+        assertThat(receipt.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL)).isEqualTo("private, no-store");
         assertThat(new String(Objects.requireNonNull(receipt.getBody()), 0, 5)).isEqualTo("%PDF-");
         try (PDDocument pdf = Loader.loadPDF(receipt.getBody())) {
             assertThat(new PDFTextStripper().getText(pdf)).contains(created.protocolNumber());

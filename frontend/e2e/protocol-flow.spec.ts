@@ -40,6 +40,17 @@ test('cidadão abre protocolo, servidor tramita e cidadão acompanha até a conc
   await expect(page.getByText(subject, { exact: true })).toBeVisible()
   await expect(page.getByText('O protocolo foi registrado, mas não foi possível carregar o andamento agora. Tente consultar novamente; o comprovante continua disponível.')).toHaveCount(0)
 
+  // Testcontainers decodes the QR from the actual PDF; this real-browser step
+  // follows its hash route and verifies that the bearer is removed from history.
+  const qrTrackingPage = await page.context().newPage()
+  await qrTrackingPage.goto(`/#/acompanhar?token=${encodeURIComponent(token)}`)
+  await expect(qrTrackingPage.getByText(protocolNumber!, { exact: true })).toBeVisible()
+  await expect(qrTrackingPage.getByText(subject, { exact: true })).toBeVisible()
+  await expect.poll(() => new URL(qrTrackingPage.url()).hash).toBe('')
+  expect(qrTrackingPage.url()).not.toContain(token)
+  await attachEvidenceScreenshot(qrTrackingPage, testInfo, 'protocolo-acessado-por-qr', qrTrackingPage.getByText(subject, { exact: true }))
+  await qrTrackingPage.close()
+
   const staffPage = await page.context().newPage()
   await staffPage.goto('/servidor/')
   await staffPage.getByLabel('Usuário').fill('servidor')

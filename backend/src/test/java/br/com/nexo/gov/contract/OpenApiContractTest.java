@@ -148,6 +148,30 @@ class OpenApiContractTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void protocolReceiptContractDescribesBearerQrAndPrivateNoStoreCaching() throws Exception {
+        Path contractPath = repositoryRoot().resolve(CONTRACT);
+        Map<String, Object> document;
+        try (InputStream source = Files.newInputStream(contractPath)) {
+            document = new Yaml().load(source);
+        }
+
+        Map<String, Object> paths = (Map<String, Object>) document.get("paths");
+        Map<String, Object> receiptPath = (Map<String, Object>) paths.get("/public/protocols/{id}/receipt");
+        Map<String, Object> get = (Map<String, Object>) receiptPath.get("get");
+        assertThat(get.get("operationId")).isEqualTo("downloadProtocolReceipt");
+        Map<String, Object> responses = (Map<String, Object>) get.get("responses");
+        Map<String, Object> success = (Map<String, Object>) responses.get("200");
+        assertThat(success.get("description").toString())
+                .contains("QR code", "bearer tracking credential", "private, no-store")
+                .contains("does not prove QR coverage for other document types or digital-signature validation");
+        Map<String, Object> headers = (Map<String, Object>) success.get("headers");
+        Map<String, Object> cacheControl = (Map<String, Object>) headers.get("Cache-Control");
+        Map<String, Object> cacheSchema = (Map<String, Object>) cacheControl.get("schema");
+        assertThat(cacheSchema.get("example")).isEqualTo("private, no-store");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void administrativeProcessListContractDocumentsBoundsAndCompactProjection() throws Exception {
         Path contractPath = repositoryRoot().resolve(CONTRACT);
         Map<String, Object> document;

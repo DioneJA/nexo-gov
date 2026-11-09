@@ -265,7 +265,7 @@ class ExportEvidencePolicyTests(unittest.TestCase):
     def test_protocol_flow_maps_receipt_recovery_only_when_its_capture_exists(self):
         policy = policy_for("protocol-flow.spec.ts")
         self.assertEqual(
-            {"organograma-presenca", "recibo-disponivel-apos-falha"}, policy["labels"]
+            {"organograma-presenca", "recibo-disponivel-apos-falha", "protocolo-acessado-por-qr"}, policy["labels"]
         )
         self.assertEqual({"recibo-disponivel-apos-falha"}, policy["id_labels"]["ED91-0481"])
         self.assertEqual(set(), EXPORTER.supported_ids(policy, {"organograma-presenca"}) & {"ED91-0481"})
@@ -273,6 +273,12 @@ class ExportEvidencePolicyTests(unittest.TestCase):
             {"ED91-0481"},
             EXPORTER.supported_ids(policy, {"organograma-presenca", "recibo-disponivel-apos-falha"})
             & {"ED91-0481"},
+        )
+        self.assertEqual({"protocolo-acessado-por-qr"}, policy["id_labels"]["TR91-0149"])
+        self.assertEqual(set(), EXPORTER.supported_ids(policy, {"organograma-presenca"}) & {"TR91-0149"})
+        self.assertEqual(
+            {"TR91-0149"},
+            EXPORTER.supported_ids(policy, {"protocolo-acessado-por-qr"}) & {"TR91-0149"},
         )
 
     def test_read_status_scenario_requires_all_three_states_before_mapping(self):

@@ -1231,6 +1231,32 @@ partial_protocol_document_access_requirements = {
         "Parcial — servidor autorizado consulta quem leu protocolo/anexo/mensagem por papel e horário; cada anexo exibe o total de downloads concluídos. Cobertura restrita ao protocolo, leituras autorizadas e downloads; tentativas negadas/anônimas, demais módulos e POC oficial permanecem pendentes.",
     ),
 }
+partial_protocol_qr_requirements = {
+    "TR91-0149": (
+        'Termo de Referência, §15 “Status de Leitura e Rastreabilidade dos Documentos”, PDF p.14; '
+        'transcrição conferida visualmente no PDF oficial.',
+        "Parcial — o PDF do recibo de protocolo contém QR decodificável para o acompanhamento público do mesmo protocolo. "
+        "O portal consome a credencial do fragmento e remove-a da URL/histórico antes da consulta; a resposta do recibo usa "
+        "`Cache-Control: private, no-store`. A cobertura limita-se a esse recibo: QR de todos os demais documentos gerados, "
+        "verificação de autenticidade e assinatura digital permanecem pendentes.",
+        "ReceiptPdfService vincula o QR do recibo ao acompanhamento do protocolo com credencial bearer. "
+        "ProtocolController não permite cache compartilhado do PDF (`private, no-store`); a credencial não é persistida como texto no servidor.",
+        "App.vue lê a rota QR `#/acompanhar?token=...`, substitui a entrada atual do histórico para remover a credencial antes da consulta, "
+        "e apresenta o acompanhamento do protocolo. Não há prova de QR em outros documentos.",
+        "`./dev protocol-qr-test` (PostgreSQL Testcontainers) baixa o PDF real, decodifica o QR e verifica destino e cabeçalho `private, no-store`; "
+        "`./dev openapi-check` verifica o contrato. `./dev protocol-qr-e2e` usa `frontend/e2e/protocol-flow.spec.ts`, cenário `cidadão abre protocolo, "
+        "servidor tramita e cidadão acompanha até a conclusão`, com Playwright contra API/PostgreSQL descartáveis para abrir o destino "
+        "do QR no portal real, confirmar protocolo/assunto e remoção da credencial da URL antes da consulta. Não simula câmera/dispositivo nem cobre "
+        "outros documentos ou assinatura digital.",
+        "POC-TR91-0149 (parcial): gerar recibo de um protocolo fictício, ler o QR do PDF e conferir que o portal apresenta o mesmo protocolo; "
+        "verificar que a credencial deixa de aparecer na barra/histórico após a abertura. Tentar abrir outro documento gerado e validar assinatura "
+        "conforme o edital quando essas capacidades estiverem disponíveis. Esta fatia cobre apenas o recibo do protocolo e não é a POC oficial.",
+        "Evidência parcial em `docs/INCREMENTO_58.md`, `./dev protocol-qr-test`, `./dev openapi-check`, `./dev protocol-qr-e2e` e "
+        "`frontend/e2e/protocol-flow.spec.ts`, cenário `cidadão abre protocolo, servidor tramita e cidadão acompanha até a conclusão`; "
+        "captura `protocolo-acessado-por-qr` mostra o acompanhamento fictício depois da limpeza da URL. O PDF/QR e a credencial não são capturados. "
+        "Teste de integração decodifica o QR do PDF real. QR em outros documentos, verificação de autenticidade/assinatura e POC oficial continuam pendentes.",
+    ),
+}
 for index, candidate in enumerate(candidates, start=1):
     page_ref = (f"PDF p.{candidate['page_start']}" if candidate["page_start"] == candidate["page_end"]
                 else f"PDF pp.{candidate['page_start']}–{candidate['page_end']}")
@@ -1704,6 +1730,21 @@ for index, candidate in enumerate(candidates, start=1):
             "status": "EM_DESENVOLVIMENTO",
             "validacao_fonte": "CONFERIDA_VISUALMENTE",
         })
+    qr_details = partial_protocol_qr_requirements.get(requirement_id)
+    if qr_details:
+        (source, criterion, backend, frontend, test, route, evidence) = qr_details
+        row.update({
+            "origem_documento_pagina_secao_item": source,
+            "modulo": "GESTAO_DOCUMENTAL",
+            "criterio_de_aceite": criterion,
+            "backend_envolvido": backend,
+            "frontend_envolvido": frontend,
+            "teste_automatizado": test,
+            "roteiro_poc": route,
+            "evidencia": evidence,
+            "status": "EM_DESENVOLVIMENTO",
+            "validacao_fonte": "CONFERIDA_VISUALMENTE",
+        })
     rows.append(row)
 
 for requirement_id, previous in previous_tr_rows.items():
@@ -1775,6 +1816,14 @@ for row in rows:
         row["teste_automatizado"] = document_access_test
         row["roteiro_poc"] = document_access_poc
         row["evidencia"] = document_access_evidence
+        row["status"] = "EM_DESENVOLVIMENTO"
+        row["validacao_fonte"] = "CONFERIDA_VISUALMENTE"
+    qr_details = partial_protocol_qr_requirements.get(row["id"])
+    if qr_details:
+        (row["origem_documento_pagina_secao_item"], row["criterio_de_aceite"],
+         row["backend_envolvido"], row["frontend_envolvido"], row["teste_automatizado"],
+         row["roteiro_poc"], row["evidencia"]) = qr_details
+        row["modulo"] = "GESTAO_DOCUMENTAL"
         row["status"] = "EM_DESENVOLVIMENTO"
         row["validacao_fonte"] = "CONFERIDA_VISUALMENTE"
 

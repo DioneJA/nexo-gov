@@ -107,20 +107,22 @@ SAFE_SCENARIOS: dict[tuple[str, str], dict] = {
         "protocol-flow.spec.ts",
         "cidadão abre protocolo, servidor tramita e cidadão acompanha até a conclusão",
     ): {
-        "labels": {"organograma-presenca", "recibo-disponivel-apos-falha"},
-        "ids": {"ED91-0103", "ED91-0107", "ED91-0481", "TR91-0111"},
+        "labels": {"organograma-presenca", "recibo-disponivel-apos-falha", "protocolo-acessado-por-qr"},
+        "ids": {"ED91-0103", "ED91-0107", "ED91-0481", "TR91-0111", "TR91-0149"},
         "id_labels": {
             "ED91-0103": {"organograma-presenca"},
             "ED91-0107": {"organograma-presenca"},
             "ED91-0481": {"recibo-disponivel-apos-falha"},
             "TR91-0111": {"organograma-presenca"},
+            "TR91-0149": {"protocolo-acessado-por-qr"},
         },
         "nota": (
             "As capturas mostram subfluxos distintos: árvore/perfil/presença no servidor e recibo ainda disponível após falha "
-            "transitória de acompanhamento no portal cidadão. Na imagem pública, a chave do requerente é convertida para password "
-            "e passada à máscara do screenshot; inspecione os pixels exportados antes de compartilhar. A captura do recibo não prova "
-            "isolamento, persistência, auditoria, autorização de backend, acesso setorial integral, resposta direta nem POC oficial; "
-            "consulte os testes de integração e os limites da linha de matriz."
+            "transitória de acompanhamento no portal cidadão. A captura QR mostra somente o acompanhamento depois que a rota remove "
+            "a credencial da URL; o PDF e o código QR nunca são capturados. Na captura do recibo, a chave do requerente é convertida "
+            "para password e passada à máscara do screenshot; inspecione os pixels exportados antes de compartilhar. Essas imagens não provam "
+            "isolamento, persistência, auditoria, autorização de backend, acesso setorial integral, resposta direta, QR em outros documentos, "
+            "assinatura digital nem POC oficial; consulte os testes de integração e os limites da linha de matriz."
         ),
     },
     (

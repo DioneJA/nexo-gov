@@ -37,6 +37,8 @@ case "$command" in
   protocol-routing-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=ProtocolVerticalIntegrationTest#configuredSubjectRoutesProtocolAndReceiptWithoutCrossTenantLeakOrCounterConsumption+receiptKeepsTheOpeningDepartmentAfterForwardingAndDispatch+forwardingRequiresBodyAndDestinationDepartment+otherTransitionBodiesAreOptionalAndDoNotRequireDestination+staffTransitionsRejectProtocolsFromOtherOrganizationsWithoutMutation+protocolSubjectCatalogIsTenantScopedOnlineOnlyAndKeepsSnapshots' test ;;
   protocol-deadline-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=ProtocolVerticalIntegrationTest#subjectDeadlineIsConfiguredSnapshottedAndPrintedOnReceipt' test ;;
   protocol-receipt-recovery-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'cidadão abre protocolo, servidor tramita e cidadão acompanha até a conclusão' ;;
+  protocol-qr-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=ProtocolVerticalIntegrationTest#opensRoutesTracksAndClosesProtocolWithinItsOrganization' test ;;
+  protocol-qr-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'cidadão abre protocolo, servidor tramita e cidadão acompanha até a conclusão' ;;
   document-access-test) exec mvn -B -f "$repo_root/backend/pom.xml" '-Dtest=ProtocolVerticalIntegrationTest#protocolDocumentAccessHistoryIsTenantScopedCredentialFreeAndAppendOnly' test ;;
   document-access-e2e) exec "$repo_root/scripts/run-e2e.sh" --grep 'assunto exige documento, cidadão envia e servidor consulta e baixa o anexo' ;;
   openapi-check) exec mvn -B -f "$repo_root/backend/pom.xml" -Dtest=OpenApiContractTest test ;;
@@ -98,6 +100,8 @@ Uso: ./dev <comando>
   protocol-routing-test Testa recibo estável, contratos das transições e isolamento cross-tenant (requer Docker)
   protocol-deadline-test Testa prazo por assunto, semântica de campo ausente/null no PUT, snapshot e comprovante PDF (requer Docker)
   protocol-receipt-recovery-e2e Testa a recuperação do comprovante após falha transitória do primeiro carregamento do andamento (requer Docker e Chrome)
+  protocol-qr-test Testa recibo PDF real, QR decodificável, URL de acompanhamento e cache privado sem armazenamento (requer Docker)
+  protocol-qr-e2e Testa abertura do destino do QR no portal, persistência do protocolo e remoção da credencial da URL (requer Docker e Chrome)
   document-access-test Testa cronologia de leituras, separação de atores, isolamento tenant, ausência de bearer e imutabilidade da trilha (requer Docker)
   document-access-e2e Demonstra leituras e downloads de requerente/servidor, total por anexo e histórico cronológico (requer Docker e Chrome)
   process-decision-test Testa configuração por etapa, snapshot, membership atual, idempotência, revisão auditada e isolamento entre organizações (requer Docker)

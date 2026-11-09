@@ -37,7 +37,7 @@ O banco de demonstração usa volume e porta próprios (`127.0.0.1:55433`, volum
 - `frontend/`: duas entradas Vue 3/Quasar independentes no mesmo pacote — portal público em `/` e área autenticada em `/servidor/`. Elas compartilham contratos, cliente da API, tokens e estilos neutros, e geram páginas e bundles separados; o bundle público não importa a interface administrativa. A autorização continua sendo validada pela API.
 - `contracts/`: contratos OpenAPI versionados.
 - `docs/`: análise de origem, decisão de extração, edital, rastreabilidade, riscos e plano de implantação.
-- `docs/INCREMENTO_01.md` a `docs/INCREMENTO_52.md`: histórico dos incrementos verificáveis.
+- `docs/INCREMENTO_01.md` a `docs/INCREMENTO_58.md`: histórico dos incrementos verificáveis.
 - `../nexo-core/`: repositório Maven independente do NEXO Core; a versão `0.2.0` é instalada localmente antes do build do Gov.
 
 ## Padrão visual
@@ -53,6 +53,8 @@ A matriz oficial é a fonte de status requisito por requisito. Ela contém 1.388
 Identidade municipal: `./dev organization-branding-test` prova autorização ADMIN, escopo do tenant, lista de tokens, auditoria, projeção pública, no-store e contrato; `./dev organization-branding-e2e` percorre prévia, publicação, recarga, exibição nos portais, troca de organização, consulta de protocolo de outro tenant sem atribuir-lhe a marca selecionada e nomes longos em mobile contra API real. Em acompanhamento, o cabeçalho fica neutro porque a resposta da consulta não identifica publicamente a organização. A cor municipal permanece limitada à marca/indicador visual e à prévia; ações e links mantêm o token de ação. Essa fatia cobre somente nome público e cores semânticas na web; símbolo oficial, fundo de tela, app nativo e PDF/documentos permanecem pendentes. Não há status de aderência integral.
 
 Recibo do protocolo: `./dev protocol-receipt-recovery-e2e` mantém o recibo baixável com a chave do requerente quando o primeiro GET de acompanhamento falha após a abertura confirmada; o cidadão baixa o PDF pela API real e consulta novamente para recuperar o andamento. O cenário nunca repete o POST nem usa chave de participante para autorizar o recibo. O requisito `ED91-0481` permanece parcial porque acesso setorial integral e resposta direta ao requerente ainda não estão demonstrados.
+
+QR do recibo: `./dev protocol-qr-test` baixa o PDF real, decodifica o QR e verifica `Cache-Control: private, no-store`; `./dev protocol-qr-e2e` abre seu destino no portal, confirma protocolo/assunto e verifica que a credencial sai da URL/histórico antes da consulta. `TR91-0149` permanece `EM_DESENVOLVIMENTO`: esta prova cobre apenas o recibo de protocolo, sem QR para os demais tipos documentais, verificação de autenticidade, assinatura digital ou POC oficial. O PDF e o QR não são capturados como evidência; a imagem mostra apenas o acompanhamento depois da limpeza da URL.
 
 Histórico de acesso documental: `./dev document-access-test` verifica a trilha imutável e tenant-scoped de leituras de protocolo, e `./dev document-access-e2e` mostra leituras de requerente/servidor, downloads e total por anexo. A tela do servidor registra leituras autorizadas e downloads concluídos nos protocolos; tentativas negadas/anônimas, login do sistema, identidade externa verificada e documentos dos demais módulos permanecem pendentes. Os requisitos `TR91-0143`, `TR91-0144`, `TR91-0146`, `TR91-0147` e `TR91-0148` continuam `EM_DESENVOLVIMENTO`.
 

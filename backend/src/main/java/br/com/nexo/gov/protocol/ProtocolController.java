@@ -62,6 +62,7 @@ public class ProtocolController {
     public ResponseEntity<byte[]> receipt(@PathVariable UUID id, @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
         byte[] pdf = service.receipt(id, bearer(authorization));
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename("comprovante-protocolo.pdf", StandardCharsets.UTF_8).build().toString())
                 .body(pdf);
     }
